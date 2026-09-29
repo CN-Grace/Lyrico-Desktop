@@ -1175,7 +1175,7 @@ class EditMetadataViewModel(
         if (_uiState.value.isReplayGainCalculating) return
 
         scanJob = viewModelScope.launch {
-            val targetLoudness = settingsRepository.replayGainTargetLoudness.first()
+            val replayGainSettings = settingsRepository.getReplayGainSettings()
             _uiState.update {
                 it.copy(
                     isReplayGainCalculating = true,
@@ -1185,7 +1185,7 @@ class EditMetadataViewModel(
             }
 
             try {
-                replayGainScanner.analyze(uriString)
+                replayGainScanner.analyze(uriString, replayGainSettings.peakMode)
                     .flowOn(Dispatchers.IO) // 将解码和 DSP 计算放入 IO 线程池，不卡顿 UI
                     .collect { state ->     // 持续监听发射出来的状态
                         when (state) {
@@ -1202,9 +1202,14 @@ class EditMetadataViewModel(
                                     val current = ui.editingTagData ?: AudioTagData(fileName = ui.fileName.orEmpty())
                                     ui.copy(
                                         editingTagData = current.copy(
-                                            replayGainTrackGain = replayGainScanner.formatGain(state.analysis, targetLoudness),
+                                            replayGainTrackGain = replayGainScanner.formatGain(
+                                                state.analysis,
+                                                replayGainSettings.targetLoudness
+                                            ),
                                             replayGainTrackPeak = replayGainScanner.formatPeak(state.analysis.peak),
-                                            replayGainReferenceLoudness = replayGainScanner.formatReferenceLoudness(targetLoudness)
+                                            replayGainReferenceLoudness = replayGainScanner.formatReferenceLoudness(
+                                                replayGainSettings.targetLoudness
+                                            )
                                         ),
                                         isEditing = true,
                                         isReplayGainCalculating = false,

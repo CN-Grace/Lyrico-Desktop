@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.lonx.lyrico.data.model.BatchTaskStatus
 import com.lonx.lyrico.data.model.BatchTaskType
 import com.lonx.lyrico.data.repository.BatchTaskRepository
+import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.song.library.SongLibraryRepository
 import com.lonx.lyrico.utils.UiMessage
 import com.lonx.lyrico.worker.BatchTaskScheduler
+import com.lonx.lyrico.worker.processor.ReplayGainTaskConfig
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +17,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 data class BatchReplayGainUiState(
@@ -38,7 +39,8 @@ data class BatchReplayGainUiState(
 class BatchReplayGainViewModel(
     private val songLibraryRepository: SongLibraryRepository,
     private val batchTaskRepository: BatchTaskRepository,
-    private val batchTaskScheduler: BatchTaskScheduler
+    private val batchTaskScheduler: BatchTaskScheduler,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BatchReplayGainUiState())
@@ -149,9 +151,14 @@ class BatchReplayGainViewModel(
                 return@launch
             }
 
+            val replayGainSettings = settingsRepository.getReplayGainSettings()
             val configJson = Json.encodeToString(
-                ReplayGainConfig.serializer(),
-                ReplayGainConfig(concurrency = concurrency)
+                ReplayGainTaskConfig.serializer(),
+                ReplayGainTaskConfig(
+                    concurrency = concurrency,
+                    targetLoudness = replayGainSettings.targetLoudness,
+                    peakMode = replayGainSettings.peakMode
+                )
             )
             val taskId = batchTaskRepository.createTask(
                 type = BatchTaskType.SCAN_REPLAY_GAIN,
@@ -183,8 +190,3 @@ class BatchReplayGainViewModel(
         }
     }
 }
-
-@Serializable
-data class ReplayGainConfig(
-    val concurrency: Int
-)

@@ -3,6 +3,8 @@ package com.lonx.lyrico.worker.processor
 import com.lonx.audiotag.model.AudioTagData
 import com.lonx.lyrico.data.model.entity.BatchTaskEntity
 import com.lonx.lyrico.data.model.entity.BatchTaskItemEntity
+import com.lonx.lyrico.data.model.ReplayGainPeakMode
+import com.lonx.lyrico.data.model.ReplayGainSettings
 import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.song.library.SongLibraryRepository
 import com.lonx.lyrico.data.song.tag.AudioTagReadOptions
@@ -11,7 +13,15 @@ import com.lonx.lyrico.domain.song.usecase.PatchSongTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsResult
 import com.lonx.lyrico.utils.ReplayGainCalculateState
 import com.lonx.lyrico.utils.ReplayGainScanner
-import kotlinx.coroutines.flow.first
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+@Serializable
+data class ReplayGainTaskConfig(
+    val concurrency: Int,
+    val targetLoudness: Double? = null,
+    val peakMode: ReplayGainPeakMode? = null
+)
 
 class ReplayGainProcessor(
     private val songLibraryRepository: SongLibraryRepository,
@@ -33,10 +43,16 @@ class ReplayGainProcessor(
         // Only the tags currently in the audio file should prevent calculation.
         checkReplayGainTags(audioTagRepository, song.uri)
 
+        val config = task.configJson?.let {
+            Json.decodeFromString<ReplayGainTaskConfig>(it)
+        } ?: throw BatchTaskSkippedException("No config")
+        val replayGainSettings = config.toReplayGainSettingsOrNull()
+            ?: settingsRepository.getReplayGainSettings()
+
         var analysisSuccess = false
         var analysisResult: com.lonx.lyrico.utils.ReplayGainAnalysis? = null
 
-        replayGainScanner.analyze(item.songUri).collect { state ->
+        replayGainScanner.analyze(item.songUri, replayGainSettings.peakMode).collect { state ->
             when (state) {
                 is ReplayGainCalculateState.Success -> {
                     analysisResult = state.analysis
@@ -56,11 +72,15 @@ class ReplayGainProcessor(
             throw Exception("ReplayGain analysis failed")
         }
 
-        val targetLoudness = settingsRepository.replayGainTargetLoudness.first()
         val tagData = AudioTagData(
-            replayGainTrackGain = replayGainScanner.formatGain(analysisResult, targetLoudness),
+            replayGainTrackGain = replayGainScanner.formatGain(
+                analysisResult,
+                replayGainSettings.targetLoudness
+            ),
             replayGainTrackPeak = replayGainScanner.formatPeak(analysisResult.peak),
-            replayGainReferenceLoudness = replayGainScanner.formatReferenceLoudness(targetLoudness)
+            replayGainReferenceLoudness = replayGainScanner.formatReferenceLoudness(
+                replayGainSettings.targetLoudness
+            )
         )
 
         val result = patchSongTagsUseCase(item.songUri, tagData)
@@ -70,6 +90,12 @@ class ReplayGainProcessor(
 
         return BatchTaskProcessResult()
     }
+}
+
+internal fun ReplayGainTaskConfig.toReplayGainSettingsOrNull(): ReplayGainSettings? {
+    val targetLoudness = targetLoudness ?: return null
+    val peakMode = peakMode ?: return null
+    return ReplayGainSettings(targetLoudness, peakMode)
 }
 
 internal suspend fun checkReplayGainTags(repository: AudioTagRepository, uri: String) {

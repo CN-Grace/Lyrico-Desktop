@@ -4,6 +4,8 @@ import com.lonx.lyrico.data.model.BatchMatchConfig
 import com.lonx.lyrico.data.model.CharacterMappingConfig
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.FloatingBarEffect
+import com.lonx.lyrico.data.model.ReplayGainPeakMode
+import com.lonx.lyrico.data.model.ReplayGainSettings
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
 import com.lonx.lyrico.data.model.lyrics.LyricLineTrack
 import com.lonx.lyrico.data.model.lyrics.LyricRenderConfig
@@ -50,7 +52,7 @@ interface SettingsRepository {
     val checkUpdateEnabled: Flow<Boolean>
     val lyricIndexEnabled: Flow<Boolean>
     val ignoreShortAudio: Flow<Boolean>
-    val replayGainTargetLoudness: Flow<Double>
+    val replayGainSettings: Flow<ReplayGainSettings>
     val searchSourceOrder: Flow<List<String>>
     val enabledSearchSources: Flow<Set<String>>
     val searchPageSize: Flow<Int>
@@ -92,6 +94,8 @@ interface SettingsRepository {
     suspend fun saveLyricIndexEnabled(enabled: Boolean)
     suspend fun saveIgnoreShortAudio(enabled: Boolean)
     suspend fun saveReplayGainTargetLoudness(loudness: Double)
+    suspend fun saveReplayGainPeakMode(mode: ReplayGainPeakMode)
+    suspend fun getReplayGainSettings(): ReplayGainSettings
     suspend fun saveLastScanTime(time: Long)
     suspend fun saveSearchSourceOrder(sources: List<String>)
     suspend fun saveEnabledSearchSources(sources: Set<String>)

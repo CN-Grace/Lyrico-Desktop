@@ -118,6 +118,9 @@
     <string name="album_replay_gain_write_failed">写入专辑回放增益失败：%1$s</string>
     <string name="settings_replay_gain_target_loudness">回放增益参考响度</string>
     <string name="settings_replay_gain_target_loudness_summary">计算回放增益时使用的目标响度</string>
+    <string name="settings_replay_gain_peak_mode">回放增益峰值类型</string>
+    <string name="replay_gain_peak_mode_sample">采样峰值</string>
+    <string name="replay_gain_peak_mode_true">真实峰值</string>
     <string name="replay_gain_target_preset_ebu">-23 LUFS（EBU R128）</string>
     <string name="replay_gain_target_preset_default">-18 LUFS（默认）</string>
     <string name="replay_gain_target_preset_streaming">-14 LUFS（流媒体常用）</string>

@@ -19,6 +19,8 @@ import com.lonx.lyrico.data.model.CharacterMappingConfig
 import com.lonx.lyrico.data.model.CharacterMappingDefaults
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.FloatingBarEffect
+import com.lonx.lyrico.data.model.ReplayGainPeakMode
+import com.lonx.lyrico.data.model.ReplayGainSettings
 import com.lonx.lyrico.data.model.lyrics.DefaultLyricLineOrder
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
 import com.lonx.lyrico.data.model.lyrics.LyricLineTrack
@@ -98,6 +100,7 @@ object SettingsDefaults {
     const val LIMIT_LYRICS_INPUT_LINES = false
     val LOG_RETENTION_OPTION = LogRetentionOption.THIRTY_DAYS
     const val REPLAY_GAIN_TARGET_LOUDNESS = -18.0
+    val REPLAY_GAIN_PEAK_MODE = ReplayGainPeakMode.SAMPLE_PEAK
 
     val SEARCH_SOURCE_ORDER = emptyList<String>()
     val DEFAULT_ENABLED_SEARCH_SOURCES = emptySet<String>()
@@ -188,6 +191,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         val ARTIST_SPLIT_CONFIG = stringPreferencesKey("artist_split_config")
         val LIBRARY_INDEX_VERSION = intPreferencesKey("library_index_version")
         val REPLAY_GAIN_TARGET_LOUDNESS = doublePreferencesKey("replay_gain_target_loudness")
+        val REPLAY_GAIN_PEAK_MODE = stringPreferencesKey("replay_gain_peak_mode")
     }
 
     override val lyricFormat: Flow<LyricFormat>
@@ -303,10 +307,18 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
             preferences[PreferencesKeys.IGNORE_SHORT_AUDIO] ?: SettingsDefaults.IGNORE_SHORT_AUDIO
         }
 
-    override val replayGainTargetLoudness: Flow<Double>
+    override val replayGainSettings: Flow<ReplayGainSettings>
         get() = context.settingsDataStore.data.map { preferences ->
-            preferences[PreferencesKeys.REPLAY_GAIN_TARGET_LOUDNESS]
-                ?: SettingsDefaults.REPLAY_GAIN_TARGET_LOUDNESS
+            ReplayGainSettings(
+                targetLoudness = preferences[PreferencesKeys.REPLAY_GAIN_TARGET_LOUDNESS]
+                    ?: SettingsDefaults.REPLAY_GAIN_TARGET_LOUDNESS,
+                peakMode = runCatching {
+                    ReplayGainPeakMode.valueOf(
+                        preferences[PreferencesKeys.REPLAY_GAIN_PEAK_MODE]
+                            ?: SettingsDefaults.REPLAY_GAIN_PEAK_MODE.name
+                    )
+                }.getOrDefault(SettingsDefaults.REPLAY_GAIN_PEAK_MODE)
+            )
         }
 
     override val searchSourceOrder: Flow<List<String>>
@@ -615,6 +627,15 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
     }
 
+    override suspend fun saveReplayGainPeakMode(mode: ReplayGainPeakMode) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[PreferencesKeys.REPLAY_GAIN_PEAK_MODE] = mode.name
+        }
+    }
+
+    override suspend fun getReplayGainSettings(): ReplayGainSettings =
+        replayGainSettings.first()
+
     override suspend fun saveLastScanTime(time: Long) {
         context.settingsDataStore.edit { preferences ->
             preferences[PreferencesKeys.LAST_SCAN_TIME] = time
@@ -811,6 +832,8 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
 
             replayGainTargetLoudness = prefs[PreferencesKeys.REPLAY_GAIN_TARGET_LOUDNESS]
                 ?: SettingsDefaults.REPLAY_GAIN_TARGET_LOUDNESS,
+            replayGainPeakMode = prefs[PreferencesKeys.REPLAY_GAIN_PEAK_MODE]
+                ?: SettingsDefaults.REPLAY_GAIN_PEAK_MODE.name,
 
             searchSourceOrder = (prefs[PreferencesKeys.SEARCH_SOURCE_ORDER] ?: SettingsDefaults.SEARCH_SOURCE_ORDER.idsToCsv()).csvToIds(),
 
@@ -891,6 +914,11 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
                 backup.ignoreShortAudio?.let { prefs[PreferencesKeys.IGNORE_SHORT_AUDIO] = it }
                 backup.replayGainTargetLoudness?.let {
                     prefs[PreferencesKeys.REPLAY_GAIN_TARGET_LOUDNESS] = it
+                }
+                backup.replayGainPeakMode?.let { modeName ->
+                    runCatching { ReplayGainPeakMode.valueOf(modeName) }
+                        .getOrNull()
+                        ?.let { prefs[PreferencesKeys.REPLAY_GAIN_PEAK_MODE] = it.name }
                 }
                 backup.searchSourceOrder?.let { list ->
                     prefs[PreferencesKeys.SEARCH_SOURCE_ORDER] = list.idsToCsv()

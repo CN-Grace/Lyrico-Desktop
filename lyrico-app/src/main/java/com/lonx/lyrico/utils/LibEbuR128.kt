@@ -1,8 +1,13 @@
 package com.lonx.lyrico.utils
 
+import com.lonx.lyrico.data.model.ReplayGainPeakMode
 import java.nio.ByteBuffer
 
-class LibEbuR128(val channels: Int, sampleRate: Int) : AutoCloseable {
+class LibEbuR128(
+    val channels: Int,
+    sampleRate: Int,
+    private val peakMode: ReplayGainPeakMode
+) : AutoCloseable {
 
     companion object {
         init {
@@ -22,7 +27,7 @@ class LibEbuR128(val channels: Int, sampleRate: Int) : AutoCloseable {
         private set
 
     init {
-        nativePtr = initNative(channels, sampleRate)
+        nativePtr = initNative(channels, sampleRate, peakMode == ReplayGainPeakMode.TRUE_PEAK)
         if (nativePtr == 0L) {
             throw IllegalStateException("Failed to initialize libebur128")
         }
@@ -38,8 +43,12 @@ class LibEbuR128(val channels: Int, sampleRate: Int) : AutoCloseable {
     val loudness: Double
         get() = if (nativePtr == 0L) -70.0 else getLoudnessNative(nativePtr)
 
-    val truePeak: Double
-        get() = if (nativePtr == 0L) 0.0 else getTruePeakNative(nativePtr, channels)
+    val peak: Double
+        get() = if (nativePtr == 0L) {
+            0.0
+        } else {
+            getPeakNative(nativePtr, channels, peakMode == ReplayGainPeakMode.TRUE_PEAK)
+        }
 
     override fun close() {
         if (nativePtr != 0L) {
@@ -48,10 +57,10 @@ class LibEbuR128(val channels: Int, sampleRate: Int) : AutoCloseable {
         }
     }
 
-    private external fun initNative(channels: Int, sampleRate: Int): Long
+    private external fun initNative(channels: Int, sampleRate: Int, useTruePeak: Boolean): Long
     private external fun destroyNative(statePtr: Long)
     private external fun processDirectNative(statePtr: Long, buffer: ByteBuffer, format: Int, frames: Int)
     private external fun getLoudnessNative(statePtr: Long): Double
-    private external fun getTruePeakNative(statePtr: Long, channels: Int): Double
+    private external fun getPeakNative(statePtr: Long, channels: Int, useTruePeak: Boolean): Double
     private external fun getMultipleLoudnessNative(statePtrs: LongArray): Double
 }

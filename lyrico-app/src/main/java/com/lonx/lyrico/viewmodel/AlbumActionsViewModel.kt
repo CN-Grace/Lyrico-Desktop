@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -130,7 +129,11 @@ class AlbumActionsViewModel(
             }
 
             try {
-                replayGainScanner.analyzeAlbum(songs.map { it.uri }).collect { state ->
+                val replayGainSettings = settingsRepository.getReplayGainSettings()
+                replayGainScanner.analyzeAlbum(
+                    songs.map { it.uri },
+                    replayGainSettings.peakMode
+                ).collect { state ->
                     when (state) {
                         is AlbumReplayGainCalculateState.Progress -> {
                             _uiState.update {
@@ -144,7 +147,7 @@ class AlbumActionsViewModel(
                             _events.emit(mapErrorToUiMessage(state.mimeType, state.error))
                         }
                         is AlbumReplayGainCalculateState.Success -> {
-                            writeAlbumReplayGain(songs, state)
+                            writeAlbumReplayGain(songs, state, replayGainSettings.targetLoudness)
                         }
                     }
                 }
@@ -197,9 +200,9 @@ class AlbumActionsViewModel(
 
     private suspend fun writeAlbumReplayGain(
         songs: List<SongEntity>,
-        state: AlbumReplayGainCalculateState.Success
+        state: AlbumReplayGainCalculateState.Success,
+        targetLoudness: Double
     ) {
-        val targetLoudness = settingsRepository.replayGainTargetLoudness.first()
         val tagData = AudioTagData(
             replayGainAlbumGain = replayGainScanner.formatGain(state.analysis.loudnessLufs, targetLoudness),
             replayGainAlbumPeak = replayGainScanner.formatPeak(state.analysis.peak),

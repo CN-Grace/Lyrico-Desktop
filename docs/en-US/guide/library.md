@@ -71,6 +71,7 @@ JPG, JPEG, PNG, WebP, and MP4 (first video frame) are supported. Only files dire
 - **Skip audio under 60 seconds**: When enabled, Lyrico skips audio files ≤ 60 seconds long.
 - **Lyric Index**: When enabled, a lyric index is built during scanning and used for local lyric search. Enabling it makes scanning slower, and after changing the switch existing songs must be rescanned for it to take effect.
 - **ReplayGain reference loudness**: The target loudness used when calculating ReplayGain, **-18 LUFS** by default. Choose from three presets — **-23 LUFS (EBU R128)**, **-18 LUFS (Default)**, **-14 LUFS (Streaming)** — or enter a custom value between **-60 and 0 LUFS**. This setting affects single-song, album, and batch ReplayGain calculations. See [Single Song Editing ReplayGain](./single-song.md#replaygain).
+- **ReplayGain peak type**: Selects the peak measurement written to ReplayGain peak tags. The default **sample peak** matches traditional ReplayGain peak semantics. **True peak** estimates the reconstructed signal through oversampling. Both use 1.0 for digital full scale, but decoded compressed audio can produce a sample peak above 1.0. This setting applies to single-song, album, and batch calculations.
 
 ## Folder Permission Issues
 

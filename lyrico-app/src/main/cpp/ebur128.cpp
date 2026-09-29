@@ -8,10 +8,13 @@ extern "C" {
 
 // 初始化状态
 JNIEXPORT jlong JNICALL
-Java_com_lonx_lyrico_utils_LibEbuR128_initNative(JNIEnv *env, jobject thiz, jint channels, jint sampleRate) {
-    // 开启 响度计算(MODE_I) 和 真实峰值计算(MODE_TRUE_PEAK)
+Java_com_lonx_lyrico_utils_LibEbuR128_initNative(JNIEnv *env, jobject thiz, jint channels,
+                                                 jint sampleRate, jboolean useTruePeak) {
+    const int peakMode = useTruePeak == JNI_TRUE
+        ? EBUR128_MODE_TRUE_PEAK
+        : EBUR128_MODE_SAMPLE_PEAK;
     ebur128_state* state = ebur128_init((size_t)channels, (size_t)sampleRate,
-                                        EBUR128_MODE_I | EBUR128_MODE_TRUE_PEAK);
+                                        EBUR128_MODE_I | peakMode);
     return reinterpret_cast<jlong>(state);
 }
 
@@ -55,16 +58,19 @@ Java_com_lonx_lyrico_utils_LibEbuR128_getLoudnessNative(JNIEnv *env, jobject thi
     return loudness;
 }
 
-// 获取 True Peak (真实峰值)
+// 获取选定类型的峰值
 JNIEXPORT jdouble JNICALL
-Java_com_lonx_lyrico_utils_LibEbuR128_getTruePeakNative(JNIEnv *env, jobject thiz, jlong statePtr, jint channels) {
+Java_com_lonx_lyrico_utils_LibEbuR128_getPeakNative(JNIEnv *env, jobject thiz, jlong statePtr,
+                                                    jint channels, jboolean useTruePeak) {
     auto* state = reinterpret_cast<ebur128_state*>(statePtr);
     if (!state || channels <= 0) return 0.0;
     double maxPeak = 0.0;
     for (int c = 0; c < channels; ++c) {
         double channelPeak = 0.0;
-        // 增加错误码校验，防止读取未计算完成的脏数据
-        if (ebur128_true_peak(state, (unsigned int)c, &channelPeak) == EBUR128_SUCCESS) {
+        const int result = useTruePeak == JNI_TRUE
+            ? ebur128_true_peak(state, (unsigned int)c, &channelPeak)
+            : ebur128_sample_peak(state, (unsigned int)c, &channelPeak);
+        if (result == EBUR128_SUCCESS) {
             maxPeak = std::max(maxPeak, channelPeak);
         }
     }

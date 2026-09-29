@@ -7,6 +7,7 @@ import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import androidx.core.net.toUri
+import com.lonx.lyrico.data.model.ReplayGainPeakMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -70,11 +71,14 @@ class ReplayGainScanner(private val context: Context) {
         private const val PROGRESS_UPDATE_THRESHOLD = 0.01
     }
 
-    fun analyze(uriString: String): Flow<ReplayGainCalculateState> = flow {
+    fun analyze(
+        uriString: String,
+        peakMode: ReplayGainPeakMode = ReplayGainPeakMode.SAMPLE_PEAK
+    ): Flow<ReplayGainCalculateState> = flow {
         var decoded: ReplayGainDecodeResult? = null
         try {
             emit(ReplayGainCalculateState.Progress(0f))
-            decoded = decodeToState(uriString) { progress ->
+            decoded = decodeToState(uriString, peakMode) { progress ->
                 emit(ReplayGainCalculateState.Progress(progress))
             }
             emit(ReplayGainCalculateState.Progress(1.0f))
@@ -94,7 +98,10 @@ class ReplayGainScanner(private val context: Context) {
         }
     }.flowOn(Dispatchers.IO)
 
-    fun analyzeAlbum(uriStrings: List<String>): Flow<AlbumReplayGainCalculateState> = flow {
+    fun analyzeAlbum(
+        uriStrings: List<String>,
+        peakMode: ReplayGainPeakMode = ReplayGainPeakMode.SAMPLE_PEAK
+    ): Flow<AlbumReplayGainCalculateState> = flow {
         if (uriStrings.isEmpty()) {
             emit(AlbumReplayGainCalculateState.Failed(null, null, ReplayGainError.ZeroSampleCount))
             return@flow
@@ -104,7 +111,7 @@ class ReplayGainScanner(private val context: Context) {
         try {
             emit(AlbumReplayGainCalculateState.Progress(0f))
             uriStrings.forEachIndexed { index, uriString ->
-                val decoded = decodeToState(uriString) { trackProgress ->
+                val decoded = decodeToState(uriString, peakMode) { trackProgress ->
                     val albumProgress = (index + trackProgress) / uriStrings.size.toFloat()
                     emit(AlbumReplayGainCalculateState.Progress(albumProgress.coerceIn(0f, 1f)))
                 }
@@ -141,6 +148,7 @@ class ReplayGainScanner(private val context: Context) {
 
     private suspend fun decodeToState(
         uriString: String,
+        peakMode: ReplayGainPeakMode,
         onProgress: suspend (Float) -> Unit
     ): ReplayGainDecodeResult {
         val extractor = MediaExtractor()
@@ -216,13 +224,17 @@ class ReplayGainScanner(private val context: Context) {
                         val sr = outFmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                         val ch = outFmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
                         ebuR128?.close()
-                        ebuR128 = LibEbuR128(ch, sr)
+                        ebuR128 = LibEbuR128(ch, sr, peakMode)
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
                     else -> if (outputIndex >= 0) {
                         if (ebuR128 == null) {
                             val outFmt = codec.outputFormat
-                            ebuR128 = LibEbuR128(outFmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT), outFmt.getInteger(MediaFormat.KEY_SAMPLE_RATE))
+                            ebuR128 = LibEbuR128(
+                                outFmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT),
+                                outFmt.getInteger(MediaFormat.KEY_SAMPLE_RATE),
+                                peakMode
+                            )
                         }
 
                         codec.getOutputBuffer(outputIndex)?.let { outputBuffer ->
@@ -259,7 +271,7 @@ class ReplayGainScanner(private val context: Context) {
                 analysis = ReplayGainAnalysis(
                     loudnessLufs = ebuR128.loudness,
                     sampleCount = ebuR128.sampleCount,
-                    peak = ebuR128.truePeak
+                    peak = ebuR128.peak
                 ),
                 mimeType = mimeType,
                 state = ebuR128
@@ -347,11 +359,9 @@ class ReplayGainScanner(private val context: Context) {
         return "$value LUFS"
     }
 
-    /**
-     * 格式化 True Peak (真实峰值)
-     */
+    /** 格式化归一化峰值。 */
     fun formatPeak(peak: Double): String {
-        // True Peak 可能会因为插值超过 1.0 (0 dBFS 以上)，所以不需要上限截断
+        // 真实峰值可能超过 1.0，因此这里不做上限截断。
         return "%.6f".format(java.util.Locale.US, peak.coerceAtLeast(0.0))
     }
 

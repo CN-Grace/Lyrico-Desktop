@@ -49,6 +49,7 @@ import com.lonx.lyrico.data.model.AppLanguage
 import com.lonx.lyrico.data.model.ArtistSeparator
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.FloatingBarEffect
+import com.lonx.lyrico.data.model.ReplayGainPeakMode
 import com.lonx.lyrico.data.model.SearchSourceTabStyle
 import com.lonx.lyrico.data.model.ThemeMode
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
@@ -178,6 +179,13 @@ fun SettingsScreen(
     val selectedConversionModeIndex =
         ConversionMode.entries.indexOf(conversionMode).coerceAtLeast(0)
     val searchSourceTabStyleItems = SearchSourceTabStyle.entries.map { stringResource(it.labelRes) }
+    val replayGainPeakModeItems = listOf(
+        stringResource(R.string.replay_gain_peak_mode_sample),
+        stringResource(R.string.replay_gain_peak_mode_true)
+    )
+    val selectedReplayGainPeakModeIndex = ReplayGainPeakMode.entries
+        .indexOf(settingsUiState.replayGainPeakMode)
+        .coerceAtLeast(0)
     val selectedSearchSourceTabStyleIndex =
         SearchSourceTabStyle.entries.indexOf(searchSourceTabStyle).coerceAtLeast(0)
 
@@ -523,6 +531,16 @@ fun SettingsScreen(
                         },
                         onClick = { showRgTargetDialog.value = true },
                         holdDownState = showRgTargetDialog.value
+                    )
+                    WindowDropdownPreference(
+                        title = stringResource(R.string.settings_replay_gain_peak_mode),
+                        items = replayGainPeakModeItems,
+                        selectedIndex = selectedReplayGainPeakModeIndex,
+                        onSelectedIndexChange = { index ->
+                            settingsViewModel.setReplayGainPeakMode(
+                                ReplayGainPeakMode.entries[index]
+                            )
+                        }
                     )
                 }
             }

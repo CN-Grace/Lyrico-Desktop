@@ -324,7 +324,7 @@ val appModule = module {
     viewModel { CharacterMappingViewModel(get()) }
     viewModel { BatchExportViewModel(get(), get(), get()) }
     viewModel { BatchEditViewModel(get(), get(), get(), get(), get(), get(), get()) }
-    viewModel { BatchReplayGainViewModel(get(), get(), get()) }
+    viewModel { BatchReplayGainViewModel(get(), get(), get(), get()) }
     viewModel { BatchLyricsFormatViewModel(get(), get(), get(), get()) }
     viewModel { (taskId: String) -> BatchTaskDetailViewModel(taskId, get(), get()) }
     viewModel { BatchTaskListViewModel(get(), get()) }

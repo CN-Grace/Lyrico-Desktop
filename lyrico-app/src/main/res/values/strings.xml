@@ -122,6 +122,9 @@
     <string name="album_replay_gain_write_failed">Failed to write album ReplayGain: %1$s</string>
     <string name="settings_replay_gain_target_loudness">ReplayGain reference loudness</string>
     <string name="settings_replay_gain_target_loudness_summary">Target loudness used for ReplayGain calculation</string>
+    <string name="settings_replay_gain_peak_mode">ReplayGain peak type</string>
+    <string name="replay_gain_peak_mode_sample">Sample peak</string>
+    <string name="replay_gain_peak_mode_true">True peak</string>
     <string name="replay_gain_target_preset_ebu">-23 LUFS (EBU R128)</string>
     <string name="replay_gain_target_preset_default">-18 LUFS (Default)</string>
     <string name="replay_gain_target_preset_streaming">-14 LUFS (Streaming)</string>

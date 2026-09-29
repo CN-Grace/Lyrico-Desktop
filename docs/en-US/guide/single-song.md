@@ -135,7 +135,7 @@ ReplayGain normalizes playback volume across different tracks.
 
 You can cancel the calculation at any time. Existing ReplayGain values can be recalculated to override.
 
-The target loudness used for the calculation comes from `Settings` → `Scan Settings` → `ReplayGain reference loudness` (default -18 LUFS). After changing this setting, the gain value and reference loudness fields are updated accordingly when you recalculate.
+The target loudness and peak measurement come from `Settings` → `Scan Settings`. Reference loudness defaults to -18 LUFS. Peak measurement defaults to sample peak and can be changed to true peak. Recalculate the track after changing either setting to update the tag values.
 
 ## More Menu
 

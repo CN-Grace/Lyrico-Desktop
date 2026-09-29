@@ -27,6 +27,7 @@ data class SettingsBackup(
     @SerialName("lyric_index_enabled") val lyricIndexEnabled: Boolean? = null,
     @SerialName("ignore_short_audio") val ignoreShortAudio: Boolean? = null,
     @SerialName("replay_gain_target_loudness") val replayGainTargetLoudness: Double? = null,
+    @SerialName("replay_gain_peak_mode") val replayGainPeakMode: String? = null,
     @SerialName("search_source_order") val searchSourceOrder: List<String>? = null,
     @SerialName("enabled_search_sources") val enabledSearchSources: List<String>? = null,
     @SerialName("search_page_size") val searchPageSize: Int? = null,

@@ -22,7 +22,7 @@ import com.lonx.lyrico.worker.processor.EditTagsTaskConfig
 import com.lonx.lyrico.worker.processor.MatchMetadataTaskConfig
 import com.lonx.lyrico.worker.processor.RenameFilesTaskConfig
 import com.lonx.lyrico.viewmodel.LyricsFormatConfig
-import com.lonx.lyrico.viewmodel.ReplayGainConfig
+import com.lonx.lyrico.worker.processor.ReplayGainTaskConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -476,8 +476,12 @@ class BatchTaskWorker(
     }
 
     private fun summarizeReplayGainConfig(configJson: String): String {
-        val config = Json.decodeFromString<ReplayGainConfig>(configJson)
-        return "concurrency=${config.concurrency}"
+        val config = Json.decodeFromString<ReplayGainTaskConfig>(configJson)
+        return buildString {
+            appendLine("concurrency=${config.concurrency}")
+            config.targetLoudness?.let { appendLine("targetLoudness=$it") }
+            config.peakMode?.let { appendLine("peakMode=${it.name}") }
+        }.trimEnd()
     }
 
     private fun summarizeExportConfig(configJson: String): String {
