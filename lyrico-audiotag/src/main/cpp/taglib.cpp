@@ -7,6 +7,7 @@
 #include <opusfile.h>
 #include <mp4file.h>
 #include <wavfile.h>
+#include <apefile.h>
 
 #include <memory>
 #include <stdexcept>
@@ -28,8 +29,14 @@ TagLib::File* createFileFromContent(TagLib::IOStream *stream,
                                     TagLib::AudioProperties::ReadStyle audioPropertiesStyle) {
     TagLib::File *file = nullptr;
 
-    file = createSupportedFile<TagLib::MPEG::File>(
+    // APE has a distinctive signature. Check it before MPEG's frame scan,
+    // which can mistake compressed lossless data for an MPEG frame header.
+    file = createSupportedFile<TagLib::APE::File>(
             stream, readAudioProperties, audioPropertiesStyle);
+    if (!file) {
+        file = createSupportedFile<TagLib::MPEG::File>(
+                stream, readAudioProperties, audioPropertiesStyle);
+    }
     if (!file) {
         file = createSupportedFile<TagLib::Ogg::Vorbis::File>(
                 stream, readAudioProperties, audioPropertiesStyle);
