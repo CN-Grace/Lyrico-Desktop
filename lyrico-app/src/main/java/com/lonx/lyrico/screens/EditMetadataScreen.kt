@@ -89,6 +89,9 @@ import com.lonx.audiotag.model.AudioTagData
 import com.lonx.audiotag.model.CustomTagField
 import com.lonx.audiotag.model.artistPictureTypes
 import com.lonx.audiotag.model.type
+import com.lonx.lyrico.data.model.lyrics.LyricsOperation
+import com.lonx.lyrico.ui.components.lyrics.LyricsProcessingSheet
+import com.lonx.lyrico.ui.components.lyrics.LyricsOrganizationMenu
 import com.lonx.lyrico.R
 import com.lonx.lyrico.data.editfield.EditFieldDefinition
 import com.lonx.lyrico.data.editfield.EditFieldKind
@@ -276,7 +279,8 @@ fun EditMetadataScreen(
     var showPlainLyricsSheet by remember { mutableStateOf(false) }
     var showCropSheet by remember { mutableStateOf(false) }
     var showAddCustomTagDialog by remember { mutableStateOf(false) }
-    var showLyricsFormatBottomSheet by remember { mutableStateOf(false) }
+    var lyricsOperation by remember { mutableStateOf(LyricsOperation.CONVERT) }
+    var showLyricsProcessingSheet by remember { mutableStateOf(false) }
     var showPlayerPicker by remember { mutableStateOf(false) }
     var bitmapToCrop by remember { mutableStateOf<Bitmap?>(null) }
     var cropRequest by remember { mutableStateOf<CropRequest>(CropRequest.Cover) }
@@ -1325,12 +1329,20 @@ fun EditMetadataScreen(
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.action_format_lyrics),
+                        title = stringResource(R.string.lyrics_convert),
                         onClick = {
                             showLyricsActionBottomSheet = false
-                            showLyricsFormatBottomSheet = true
+                            lyricsOperation = LyricsOperation.CONVERT
+                            showLyricsProcessingSheet = true
                         }
                     )
+                    LyricsOrganizationMenu(onSelect = { operation ->
+                        showLyricsActionBottomSheet = false
+                        lyricsOperation = operation
+                        showLyricsProcessingSheet = true
+                    }) { open ->
+                        ArrowPreference(title = stringResource(R.string.lyrics_organize), onClick = open)
+                    }
                     ArrowPreference(
                         title = stringResource(R.string.action_view_plain_lyrics),
                         onClick = {
@@ -1775,109 +1787,17 @@ fun EditMetadataScreen(
             }
         }
     }
-    val currentLyrics = editingTagData?.lyrics ?: ""
-    val detectedFormat = LyricDecoder.detectFormat(currentLyrics)
-    var targetFormat by remember(currentLyrics) { mutableStateOf<LyricFormat?>(null) }
-    var formatLineOrder by remember(currentLyrics) { mutableStateOf(true) }
-    var removeTagLines by remember(currentLyrics) { mutableStateOf(true) }
-    var removeEmptyLines by remember(currentLyrics) { mutableStateOf(true) }
-    // 歌词格式转换
-    WindowBottomSheet(
-        show = showLyricsFormatBottomSheet,
-        endAction = {
-            TextButton(
-                colors = ButtonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = MiuixTheme.colorScheme.primary,
-                    disabledContainerColor = Color.Transparent,
-                    disabledContentColor = MiuixTheme.colorScheme.disabledPrimary
-                ),
-                onClick = {
-                    showLyricsFormatBottomSheet = false
-                    viewModel.processLyrics(
-                        LyricsProcessingOptions(
-                            targetFormat = targetFormat,
-                            formatLineOrder = formatLineOrder,
-                            removeTagLines = removeTagLines,
-                            removeEmptyLines = removeEmptyLines
-                        )
-                    )
-                }
-            ) {
-                Text(
-                    text = stringResource(R.string.confirm),
-                    color = MiuixTheme.colorScheme.primary
-                )
-            }
-        },
-        title = stringResource(R.string.action_format_lyrics_title),
-        onDismissRequest = { showLyricsFormatBottomSheet = false }
-    ) {
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            // 显示当前检测到的格式
-            Text(
-                text = stringResource(
-                    R.string.current_detected_format,
-                    when (detectedFormat) {
-                        LyricFormat.PLAIN_LRC -> stringResource(R.string.lyric_format_plain)
-                        LyricFormat.VERBATIM_LRC -> stringResource(R.string.lyric_format_verbatim)
-                        LyricFormat.ENHANCED_LRC -> stringResource(R.string.lyric_format_enhanced)
-                        LyricFormat.TTML -> stringResource(R.string.lyric_format_ttml)
-                        null -> stringResource(R.string.unknown_format)
-                    }
-                ),
-                style = MiuixTheme.textStyles.footnote1,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                modifier = Modifier.padding(12.dp)
-            )
-            Card(
-                colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.secondaryContainer)
-            ) {
-                RadioButtonPreference(
-                    title = stringResource(R.string.lyrics_format_keep_current),
-                    selected = targetFormat == null,
-                    onClick = { targetFormat = null }
-                )
-                LyricFormat.entries.forEach { format ->
-                    RadioButtonPreference(
-                        title = stringResource(format.labelRes),
-                        selected = targetFormat == format,
-                        onClick = { targetFormat = format }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Card(
-                colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.secondaryContainer)
-            ) {
-                CheckboxPreference(
-                    title = stringResource(R.string.lyrics_format_line_order),
-                    summary = stringResource(R.string.lyrics_format_line_order_hint),
-                    checked = formatLineOrder,
-                    onCheckedChange = { formatLineOrder = it }
-                )
-                CheckboxPreference(
-                    title = stringResource(R.string.lyrics_remove_tag_lines),
-                    summary = stringResource(R.string.lyrics_remove_tag_lines_settings_hint),
-                    checked = removeTagLines,
-                    onCheckedChange = { removeTagLines = it }
-                )
-                CheckboxPreference(
-                    title = stringResource(R.string.remove_empty_lines),
-                    summary = stringResource(R.string.lyrics_remove_empty_lines_manual_hint),
-                    checked = removeEmptyLines,
-                    onCheckedChange = { removeEmptyLines = it }
-                )
-            }
+    LyricsProcessingSheet(
+        show = showLyricsProcessingSheet,
+        raw = editingTagData?.lyrics.orEmpty(),
+        operation = lyricsOperation,
+        onDismiss = { showLyricsProcessingSheet = false },
+        onConfirm = { options ->
+            viewModel.processLyrics(options)
+            showLyricsProcessingSheet = false
         }
-    }
+    )
+
 }
 
 @Composable

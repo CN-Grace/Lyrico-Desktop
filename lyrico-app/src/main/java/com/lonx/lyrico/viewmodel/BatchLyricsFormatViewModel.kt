@@ -1,11 +1,14 @@
 package com.lonx.lyrico.viewmodel
 
+import com.lonx.lyrico.data.model.lyrics.LyricsOperation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lonx.lyrico.data.model.BatchTaskStatus
 import com.lonx.lyrico.data.model.BatchTaskType
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
 import com.lonx.lyrico.data.model.lyrics.LyricsProcessingOptions
+import com.lonx.lyrico.data.model.lyrics.LyricsColumnEdit
+import com.lonx.lyrico.data.model.lyrics.LyricsColumnMapping
 import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.song.library.SongLibraryRepository
@@ -18,14 +21,22 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
+data class LyricsSongDraft(
+    val uri: String,
+    val title: String,
+)
+
 data class BatchLyricsFormatUiState(
+    val operation: LyricsOperation = LyricsOperation.CONVERT,
     val isRunning: Boolean = false,
     val concurrency: Int = 3,
     val targetFormat: LyricFormat? = null,
-    val formatLineOrder: Boolean = true,
+    val formatLineOrder: Boolean = false,
     val removeTagLines: Boolean = false,
     val tagLineKeywords: List<String> = LyricsProcessingOptions.DefaultTagLineKeywords,
     val removeEmptyLines: Boolean = false,
+    val twoColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(2),
+    val threeColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(3),
     val progress: Pair<Int, Int>? = null,
     val successCount: Int = 0,
     val failureCount: Int = 0,
@@ -78,8 +89,13 @@ class BatchLyricsFormatViewModel(
         observeJob = viewModelScope.launch {
             batchTaskRepository.observeTask(taskId).collect { task ->
                 if (task == null) return@collect
+                val config = task.configJson?.let { raw -> runCatching { Json.decodeFromString<LyricsFormatConfig>(raw) }.getOrNull() }
                 _uiState.update {
                     it.copy(
+                        operation = config?.operation ?: it.operation,
+                        targetFormat = config?.targetFormat ?: it.targetFormat,
+                        twoColumnMapping = config?.twoColumnMapping ?: it.twoColumnMapping,
+                        threeColumnMapping = config?.threeColumnMapping ?: it.threeColumnMapping,
                         progress = task.current to task.total,
                         successCount = task.successCount,
                         failureCount = task.failureCount,
@@ -107,12 +123,15 @@ class BatchLyricsFormatViewModel(
         selectedUris = uris
     }
 
-    fun openConfig(initialConcurrency: Int) {
+    fun openConfig(initialConcurrency: Int, operation: LyricsOperation = LyricsOperation.CONVERT) {
         _uiState.update {
-            it.copy(
-                concurrency = initialConcurrency.coerceIn(1, 5),
-                showConfigDialog = true
-            )
+            it.copy(concurrency = initialConcurrency.coerceIn(1, 5), operation = operation,
+                targetFormat = LyricFormat.PLAIN_LRC, formatLineOrder = false,
+                removeEmptyLines = operation == LyricsOperation.REMOVE_EMPTY,
+                removeTagLines = operation == LyricsOperation.REMOVE_TAGS,
+                twoColumnMapping = LyricsColumnMapping.identity(2),
+                threeColumnMapping = LyricsColumnMapping.identity(3),
+                showConfigDialog = true)
         }
     }
 
@@ -128,29 +147,23 @@ class BatchLyricsFormatViewModel(
         _uiState.update { it.copy(targetFormat = targetFormat) }
     }
 
-    fun setFormatLineOrder(enabled: Boolean) {
-        _uiState.update { it.copy(formatLineOrder = enabled) }
-    }
-
-    fun setRemoveTagLines(enabled: Boolean) {
-        _uiState.update { it.copy(removeTagLines = enabled) }
-    }
-
-    fun setRemoveEmptyLines(enabled: Boolean) {
-        _uiState.update { it.copy(removeEmptyLines = enabled) }
-    }
+    fun setTwoColumnMapping(mapping: LyricsColumnMapping) { _uiState.update { it.copy(twoColumnMapping = mapping) } }
+    fun setThreeColumnMapping(mapping: LyricsColumnMapping) { _uiState.update { it.copy(threeColumnMapping = mapping) } }
 
     fun startBatchConvert() {
+        val state = _uiState.value
         val uris = selectedUris.toList()
         if (uris.isEmpty()) return
 
-        val concurrency = _uiState.value.concurrency
+        val concurrency = state.concurrency
         val options = LyricsProcessingOptions(
-            targetFormat = _uiState.value.targetFormat,
-            formatLineOrder = _uiState.value.formatLineOrder,
+            targetFormat = if (state.operation == LyricsOperation.CONVERT) state.targetFormat else null,
+            formatLineOrder = state.operation == LyricsOperation.SORT || state.formatLineOrder,
             removeTagLines = _uiState.value.removeTagLines,
             tagLineKeywords = _uiState.value.tagLineKeywords,
-            removeEmptyLines = _uiState.value.removeEmptyLines
+            removeEmptyLines = _uiState.value.removeEmptyLines,
+            twoColumnMapping = state.twoColumnMapping,
+            threeColumnMapping = state.threeColumnMapping
         )
         if (options.targetFormat == null && !options.hasTextOperations()) return
 
@@ -185,7 +198,10 @@ class BatchLyricsFormatViewModel(
                     formatLineOrder = options.formatLineOrder,
                     removeTagLines = options.removeTagLines,
                     tagLineKeywords = options.tagLineKeywords,
-                    removeEmptyLines = options.removeEmptyLines
+                    removeEmptyLines = options.removeEmptyLines,
+                    twoColumnMapping = options.twoColumnMapping,
+                    threeColumnMapping = options.threeColumnMapping,
+                    operation = state.operation
                 )
             )
             val taskId = batchTaskRepository.createTask(
@@ -232,5 +248,10 @@ data class LyricsFormatConfig(
     val formatLineOrder: Boolean = true,
     val removeTagLines: Boolean = false,
     val tagLineKeywords: List<String> = LyricsProcessingOptions.DefaultTagLineKeywords,
-    val removeEmptyLines: Boolean = false
+    val removeEmptyLines: Boolean = false,
+    val twoColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(2),
+    val threeColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(3),
+    @kotlinx.serialization.SerialName("columnEdits")
+    val legacyColumnEdits: Map<String, LyricsColumnEdit> = emptyMap(),
+    val operation: LyricsOperation = LyricsOperation.CONVERT
 )

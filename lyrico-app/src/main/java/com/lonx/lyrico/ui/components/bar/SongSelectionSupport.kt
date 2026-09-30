@@ -18,6 +18,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lonx.lyrico.ui.components.lyrics.LyricsOrganizationMenu
+import com.lonx.lyrico.data.model.lyrics.LyricsOperation
 import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.ExportDestination
 import com.lonx.lyrico.data.model.BatchTaskType
@@ -266,28 +268,13 @@ fun BoxScope.SongBatchSelectionActions(
     )
 
     BatchLyricsFormatConfigBottomSheet(
-        show = batchLyricsFormatUiState.showConfigDialog,
-        initialConcurrency = batchLyricsFormatUiState.concurrency,
-        initialTargetFormat = batchLyricsFormatUiState.targetFormat,
-        initialFormatLineOrder = batchLyricsFormatUiState.formatLineOrder,
-        initialRemoveTagLines = batchLyricsFormatUiState.removeTagLines,
-        initialRemoveEmptyLines = batchLyricsFormatUiState.removeEmptyLines,
-        onDismissRequest = { concurrency, targetFormat, formatLineOrder, removeTagLines, removeEmptyLines ->
-            batchLyricsFormatViewModel.setConcurrency(concurrency)
-            batchLyricsFormatViewModel.setTargetFormat(targetFormat)
-            batchLyricsFormatViewModel.setFormatLineOrder(formatLineOrder)
-            batchLyricsFormatViewModel.setRemoveTagLines(removeTagLines)
-            batchLyricsFormatViewModel.setRemoveEmptyLines(removeEmptyLines)
-            batchLyricsFormatViewModel.closeConfig()
-        },
-        onConfirm = { concurrency, targetFormat, formatLineOrder, removeTagLines, removeEmptyLines ->
-            batchLyricsFormatViewModel.setConcurrency(concurrency)
-            batchLyricsFormatViewModel.setTargetFormat(targetFormat)
-            batchLyricsFormatViewModel.setFormatLineOrder(formatLineOrder)
-            batchLyricsFormatViewModel.setRemoveTagLines(removeTagLines)
-            batchLyricsFormatViewModel.setRemoveEmptyLines(removeEmptyLines)
-            batchLyricsFormatViewModel.startBatchConvert()
-        }
+        state = batchLyricsFormatUiState,
+        onDismiss = batchLyricsFormatViewModel::closeConfig,
+        onFormat = batchLyricsFormatViewModel::setTargetFormat,
+        onConcurrency = batchLyricsFormatViewModel::setConcurrency,
+        onTwoColumnMapping = batchLyricsFormatViewModel::setTwoColumnMapping,
+        onThreeColumnMapping = batchLyricsFormatViewModel::setThreeColumnMapping,
+        onConfirm = batchLyricsFormatViewModel::startBatchConvert
     )
 
     BatchLyricsFormatBottomSheet(
@@ -328,7 +315,7 @@ fun BoxScope.SongBatchSelectionActions(
         style = ExpandableFabMenuStyle.default().copy(
             mainIcon = MiuixIcons.Add
         ),
-        itemCount = 9,
+        itemCount = 12,
         onExpandedChange = onExpandedChange
     ) {
         FabMenuItem(
@@ -342,7 +329,7 @@ fun BoxScope.SongBatchSelectionActions(
         )
 
         FabMenuItem(
-            label = stringResource(R.string.action_batch_convert_lyrics_format),
+            label = stringResource(R.string.lyrics_convert),
             icon = MiuixIcons.Edit,
             onClick = {
                 onExpandedChange(false)
@@ -350,6 +337,14 @@ fun BoxScope.SongBatchSelectionActions(
                 batchLyricsFormatViewModel.openConfig(batchReplayGainUiState.concurrency)
             }
         )
+
+        LyricsOrganizationMenu(onSelect = { operation ->
+            onExpandedChange(false)
+            batchLyricsFormatViewModel.setSelectionUris(selectedSongUris.toList())
+            batchLyricsFormatViewModel.openConfig(batchReplayGainUiState.concurrency, operation)
+        }) { open ->
+            FabMenuItem(label = stringResource(R.string.lyrics_organize), icon = MiuixIcons.Edit, onClick = open)
+        }
 
         FabMenuItem(
             label = stringResource(R.string.action_batch_export_lyrics),

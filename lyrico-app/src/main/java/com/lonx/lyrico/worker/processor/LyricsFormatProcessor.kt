@@ -15,6 +15,7 @@ import com.lonx.lyrico.domain.song.usecase.PatchSongTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsResult
 import com.lonx.lyrico.utils.LyricDecoder
 import com.lonx.lyrico.utils.LyricEncoder
+import com.lonx.lyrico.utils.lyrics.LyricsColumnSorter
 import com.lonx.lyrico.utils.lyrics.LyricsTextCleanup
 import com.lonx.lyrico.viewmodel.LyricsFormatConfig
 import kotlinx.serialization.json.Json
@@ -42,17 +43,28 @@ class LyricsFormatProcessor(
             throw BatchTaskSkippedException("No lyrics")
         }
 
-        val currentFormat = LyricDecoder.detectFormat(lyrics)
-            ?: throw BatchTaskSkippedException("Unknown lyrics format")
-        val targetFormat = config.targetFormat ?: currentFormat
-        val hasTextOperations = config.formatLineOrder ||
-                config.removeEmptyLines ||
-                config.removeTagLines && config.tagLineKeywords.any { it.isNotBlank() }
-        if (currentFormat == targetFormat && !hasTextOperations) {
-            throw BatchTaskSkippedException("Already target format")
+        val convertedLyrics = if (config.legacyColumnEdits.isNotEmpty()) {
+            val edit = config.legacyColumnEdits[item.songUri]
+                ?: throw BatchTaskSkippedException("No column mapping for this song")
+            if (LyricsColumnSorter.fingerprint(lyrics) != edit.sourceHash) {
+                throw BatchTaskSkippedException("Lyrics changed since the task was created")
+            }
+            LyricsColumnSorter.apply(lyrics, edit.mapping)
+        } else if (config.formatLineOrder) {
+            LyricsColumnSorter.apply(lyrics, config.twoColumnMapping, config.threeColumnMapping)
+        } else {
+            val currentFormat = LyricDecoder.detectFormat(lyrics)
+            if (config.targetFormat == null && !config.formatLineOrder && currentFormat != LyricFormat.TTML) {
+                LyricsTextCleanup.process(lyrics, config.removeEmptyLines,
+                    if (config.removeTagLines) config.tagLineKeywords else emptyList())
+            } else {
+                val format = currentFormat ?: throw BatchTaskSkippedException("Unknown lyrics format")
+                val targetFormat = config.targetFormat ?: format
+                val hasTextOperations = config.formatLineOrder || config.removeEmptyLines || config.removeTagLines
+                if (format == targetFormat && !hasTextOperations) throw BatchTaskSkippedException("Already target format")
+                convertLyricsFormat(lyrics, format, targetFormat, config)
+            }
         }
-
-        val convertedLyrics = convertLyricsFormat(lyrics, currentFormat, targetFormat, config)
         if (convertedLyrics == lyrics) {
             throw BatchTaskSkippedException("Converted lyrics are unchanged")
         }
@@ -76,7 +88,7 @@ class LyricsFormatProcessor(
         config: LyricsFormatConfig
     ): String {
         val tagLineKeywords = if (config.removeTagLines) config.tagLineKeywords else emptyList()
-        if (config.targetFormat == null && !config.formatLineOrder) {
+        if (config.targetFormat == null && !config.formatLineOrder && currentFormat != LyricFormat.TTML) {
             return LyricsTextCleanup.process(
                 raw = lyrics,
                 removeEmptyLines = config.removeEmptyLines,

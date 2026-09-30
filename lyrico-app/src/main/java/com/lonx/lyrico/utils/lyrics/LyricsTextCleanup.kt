@@ -9,8 +9,10 @@ object LyricsTextCleanup {
         tagLineKeywords: List<String>
     ): String {
         val keywords = tagLineKeywords.map { it.trim() }.filter { it.isNotEmpty() }
-        return raw.lines()
-            .filterNot { line ->
+        return Regex("""([^\r\n]*)(\r\n|\n|\r|$)""").findAll(raw)
+            .filter { it.value.isNotEmpty() }
+            .filterNot { match ->
+                val line = match.groupValues[1]
                 val visible = visibleLineText(line)
                 val trimmed = visible.trim()
                 val removeEmpty = removeEmptyLines && isBlankOrPlaceholder(trimmed)
@@ -20,8 +22,7 @@ object LyricsTextCleanup {
                 }
                 removeEmpty || removeTag
             }
-            .joinToString("\n")
-            .trim()
+            .joinToString("") { it.value }
     }
 
     private fun visibleLineText(line: String): String {

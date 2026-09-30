@@ -42,7 +42,7 @@ fun BatchLyricsFormatBottomSheet(
             onDismissFinished()
         },
         allowDismiss = !batchLyricsFormatUiState.isRunning,
-        title = stringResource(R.string.action_batch_convert_lyrics_format),
+        title = stringResource(batchLyricsFormatUiState.operation.titleRes),
         content = {
             Column(
                 modifier = Modifier
@@ -53,15 +53,12 @@ fun BatchLyricsFormatBottomSheet(
                     modifier = Modifier.padding(bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = stringResource(
-                            R.string.current_target_format,
-                            batchLyricsFormatUiState.targetFormat?.let { stringResource(it.labelRes) }
-                                ?: stringResource(R.string.lyrics_format_keep_current)
-                        ),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant
-                    )
+                    if (batchLyricsFormatUiState.operation == com.lonx.lyrico.data.model.lyrics.LyricsOperation.CONVERT) {
+                        Text(text = stringResource(R.string.current_target_format,
+                            batchLyricsFormatUiState.targetFormat?.let { stringResource(it.labelRes) }.orEmpty()),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                    }
 
                     batchLyricsFormatUiState.progress?.let { (current, total) ->
                         val progress =

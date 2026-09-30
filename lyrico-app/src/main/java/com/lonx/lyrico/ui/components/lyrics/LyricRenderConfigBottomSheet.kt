@@ -13,9 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
-import com.lonx.lyrico.data.model.lyrics.LyricLineTrack
 import com.lonx.lyrico.data.model.lyrics.LyricRenderConfig
-import com.lonx.lyrico.data.model.lyrics.visibleLyricLineTracks
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -30,7 +28,6 @@ fun LyricRenderConfigBottomSheet(
     onDismissRequest: () -> Unit,
     onLyricFormatChange: (LyricFormat) -> Unit,
     onRomaEnabledChange: (Boolean) -> Unit,
-    onLineOrderChange: (List<LyricLineTrack>) -> Unit,
     onTranslationEnabledChange: (Boolean) -> Unit,
     onOnlyTranslationIfAvailableChange: (Boolean) -> Unit,
     onRemoveEmptyLinesChange: (Boolean) -> Unit,
@@ -116,17 +113,7 @@ fun LyricRenderConfigBottomSheet(
                 }
             }
 
-            config?.let { lyricConfig ->
-                LyricLineOrderBottomSheetContent(
-                    lineOrder = lyricConfig.normalizedLineOrder,
-                    visibleTracks = visibleLyricLineTracks(
-                        showRomanization = lyricConfig.showRomanization,
-                        showTranslation = lyricConfig.showTranslation,
-                        onlyTranslationIfAvailable = lyricConfig.onlyTranslationIfAvailable
-                    ),
-                    onLineOrderChange = onLineOrderChange
-                )
-            }
+
         }
     }
 }

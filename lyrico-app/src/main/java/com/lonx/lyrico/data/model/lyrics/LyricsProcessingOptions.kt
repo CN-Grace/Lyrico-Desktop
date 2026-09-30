@@ -5,13 +5,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LyricsProcessingOptions(
     val targetFormat: LyricFormat? = null,
-    val formatLineOrder: Boolean = true,
+    val formatLineOrder: Boolean = false,
     val removeTagLines: Boolean = false,
     val tagLineKeywords: List<String> = emptyList(),
-    val removeEmptyLines: Boolean = false
+    val removeEmptyLines: Boolean = false,
+    val twoColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(2),
+    val threeColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(3)
 ) {
     fun hasTextOperations(): Boolean {
-        return formatLineOrder ||
+        return formatLineOrder || twoColumnMapping.isChanged || threeColumnMapping.isChanged ||
                 removeTagLines && tagLineKeywords.any { it.isNotBlank() } ||
                 removeEmptyLines
     }

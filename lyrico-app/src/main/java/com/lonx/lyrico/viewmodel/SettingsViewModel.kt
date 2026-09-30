@@ -15,7 +15,6 @@ import com.lonx.lyrico.data.model.FloatingBarEffect
 import com.lonx.lyrico.data.model.ReplayGainPeakMode
 import com.lonx.lyrico.data.model.ReplayGainSettings
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
-import com.lonx.lyrico.data.model.lyrics.LyricLineTrack
 import com.lonx.lyrico.data.model.lyrics.LyricsProcessingOptions
 import com.lonx.lyrico.data.model.plugin.PluginMetadataFieldWriteRule
 import com.lonx.lyrico.data.model.ThemeMode
@@ -44,7 +43,6 @@ data class SettingsUiState(
     val lyricFormat: LyricFormat = LyricFormat.VERBATIM_LRC,
     val separator: ArtistSeparator = ArtistSeparator.SLASH,
     val romaEnabled: Boolean = false,
-    val lyricLineOrder: List<LyricLineTrack> = emptyList(),
     val translationEnabled: Boolean = false,
     val lyricIndexEnabled: Boolean = false,
     val ignoreShortAudio: Boolean = false,
@@ -162,7 +160,6 @@ class SettingsViewModel(
             isInitialized = true,
             lyricFormat = base.lyric.format,
             romaEnabled = base.lyric.showRomanization,
-            lyricLineOrder = base.lyric.normalizedLineOrder,
             translationEnabled = base.lyric.showTranslation,
             separator = base.search.separator.toArtistSeparator(),
             searchSourceOrder = base.search.searchSourceOrder,
@@ -221,11 +218,7 @@ class SettingsViewModel(
             settingsRepository.saveRomaEnabled(enabled)
         }
     }
-    fun setLyricLineOrder(order: List<LyricLineTrack>) {
-        viewModelScope.launch {
-            settingsRepository.saveLyricLineOrder(order)
-        }
-    }
+
     suspend fun clearSongs(): Boolean = withContext(Dispatchers.IO) {
         folder.clearAllFolders()
         val counts = folder.getFoldersCount()
@@ -385,8 +378,6 @@ class SettingsViewModel(
             settingsRepository.saveThemeMode(mode)
         }
     }
-
-
 
     fun exportSettings(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
