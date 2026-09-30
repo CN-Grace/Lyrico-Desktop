@@ -29,6 +29,20 @@ Catch `ActivityNotFoundException` and prompt the user to install Lyrico if it is
 
 When the user taps **Save**, Lyrico writes the changes and closes the editor. When the player returns to the foreground, reload the edited song's tags, lyrics, and cover art, and update its cache.
 
-The interface does not return a save result. Activity Result cannot indicate whether changes were saved.
+To receive a save result, register a callback in the Activity and replace `startActivity(intent)` above with `editLauncher.launch(intent)`:
+
+```kotlin
+private val editLauncher = registerForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+) { result ->
+    if (result.resultCode == Activity.RESULT_OK) {
+        result.data?.data?.let { uri ->
+            // Reload the song at uri and refresh its cache
+        }
+    }
+}
+```
+
+A successful save returns `RESULT_OK` with the original audio URI in `Intent.data`. Exiting without saving returns `RESULT_CANCELED`. A failed save keeps the editor open for retry. Players using `startActivity()` need no changes and can continue refreshing when returning to the foreground.
 
 Verify opening, saving, cancelling, and refreshing on return. To join the [supported players list](https://github.com/Replica0110/Lyrico#已适配-lyrico-外部编辑功能的播放器), submit a PR with the player name, link, and minimum supported version.

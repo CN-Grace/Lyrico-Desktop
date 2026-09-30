@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.lonx.lyrico.ExternalAudioEditHost
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -206,7 +207,8 @@ fun EditMetadataScreen(
     songFileUri: String,
     onCoverSearchResult: ResultRecipient<SearchCoverDestination, String>,
     onLyricsResult: ResultRecipient<SearchResultsDestination, LyricsSearchResult>,
-    onLyricsSearchResult: ResultRecipient<SearchLyricsDestination, LyricsSearchResult>
+    onLyricsSearchResult: ResultRecipient<SearchLyricsDestination, LyricsSearchResult>,
+    externalEditRequestId: Long? = null,
 ) {
     val viewModel: EditMetadataViewModel = koinViewModel()
     val searchSourceProvider: SearchSourceProvider = koinInject()
@@ -252,6 +254,16 @@ fun EditMetadataScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val activity = context as Activity
+    fun closeEditor(saved: Boolean) {
+        if (externalEditRequestId != null) {
+            (activity as? ExternalAudioEditHost)?.finishExternalAudioEdit(
+                requestId = externalEditRequestId,
+                saved = saved,
+            )
+        } else if (!navigator.popBackStack()) {
+            activity.finish()
+        }
+    }
     // 艺术家字段按「艺术家拆分规则」拆成一个个艺术家；艺术家海报用图片描述记录归属
     val artistSplitConfig by viewModel.artistSplitConfig.collectAsState()
     val artistNames = remember(editingTagData?.artist, artistSplitConfig) {
@@ -544,9 +556,7 @@ fun EditMetadataScreen(
             }
             viewModel.clearSaveStatus()
             if (success) {
-                if (!navigator.popBackStack()) {
-                    activity.finish()
-                }
+                closeEditor(saved = true)
             }
         }
     }
@@ -607,6 +617,10 @@ fun EditMetadataScreen(
             }
             viewModel.clearSameAlbumCoverMessage()
         }
+    }
+
+    BackHandler(enabled = externalEditRequestId != null) {
+        if (!uiState.isSaving) closeEditor(saved = uiState.saveSuccess == true)
     }
 
     BackHandler(enabled = isFabMenuExpanded || isSearchFabMenuExpanded) {
@@ -834,8 +848,8 @@ fun EditMetadataScreen(
                         navigationIcon = {
                             IconButton(
                                 onClick = {
-                                    if (!navigator.popBackStack()) {
-                                        activity.finish()
+                                    if (externalEditRequestId == null || !uiState.isSaving) {
+                                        closeEditor(saved = uiState.saveSuccess == true)
                                     }
                                 }
                             ) { Icon(imageVector = MiuixIcons.Back, contentDescription = null) }

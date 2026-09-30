@@ -29,6 +29,20 @@ startActivity(intent)
 
 用户点击“保存”后，Lyrico 写入文件并退出编辑页。播放器返回前台时，应重新读取本次编辑歌曲的标签、歌词和封面，并更新缓存。
 
-当前接口不返回保存结果，不能通过 Activity Result 判断是否保存成功。
+如需获取保存结果，在 Activity 中注册回调，并将上面的 `startActivity(intent)` 改为 `editLauncher.launch(intent)`：
+
+```kotlin
+private val editLauncher = registerForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+) { result ->
+    if (result.resultCode == Activity.RESULT_OK) {
+        result.data?.data?.let { uri ->
+            // 重新读取 uri 对应歌曲并刷新缓存
+        }
+    }
+}
+```
+
+保存成功返回 `RESULT_OK`，`Intent.data` 为原始音频 URI；未保存退出返回 `RESULT_CANCELED`。保存失败会留在编辑页，允许重试。继续使用 `startActivity()` 的播放器无需调整，仍按返回前台的方式刷新。
 
 接入后验证打开、保存、取消及返回刷新流程。如需加入 [已适配列表](https://github.com/Replica0110/Lyrico#已适配-lyrico-外部编辑功能的播放器)，请提交 PR，注明播放器名称、链接和最低适配版本。

@@ -23,15 +23,17 @@ import com.ramcosta.composedestinations.spec.Direction
 import top.yukonga.miuix.kmp.basic.Surface
 
 @Composable
-fun LyricoApp(externalUri: Uri?) {
+fun LyricoApp(externalUri: Uri?, externalEditRequestId: Long = 0L) {
     Surface(
         modifier = Modifier.fillMaxSize()
     ) {
         val externalUriString = externalUri?.toString()
-        key(externalUriString) {
+        key(externalUriString, externalEditRequestId) {
             val navController = rememberNavController()
             val startDirection: Direction =
-                externalUriString?.let { EditMetadataDestination(it) }
+                externalUriString?.let {
+                    EditMetadataDestination(it, externalEditRequestId = externalEditRequestId)
+                }
                     ?: NavGraphs.root.defaultStartDirection
 
             Log.d("LyricoApp", "LyricoApp: $startDirection")

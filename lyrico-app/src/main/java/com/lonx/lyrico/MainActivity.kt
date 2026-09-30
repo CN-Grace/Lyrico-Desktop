@@ -1,6 +1,7 @@
 package com.lonx.lyrico
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -64,9 +65,10 @@ internal fun requiredStartupPermissions(
     }
 }
 
-open class MainActivity : AppCompatActivity() {
+open class MainActivity : AppCompatActivity(), ExternalAudioEditHost {
     private var externalUri by mutableStateOf<Uri?>(null)
     private var pendingExternalUri: Uri? = null
+    private var externalEditRequestId by mutableStateOf(0L)
     private val startupPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
             if (results[Manifest.permission.POST_NOTIFICATIONS] == false) {
@@ -115,7 +117,13 @@ open class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        handleIntent(intent)
+        if (savedInstanceState?.containsKey(STATE_EXTERNAL_REQUEST_ID) == true) {
+            externalEditRequestId = savedInstanceState.getLong(STATE_EXTERNAL_REQUEST_ID)
+            externalUri = savedInstanceState.getString(STATE_EXTERNAL_URI)?.toUri()
+            pendingExternalUri = savedInstanceState.getString(STATE_PENDING_EXTERNAL_URI)?.toUri()
+        } else {
+            handleIntent(intent)
+        }
         if (externalUri == null) {
             songListViewModel.checkForUpdate()
         }
@@ -187,7 +195,10 @@ open class MainActivity : AppCompatActivity() {
                     containerColor = MiuixTheme.colorScheme.background,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0)
                 ) {
-                    LyricoApp(externalUri = externalUri)
+                    LyricoApp(
+                        externalUri = externalUri,
+                        externalEditRequestId = externalEditRequestId,
+                    )
 
                     updateState.releaseInfo?.let { releaseInfo ->
                         UpdateDialog(
@@ -214,6 +225,25 @@ open class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putLong(STATE_EXTERNAL_REQUEST_ID, externalEditRequestId)
+        outState.putString(STATE_EXTERNAL_URI, externalUri?.toString())
+        outState.putString(STATE_PENDING_EXTERNAL_URI, pendingExternalUri?.toString())
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun finishExternalAudioEdit(requestId: Long, saved: Boolean) {
+        // An old editor must not finish a newer request delivered through onNewIntent.
+        if (requestId != externalEditRequestId) return
+        val uri = externalUri ?: return
+        if (saved) {
+            setResult(RESULT_OK, Intent().setData(uri))
+        } else {
+            setResult(RESULT_CANCELED)
+        }
+        finish()
+    }
+
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
 
@@ -237,6 +267,11 @@ open class MainActivity : AppCompatActivity() {
 
     private fun handleExternalUri(uri: Uri?, intentFlags: Int) {
         if (uri == null) return
+
+        externalEditRequestId += 1
+        setResult(Activity.RESULT_CANCELED)
+        pendingExternalUri = null
+        externalUri = null
 
         if (needsExternalAudioReadPermission(uri, intentFlags)) {
             pendingExternalUri = uri
@@ -291,5 +326,11 @@ open class MainActivity : AppCompatActivity() {
         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+    }
+
+    private companion object {
+        const val STATE_EXTERNAL_REQUEST_ID = "external_edit_request_id"
+        const val STATE_EXTERNAL_URI = "external_edit_uri"
+        const val STATE_PENDING_EXTERNAL_URI = "pending_external_edit_uri"
     }
 }
