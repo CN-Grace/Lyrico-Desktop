@@ -170,7 +170,7 @@ Non-lyric content filtering rules are managed in `Settings` → `Metadata Proces
 
 ## Calculate ReplayGain
 
-**Calculate ReplayGain** analyzes selected songs and writes ReplayGain tags. Songs that already have ReplayGain values are skipped (not overwritten).
+**Calculate ReplayGain** analyzes selected songs and writes track gain, track peak, and reference loudness. A song is skipped only when all three fields are present and its reference loudness matches the current setting. If any field is missing or the reference loudness has changed, ReplayGain is recalculated and the track values are overwritten.
 
 **Full Steps:**
 
