@@ -10,24 +10,24 @@ There are several ways to open the editor:
 - **Open or share** an audio file from another app (like a file manager) to Lyrico to jump directly to the editor.
 
 ::: warning Tapping does not play
-Tapping a song opens the metadata editor by default, not playback. To play, use "Play Music" from the more menu or tap the play button in the editor.
+Tapping a song opens the metadata editor by default, not playback. To play, choose "Play Music" from the more menu or the editor's floating action menu.
 :::
 
 ## Editor Layout
 
-The editor is divided into the following areas, top to bottom:
+The editor contains the following areas. Field order and visibility are configured in Edit Fields:
 
 | Area | Purpose |
 |------|---------|
-| Top bar | Save button, play button, more options |
-| Search bar | Enter keywords to search online metadata and lyrics via plugins |
+| Top bar | Back and Save |
+| Floating menus | Search metadata, lyrics, and covers; play music and access other actions |
 | Cover area | View, change, search, or remove cover art |
 | Tag fields | Title, artist, album, album artist, year, genre, track number, disc number, composer, lyricist, comment, etc. |
-| Lyrics area | View, import, export, format lyrics; simplify/traditionalize; adjust timing |
+| Lyrics area | View, import, export, convert, and organize lyrics; simplify/traditionalize; adjust timing |
 | ReplayGain area | Calculate track gain and peak |
 | Custom tags | Manage custom tags (requires adding visible custom tag keys in settings first) |
 
-If some fields are missing from the editor, they may be hidden by **Field Visibility Settings**. Hidden fields are preserved in the file and not cleared on save. See [Metadata Processing](./settings/metadata.md#field-visibility-settings).
+If a field is missing, check **Settings → Metadata Processing → Edit Fields**. Hiding a field does not clear its data from the file. See [Edit Fields](./settings/metadata.md#edit-fields).
 
 ## Edit Tags and Save
 
@@ -48,8 +48,8 @@ Use plugins to search online song metadata to fill in title, artist, lyrics, and
 
 **Steps:**
 
-1. Open the editor. The search bar is pre-filled with the current song's **title + artist** as keywords. If the song has no title or artist tags, the filename is used instead.
-2. Tap the search button (or press Enter). Lyrico queries enabled plugins for matching songs.
+1. Expand the floating search button in the editor and choose **Main Search**. The search page uses the current title and artist as keywords, or the filename when the title is empty.
+2. Adjust the keywords and search. For lyrics or covers only, choose **Search Lyrics** or **Search Cover**. These actions are also available in Lyrics Options and Cover Options. An action appears only when an enabled plugin supports it.
 3. Search results are shown under "All" and per-plugin-source tabs.
    - Tap **Load more** at the bottom of the results to load the next page. The “All” tab continues loading every source that still has more results.
 4. Tap a search result to view its metadata and lyrics.
@@ -113,14 +113,29 @@ Tap "Lyrics Options" to:
 | Export | Save current lyrics to a specified folder or next to the audio file. TTML exports as `.ttml`, others as `.lrc`; empty lyrics are not exported |
 | Simplify / Traditionalize | Convert lyrics between Simplified and Traditional Chinese |
 | Lyric Offset | Adjust in 100 ms steps, enter a value manually, or reset to 0 |
-| Format Lyrics | Convert format, sort by line, remove empty lines, or strip non-lyric content |
+| Convert lyrics format | Convert lyrics to another format |
+| Organize lyrics | Reorder lines, remove empty lines, or remove credits |
 | View Lyrics Text | Render word-level lyrics as plain text, with options to toggle romanization and translation |
 
-::: warning Format limitations
-Formatting lyrics cannot generate word-level timings from scratch. If the source lacks word-level timing data, it cannot be converted to a word-timed format.
-:::
-
 Adjust lyric offsets in 100 ms steps, or tap the value / Manual Input to enter an integer between -10,000 and 10,000 ms. Positive values delay lyrics; negative values advance them. Reset restores 0.
+
+### Convert Lyrics Format
+
+Open **Lyrics Options → Convert lyrics format**, select the target format, and confirm. Then tap **Save** in the top bar.
+
+Conversion cannot generate word-level timing when the source lyrics have none.
+
+### Organize Lyrics
+
+Open **Lyrics Options → Organize lyrics** and choose an operation:
+
+- **Sort by lyric line**: Reorder lines sharing a timestamp or remove a line. Set the order separately for two-line and three-line groups.
+- **Remove empty lines**: Delete blank or placeholder-only lines.
+- **Remove non-lyric content**: Remove credits using [filtering rules](./settings/metadata.md#non-lyric-content-filtering).
+
+For example, if line 1 contains the original text and line 2 contains the translation, set input line 2 to output line 1 to put the translation first. Line numbers refer to the current order; original text, translation, and romanization are not identified automatically.
+
+Sorting supports LRC and preserves word-level timing. TTML and single-line timestamps are left unchanged. Tap **Save** after processing to write the changes to the file.
 
 ## ReplayGain
 

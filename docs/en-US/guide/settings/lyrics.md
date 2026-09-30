@@ -15,16 +15,9 @@ Choose the preferred lyric format when searching:
 
 - **Romanization**: When enabled, requests romanized lyrics during search (useful for Japanese songs).
 - **Translation**: When enabled, requests translated lyrics during search.
-- **Download Translation Only**: When enabled, only downloads the translated portion if the song already has original lyrics.
+- **Download Translation Only**: Requires Translation to be enabled. Uses translated text where available and keeps the original text for lines without a translation.
 
-## Lyric Line Order
-
-**Lyric Line Order** decides the output order of **original / romanization / translation** in line-timed lyrics. The default is "Original / Romanization / Translation".
-
-In the sheet, **drag** the enabled entries to reorder them; the change applies to lyrics written afterwards. Only enabled content appears in the sheet:
-
-- With "Download Translation Only" enabled there is just the translation entry, so no reordering is needed.
-- Romanization is absent unless romanization is enabled; translation is absent unless translation is enabled.
+To reorder existing lyrics, open **Lyrics Options → Organize lyrics → Sort by lyric line** in the editor. See [Organize Lyrics](../single-song.md#organize-lyrics).
 
 ## TTML information preservation
 

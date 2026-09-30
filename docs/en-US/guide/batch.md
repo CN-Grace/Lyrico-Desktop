@@ -50,7 +50,8 @@ Once in selection mode:
 After selecting at least one song, an **expand button (FAB)** appears at the bottom-right. Expanding it shows available batch operations:
 
 - Calculate ReplayGain
-- Format Lyrics
+- Convert lyrics format
+- Organize lyrics
 - Export Lyrics
 - Export Covers
 - Rename
@@ -113,7 +114,7 @@ Choose the corresponding task in the batch menu, then configure concurrency and 
 - Change, remove, or restore cover art in bulk.
 - Pick cover from selected songs or same-album songs.
 - Remove ReplayGain tags.
-- Add custom tags (visible custom tags depend on Custom Tag Management and Field Visibility Settings).
+- Add and enable custom tags in [Edit Fields](./settings/metadata.md#edit-fields) to use them in batch editing.
 
 ---
 
@@ -147,24 +148,26 @@ If a placeholder's corresponding tag is empty, that part produces empty text. If
 
 ---
 
-## Format Lyrics
+## Convert Lyrics Format
 
-**Format Lyrics** batch-processes or converts lyric content.
+1. Enter selection mode, select songs, and choose **Convert lyrics format** from the FAB menu.
+2. Choose the target format and concurrency.
+3. Tap **Process** to start. Results are written directly to the files.
 
-**Full Steps:**
+Songs without lyrics are skipped. Lyrics without word-level timing cannot be converted to word-timed formats.
 
-1. **Enter selection mode**, select songs, then choose **Format Lyrics** from the FAB.
-2. Configure options:
-   - **Target format**: Keep current or convert to a specific lyric format.
-   - **Sort by line**: Reorganize original-then-translation/romanization lyrics into line-by-line order.
-   - **Remove non-lyric content**: Strip composer, lyricist, source lines using cleanup rules.
-   - **Remove empty lines**: Delete lines with no content or only placeholders.
-   - **Concurrency**: Control how many songs are processed simultaneously.
-3. Tap confirm to start.
+## Organize Lyrics
 
-Songs without lyrics are skipped. Songs without word-level timing cannot be converted to word-timed formats.
+1. Select songs, open **Organize lyrics** from the FAB menu, and choose an operation:
+   - **Sort by lyric line**: Reorder lines sharing a timestamp or remove a line.
+   - **Remove empty lines**: Delete blank or placeholder-only lines.
+   - **Remove non-lyric content**: Remove credits and similar lines using [filtering rules](./settings/metadata.md#non-lyric-content-filtering).
+2. Adjust the operation's settings and concurrency.
+3. Tap **Process** to start. Results are written directly to the files.
 
-Non-lyric content filtering rules are managed in `Settings` → `Metadata Processing`.
+View task records under **Settings → Other → Task History → Lyrics processing**.
+
+Sorting uses the same settings as single-song editing; see [Organize Lyrics](./single-song.md#organize-lyrics). Songs without lyrics or with no changes after processing are skipped.
 
 ---
 

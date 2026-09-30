@@ -9,7 +9,7 @@ Export the current app configuration as a JSON file. Includes:
 - Lyrics settings (lyric mode, romanization, translation)
 - ReplayGain reference loudness and peak type
 - Artist split rules
-- Field visibility settings
+- Edit field configuration
 - Batch match configuration
 
 **Not included:**

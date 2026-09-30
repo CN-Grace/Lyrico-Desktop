@@ -36,3 +36,7 @@ Affects batch matching behavior:
 - **Enabled**: Ignores built-in tags and uses the filename as the search keyword. Useful for libraries with messy tags but well-structured filenames.
 
 When enabled, it's recommended to set the title and artist field write rules to **Overwrite** mode so match results correctly overwrite the old tags.
+
+## Artist Separator
+
+Joins multiple artist names into text. The default is `/`; available separators are the ideographic comma, slash, comma, and semicolon. It applies when reading multi-value tags and applying search results, and is configured separately from [Artist Split Rules](./metadata.md#artist-splitting).

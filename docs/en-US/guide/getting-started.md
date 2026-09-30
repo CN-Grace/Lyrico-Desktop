@@ -72,7 +72,7 @@ Lyrico does not include built-in online search. Lyrics, cover, and metadata sear
 4. In the "Plugin Package Found" dialog, check the plugins you want and tap **Install**.
 5. Back in the plugin management list, turn on the plugin's **enable switch**.
 
-Once enabled, enter a keyword in the search bar on the editor screen to search online metadata.
+Once enabled, open the floating search menu in the editor and choose Main Search. Enter or adjust the keywords on the search page.
 
 For more plugin details, see [Using Plugins](./plugins.md).
 

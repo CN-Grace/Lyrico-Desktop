@@ -18,11 +18,11 @@ If you're new to Lyrico, read in this order:
 |------------|-----|
 | Add music files for the first time | [Getting Started](./getting-started.md) |
 | Manage music folders (add, remove, hide) | [Library & Folders](./library.md) |
-| View songs for an album or artist | [Browsing Your Library](./browsing.md#artist-and-album-details) |
+| View songs for an album or artist | [Browsing Your Library](./browsing.md) |
 | Edit a song's title, artist, cover, etc. | [Single Song Editing](./single-song.md#edit-tags-and-save) |
 | Download lyrics or translations | [Single Song Editing](./single-song.md#search-lyrics-and-metadata) |
 | Search and change cover art | [Single Song Editing](./single-song.md#cover-operations) |
-| Format lyrics or adjust timing | [Single Song Editing](./single-song.md#lyrics-operations) |
+| Convert or organize lyrics, or adjust timing | [Single Song Editing](./single-song.md#lyrics-operations) |
 | Calculate ReplayGain for a song | [Single Song Editing](./single-song.md#replaygain) |
 | Download lyrics/covers for multiple songs | [Batch Operations](./batch.md#tag-matching) |
 | Batch-edit the same field across songs | [Batch Operations](./batch.md#edit-tags) |
@@ -40,7 +40,7 @@ If you're new to Lyrico, read in this order:
 
 In the single-song editor, search results, cover selections, lyrics processing, and ReplayGain calculations only update the editor temporarily. Changes are written to the audio file only when you tap the **Save** button.
 
-In batch operations, tasks like **Edit Tags**, **Tag Matching**, **Rename Files**, **Format Lyrics**, and **Calculate ReplayGain** directly process the selected files. Review previews, configuration, and selection before executing.
+In batch operations, tasks like **Edit Tags**, **Tag Matching**, **Rename Files**, **Convert lyrics format**, **Organize lyrics**, and **Calculate ReplayGain** directly process the selected files. Review previews, configuration, and selection before executing.
 
 ### Deletion and Removal
 

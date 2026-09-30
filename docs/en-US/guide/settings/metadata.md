@@ -17,15 +17,11 @@ When enabled, empty lines are automatically removed from lyrics and other multi-
 
 ## Non-Lyric Content Filtering
 
-Used when "Remove non-lyric content" is checked during lyric formatting. Automatically strips composer, lyricist, source, and other non-lyric lines.
+Used by **Organize lyrics** → **Remove non-lyric content** to remove composer, lyricist, source, and similar lines.
 
-Filtering rules are managed at `Settings` → `Metadata Processing` → `Non-Lyric Content Filtering Rules`. Rules match entire lines of the original lyric text; word-timed lyrics are joined into lines before matching.
+Filtering rules are managed at `Settings` → `Metadata Processing` → `Non-Lyric Content Filtering Rules`. Matching is case-insensitive. A line is removed if it contains any configured keyword; word-timed lyrics are matched as complete lines.
 
 Common filter examples: `Composer:`, `Lyricist:`, `Arranger:`, `Source: QQ Music`, etc.
-
-## Artist Separator
-
-The separator used when writing multiple artists to a tag. The default separator varies by audio format (e.g., FLAC uses `\0`, MP3 uses `; `).
 
 ## Artist Splitting
 
@@ -37,29 +33,24 @@ In the split settings you can configure:
 
 After modifying separators or the whitelist, you usually need to tap **Rebuild Artist Index** for changes to fully take effect.
 
-## Field Visibility Settings
+## Edit Fields
 
-Controls which tag fields appear in the single-song editor and batch editor.
+Open **Settings → Metadata Processing → Edit Fields** to manage built-in fields and custom tags in one list.
 
-Hidden fields:
-- Do not appear in the editing interface.
-- Are **not cleared** on save (existing tag data is preserved).
+- Long-press and drag a field to reorder it. Use its switch to control visibility.
+- For ReplayGain, choose **Manage Fields** from its menu to reorder or hide individual fields. Group and member switches are saved separately.
+- Choose **View Songs** to see songs where the field is filled or empty.
+- Use the reset button in the top bar to restore defaults. This does not modify song data.
 
-Use this to simplify the editor by hiding fields you rarely use.
+The configuration applies to single-song editing, batch editing, and batch matching. Hiding a field does not clear its existing tag data.
 
-## Custom Tags
+### Custom Tags
 
-Controls which custom tag keys are shown in the editor and batch editor. Go to: `Settings` → `Metadata Processing` → `Custom Tag Management`.
+Tap **+** in the top bar to choose a tag found in the library or enter a key such as `SOURCE`. Keys are trimmed and converted to uppercase; duplicates, line breaks, and keys longer than 64 characters are not allowed.
 
-- The tags in the list are exactly the tag fields that appear in the single-song and batch editors, in the same order.
-- Tap **Add Tag** to add a tag:
-  - Pick a scanned key directly from **Tags found in the library**, ordered by usage count (most used first).
-  - Or type a key by hand (for example `SOURCE`, `MOOD`). Keys are trimmed and upper-cased automatically; empty input, line breaks, more than 64 characters, or a duplicate reports the specific reason.
-- Tap a tag in the list to see **which songs use it**; tapping a song there opens its editor.
-- Deleting a tag only removes it from the list—it does **not** delete existing data from songs, and re-adding it brings the values back into view.
-- **Reset to Default** clears the list back to its default state.
+Delete a custom tag through its menu to remove it from the configuration. Its data remains in the audio files.
 
-Tag keys come from the audio files themselves, and Lyrico tracks how often each key is used.
+Cover queries read the audio files. Files that cannot be read are not counted as empty. Each query tab shows up to 500 songs.
 
 ## Character Mapping
 

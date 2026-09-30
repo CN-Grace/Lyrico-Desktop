@@ -6,11 +6,11 @@ Day-to-day maintenance and troubleshooting features.
 
 Go to: `Settings` → `Other` → `Task History`.
 
-Task history records results of all batch operations, including batch matching, batch editing, batch renaming, lyric formatting, ReplayGain calculation, and lyric/cover export.
+Task history records results of all batch operations, including batch matching, batch editing, batch renaming, lyrics processing, ReplayGain calculation, and lyric/cover export.
 
 ### Viewing and Filtering
 
-- Filter by **task type**: Batch Match, Format Lyrics, Export Lyrics, etc.
+- Filter by **task type**: Batch Match, Lyrics processing, Export Lyrics, etc.
 - Filter by **status**: Queued, Running, Succeeded, Failed, Skipped, Cancelled.
 
 ### Managing Tasks
