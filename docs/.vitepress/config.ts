@@ -63,6 +63,7 @@ const zhSidebar = {
       text: '更多',
       items: [
         { text: '常见问题', link: '/guide/faq' },
+        { text: '外部编辑接入', link: '/guide/external-edit' },
       ],
     },
   ],
@@ -132,6 +133,7 @@ const enSidebar = {
       text: 'More',
       items: [
         { text: 'FAQ', link: '/en-US/guide/faq' },
+        { text: 'External Editing Integration', link: '/en-US/guide/external-edit' },
       ],
     },
   ],

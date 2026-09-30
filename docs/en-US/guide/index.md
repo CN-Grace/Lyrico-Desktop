@@ -32,6 +32,7 @@ If you're new to Lyrico, read in this order:
 | Switch the app language or bottom bar style | [Appearance](./settings/appearance.md) |
 | Change theme, scan, lyrics, or other settings | [Settings Overview](./settings/) |
 | Troubleshoot a feature | [FAQ](./faq.md) |
+| Integrate Lyrico editing into a player | [External Editing Integration](./external-edit.md) |
 
 ## Important Notes
 
