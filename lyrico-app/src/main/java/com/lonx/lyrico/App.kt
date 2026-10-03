@@ -2,8 +2,11 @@ package com.lonx.lyrico
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.app.UiModeManager
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import androidx.appcompat.app.AppCompatDelegate
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
@@ -11,9 +14,11 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import com.lonx.lyrico.data.repository.BatchTaskRepository
+import com.lonx.lyrico.data.model.ThemeMode
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.repository.AppLogRepository
+import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.di.appModule
 import com.lonx.lyrico.utils.coil.AudioCoverFetcher
 import com.lonx.lyrico.utils.coil.AudioCoverKeyer
@@ -25,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.system.exitProcess
 
 class App : Application(), SingletonImageLoader.Factory {
@@ -39,6 +45,31 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         installCrashLogger()
+
+        CoroutineScope(Dispatchers.Main.immediate).launch {
+            val settingsRepository = org.koin.core.context.GlobalContext.get().get<SettingsRepository>()
+            settingsRepository.themeMode.distinctUntilChanged().collect { mode ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // Persist the override so the system can theme the next cold-start splash.
+                    // AUTO clears the app override and restores the system configuration.
+                    getSystemService(UiModeManager::class.java).setApplicationNightMode(
+                        when (mode) {
+                            ThemeMode.LIGHT -> UiModeManager.MODE_NIGHT_NO
+                            ThemeMode.DARK -> UiModeManager.MODE_NIGHT_YES
+                            ThemeMode.AUTO -> UiModeManager.MODE_NIGHT_AUTO
+                        }
+                    )
+                } else {
+                    AppCompatDelegate.setDefaultNightMode(
+                        when (mode) {
+                            ThemeMode.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                            ThemeMode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+                            ThemeMode.AUTO -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        }
+                    )
+                }
+            }
+        }
 
         CoroutineScope(Dispatchers.IO).launch {
             val logRepository = org.koin.core.context.GlobalContext.get().get<AppLogRepository>()
