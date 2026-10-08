@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.lonx.lyrico.data.model.SongPaths
 import com.lonx.lyrico.data.model.entity.FolderEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -20,16 +21,17 @@ interface FolderDao {
     @Query("SELECT * FROM folders")
     suspend fun getAllFoldersOnce(): List<FolderEntity>
 
-    @Query("""
-        SELECT * FROM folders
-        WHERE addedBySaf = 1
-          AND treeUri IS NOT NULL
-          AND treeUri != ''
-    """)
-    suspend fun getSafFolders(): List<FolderEntity>
-
+    /**
+     * The library roots a scan starts from.
+     *
+     * `addedBySaf` is the inherited Android column that marked a folder the *user* added through the
+     * system picker, as opposed to one the scanner created while walking. On desktop the picker is a
+     * directory chooser and there is no SAF grant, but the meaning — "added explicitly, so it is a
+     * library root" — is the same, so the column is reused rather than the schema changed.
+     * `treeUri` is not part of the test any more: desktop rows have no tree uri.
+     */
     @Query("SELECT * FROM folders WHERE addedBySaf = 1")
-    suspend fun getSafFoldersForPermissionCheck(): List<FolderEntity>
+    suspend fun getLibraryRootFolders(): List<FolderEntity>
 
     @Insert(onConflict = OnConflictStrategy.Companion.IGNORE)
     suspend fun insert(folder: FolderEntity): Long
@@ -107,19 +109,19 @@ interface FolderDao {
         }
     }
 
-    private fun normalizeFolderPath(path: String): String {
-        val normalized = path
-            .replace('\\', '/')
-            .trim()
-            .trimEnd('/')
-
-        return normalized.ifBlank { path.trim() }
-    }
+    /**
+     * A folder path as it is stored, using the same rules as `songs.uri` (`SongPaths.canonicalize`):
+     * absolute, real casing when the directory exists, `Path`'s own spelling. Folders and songs must
+     * agree character for character, otherwise `folders.path` can no longer be compared with the
+     * parent of a `songs.uri`, which the scanner relies on.
+     */
+    private fun normalizeFolderPath(path: String): String =
+        SongPaths.canonicalize(path)?.toString() ?: path.trim()
 
     private fun isParentFolder(parentPath: String, childPath: String): Boolean {
         if (parentPath.isBlank() || childPath.isBlank()) return false
         if (parentPath == childPath) return false
-        return childPath.startsWith("$parentPath/")
+        return childPath.startsWith("$parentPath$FOLDER_SEPARATOR")
     }
 
     @Transaction
@@ -141,22 +143,26 @@ interface FolderDao {
         val normalizedFolderPath = normalizeFolderPath(folderPath)
         val relativePath = normalizedFolderPath
             .removePrefix(normalizedRootPath)
-            .trimStart('/')
+            .trimStart(*PATH_SEPARATORS)
 
         var currentPath = normalizedRootPath
         var currentId = upsertScannedFolderAndGetId(currentPath, isIgnored)
 
         relativePath
-            .split('/')
+            .split(*PATH_SEPARATORS)
             .filter { it.isNotBlank() }
             .forEach { segment ->
-                currentPath = "$currentPath/$segment"
+                currentPath = "$currentPath$FOLDER_SEPARATOR$segment"
                 currentId = upsertScannedFolderAndGetId(currentPath, isIgnored)
             }
 
         return currentId
     }
 
+    /**
+     * The library roots that contain any of [folderIds]: rescanning a subfolder rescans the root it
+     * belongs to, because a walk has to start somewhere above it.
+     */
     @Transaction
     suspend fun getScanRootFoldersFor(folderIds: Set<Long>): List<FolderEntity> {
         if (folderIds.isEmpty()) return emptyList()
@@ -165,7 +171,7 @@ interface FolderDao {
         if (selected.isEmpty()) return emptyList()
 
         return folders
-            .filter { it.addedBySaf && !it.treeUri.isNullOrBlank() }
+            .filter { it.addedBySaf }
             .filter { root ->
                 selected.any { folder ->
                     val rootPath = normalizeFolderPath(root.path)
@@ -252,7 +258,7 @@ interface FolderDao {
           AND NOT EXISTS (
               SELECT 1
               FROM folders AS child
-              WHERE child.path LIKE folders.path || '/%'
+              WHERE child.path LIKE folders.path || '\' || '%'
           )
     """)
     suspend fun deleteEmptyFolders()
@@ -279,4 +285,16 @@ interface FolderDao {
         SELECT COUNT(*) FROM folders 
     """)
     suspend fun getFoldersCount(): Int
+
+    companion object {
+        /**
+         * The separator stored folder paths use. The desktop build is Windows-only, so this is
+         * `Path`'s own separator (a backslash) — the same spelling `SongPaths.canonicalize`
+         * produces for song paths.
+         */
+        val FOLDER_SEPARATOR: String = java.io.File.separator
+
+        /** Both separators are accepted on input, because a user can paste either spelling. */
+        val PATH_SEPARATORS: CharArray = charArrayOf('\\', '/')
+    }
 }
