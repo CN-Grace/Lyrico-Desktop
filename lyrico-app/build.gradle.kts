@@ -133,6 +133,13 @@ dependencies {
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.kotlinx.serialization.json)
 
+    // ViewModels on desktop: this is the multiplatform lifecycle, which publishes a JVM variant
+    // (resolves to androidx.lifecycle:lifecycle-viewmodel-compose-desktop). It was already on the
+    // runtime classpath transitively via Compose, but a transitive dependency is not a compile
+    // classpath one — `androidx.lifecycle.ViewModel`/`viewModelScope` failed to resolve until this
+    // was declared, which is exactly the kind of thing that looks like "desktop has no ViewModel".
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+
     // The Android build got OkHttp from the app's DI graph; the tag layer needs it for
     // `PictureSource.UrlSource`, and the plugin-search runtime will reuse the same client.
     implementation(libs.okhttp)
@@ -145,6 +152,9 @@ dependencies {
     // Desktop UI tests render the real composables off-screen (no window needed) and assert on the
     // semantics tree — this is the harness the 24 screens of phase 4 will be ported against.
     testImplementation(kotlin("test"))
+    // `Dispatchers.setMain` + virtual time: the view models run their flows on `viewModelScope`, which
+    // needs a Main dispatcher in a plain JVM test (there is no Android looper here).
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.compose.ui.test)
 }
 

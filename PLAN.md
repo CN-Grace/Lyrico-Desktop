@@ -100,7 +100,7 @@ Lyrico/
 
 ### P4 施工顺序（用户裁决：先迁 viewmodel + 状态层，再接 UI）
 
-`scripts/port-frontier.py` 给出的是**证据**而不是猜测：它逐个文件判断「`com.lonx.lyrico` 依赖是否已由 kotlin 树满足」，因为把依赖未满足的文件搬过去只会得到一个与真问题无关的编译错误。当前 java 树 **210 个文件：85 个已在边界上可搬，124 个仍被 java 树文件挡住**（另有 0 个陈旧副本）。用法：
+`scripts/port-frontier.py` 给出的是**证据**而不是猜测：它逐个文件判断「`com.lonx.lyrico` 依赖是否已由 kotlin 树满足」，因为把依赖未满足的文件搬过去只会得到一个与真问题无关的编译错误。当前 java 树 **203 个文件：79 个已在边界上可搬，124 个仍被 java 树文件挡住**（另有 0 个陈旧副本）。用法：
 
 ```
 python scripts/port-frontier.py                     # 全树
@@ -110,7 +110,7 @@ python scripts/port-frontier.py --list-blocks       # 列出每个文件被谁�
 
 它顺手修掉了两个**会骗人的**判断口径，值得记下：`fun String?.foo()` 这种带接收者的声明曾被当成「声明了一个叫 `String` 的类型」，于是整个包里任何出现 `String` 一词的文件都被判为被挡；同类问题让 `fun Modifier.blurSource()`、`fun EditableField.title()` 变成幽灵依赖。所以现在只把 `class/interface/object/typealias` 当作「类型引用」判据，函数/属性名不算 —— 一个同名的 `title` 属性通常只是属性，而未解析的**类型**一定是真的编译错误。另外同包引用（不写 import 那种）必须单独扫，否则「可搬」的判断不可信。
 
-**viewmodel 层现状（31 个文件：9 可搬 / 22 被挡）**，关键路径是三个叶子而不是 viewmodel 本身：
+**viewmodel 层现状（25 个文件：3 可搬 / 22 被挡）**，关键路径是三个叶子而不是 viewmodel 本身：
 
 | 叶子 | 挡住的文件数 | 桌面化要动什么 |
 | --- | --- | --- |
@@ -125,6 +125,20 @@ python scripts/port-frontier.py --list-blocks       # 列出每个文件被谁�
 **已搬（状态层批次）**：`viewmodel/StringUtils.kt`、`viewmodel/SearchPagination.kt`、`utils/UiMessage.kt`，以及五个 `domain/song/usecase/*`（`SynchronizeLibraryUseCase`、`ReadAudioTagsUseCase` 原样搬；`SaveAudioTagsUseCase` 去掉 `IntentSender` 与权限分支；`DeleteSongsUseCase`/`RenameSongUseCase` **重写为薄包装**）与 `utils/LibraryScanManager.kt`。用例之所以能变薄，是因为桌面 `SongFileRepository` 已经把「行 + 自定义标签键 + 文件夹计数 + 索引刷新」整笔事务收在接口里，用例再长一遍逻辑就是**做两遍**；因此两组结果类型用 `typealias` 指向仓储的结果类型，而不是复制一套 sealed 层级。
 
 本批测试 **38 项**（`LibraryScanManagerTest` 18 / `AudioTagUseCasesTest` 12 / `DeleteSongsUseCaseTest` 5 / `RenameSongUseCaseTest` 3），全量 **316 项 0 失败 0 跳过**。两条值得记下的经验：队列语义**只有在闸门挡住时才是可观测的**（没有 `CompletableDeferred` 闸门，扫描会在一次调度内跑完，所有合并测试都会在测一个空队列）；`mergePendingRequest` 只合并**等待中**的请求，**正在跑**的全库扫描不会吸收新请求——照原样钉住（新加的文件夹可能刚好被那次扫描漏掉，多跑一次比漏扫便宜）。
+
+**已搬（浏览/搜索 viewmodel 批次）**：`viewmodel/SearchSourceUiModel.kt`、`AlbumDetailViewModel.kt`、`CharacterMappingViewModel.kt`、`LocalSearchViewModel.kt`、`ArtistLibraryViewModel.kt`、`AlbumLibraryViewModel.kt` 六个文件。前五个是原样搬（`SearchSourceUiModel` 的 `@param:StringRes val labelRes: Int?` 按既定配方改成 `StringResource?`；该字段两边树都没有调用点赋值，所以是类型转换而不是删除字段，让以后要用的 screen 一开始就编译在桌面资源类型上）。
+
+这一批暴露了一个「看起来像桌面端没有 ViewModel」的假问题：`androidx.lifecycle` 的 `ViewModel`/`viewModelScope` **在运行期 classpath 上（经 Compose 传递进来）但不在编译期 classpath 上**，所以搬过来直接是 `Unresolved reference 'ViewModel'`。修法是显式声明 `implementation(libs.androidx.lifecycle.viewmodel.compose)`（`androidx.lifecycle:lifecycle-viewmodel-compose` 是多平台构件，Gradle 元数据会解析到 `-desktop` 变体）。**传递依赖不是编译依赖**——这条值得单独记住，否则会误判成「桌面端没有 lifecycle」。同时加了 `testImplementation(libs.kotlinx.coroutines.test)`：viewmodel 的流跑在 `viewModelScope` 上，纯 JVM 测试里没有 Android looper，必须 `Dispatchers.setMain` 才能把状态流驱动起来。
+
+这批测试 **40 项**（`SearchSourceUiModelTest` 6 / `CharacterMappingViewModelTest` 8 / `ArtistLibraryViewModelTest` 8 / `AlbumLibraryViewModelTest` 9 / `LocalSearchViewModelTest` 6 / `AlbumDetailViewModelTest` 3，外加共用的 `LibraryBrowseFixture.kt`），全量 **356 项 0 失败 0 跳过（37 个测试类）**。测试用真实 Room + 真实 DataStore + `Dispatchers.setMain(Dispatchers.Default)`，用轮询（`awaitUntil`）等真实 IO 而不是虚拟时间——Room/DataStore 是真文件 IO，虚拟时间会把它变成空转。
+
+三条被钉住的语义，都是「不加测试就会想当然写错」的类型：
+
+1. **`AlbumSortBy.YEAR` 的降序分支靠 `return@combine` 提前返回**。它自己构造降序比较器，跳过其余分支共享的那次 `asReversed()`；一旦有人顺手把那个 `return@combine` 去掉，「年份降序」就会悄悄变成「升序，且无年份的排最前」。测试用「1961 / 1959 / 无年份」这种三元组把它钉住：升序 = `[1959, 1961, 无]`，降序 = `[1961, 1959, 无]`。
+2. **计数类排序的 `ASC` 是「多的在前」**。`SONG_COUNT`/`ALBUM_COUNT` 的比较器固定用 `compareByDescending`，`ASC` 分支直接返回它的结果，`DESC` 才 `asReversed()`——所以「计数升序」= 数量由多到少。这不是移植错误（与 Android 逐字一致），照原样钉住；等接 UI 那批再决定箭头语义要不要改，改它就是行为变更，得在 §5 里挂号。
+3. **专辑列表的 `albumArtist` 比较先 `.uppercase()`**，且 `null` 走 `orEmpty()` 排在最前。测试里特意放了小写的 `bill evans` 与 `Miles Davis`：按大小写敏感的默认比较，`M` < `b` 会把顺序倒过来，所以这条测试能区分「有大写化」与「没有」。
+
+**一处刻意的行为修正**：`SaveAudioTagsUseCase` 在 Android 上更新 `songs.lyrics` 却**不刷新歌词 FTS**（`LibraryIndexRepository.reindexSongInTransaction` 名字虽然笼统，实际只重建艺术家/专辑索引），后果是改完歌词后**新歌词搜不到、旧歌词仍能搜到**。桌面其余写路径（`SongLibraryRepositoryImpl.updateSong`、`SongFileRepositoryImpl.renameSong`）都显式调 `LyricFtsIndexer.replaceSong`，所以这一条属于漏网，已在事务里补上并被 `AudioTagUseCasesTest` 钉住。同类还有 `UpdateRepositoryImpl` 把 `ApiError`/`ParsingError` 折叠成 `NetworkError` 的那处（commit `4972444`）。
 
 **一处刻意的行为修正**：`SaveAudioTagsUseCase` 在 Android 上更新 `songs.lyrics` 却**不刷新歌词 FTS**（`LibraryIndexRepository.reindexSongInTransaction` 名字虽然笼统，实际只重建艺术家/专辑索引），后果是改完歌词后**新歌词搜不到、旧歌词仍能搜到**。桌面其余写路径（`SongLibraryRepositoryImpl.updateSong`、`SongFileRepositoryImpl.renameSong`）都显式调 `LyricFtsIndexer.replaceSong`，所以这一条属于漏网，已在事务里补上并被 `AudioTagUseCasesTest` 钉住。同类还有 `UpdateRepositoryImpl` 把 `ApiError`/`ParsingError` 折叠成 `NetworkError` 的那处（commit `4972444`）。
 
@@ -143,7 +157,19 @@ python scripts/port-frontier.py --list-blocks       # 列出每个文件被谁�
 - **B. 指向 `CN-Grace/Lyrico-Desktop`**：语义正确，但 0 release 期间永远是「已是最新」（`NoUpdateAvailable`，无害但无用），要等 P6 打包开始发 release。
 - **C. 做成可配置**（设置项或构建期常量，默认指向本 fork）：最灵活，多一个设置项。
 
-在裁决前 `UpdateManager` **不搬**（它也是本批唯一剩下的状态层文件）；这一条不影响 P4 其余部分。
+按 §4 的排期，「更新检查」本就属于 **P5**，所以 `UpdateManager` **不在 P4 搬**（它是本批唯一剩下的状态层文件，但事实上不属于状态层）；等到 P5 做更新检查时再一并裁决指向——到那时 P6 打包已经开始发 release，选项 C/B 的成本都会变。
+
+**「计数排序的升降序语义」要不要改**（`ArtistLibraryViewModel` / `AlbumLibraryViewModel`，2026-10-09 移植时发现，尚未裁决）——
+
+`ArtistSortBy.SONG_COUNT`/`ALBUM_COUNT` 与 `AlbumSortBy.SONG_COUNT` 的比较器固定是 `compareByDescending`，`ASC` 分支**直接返回**它的结果，只有 `DESC` 才 `asReversed()`。于是：计数「升序」= 数量由多到少，计数「降序」= 由少到多；而 NAME/ALBUM_ARTIST/YEAR 三个键的升降序是正常的。
+
+这**不是移植错误**（与 Android 逐字一致，已由 40 项 viewmodel 测试逐条钉住），但接 UI 时会直接变成一个箭头指反的排序菜单：
+
+- **A. 照原样**：排序箭头对计数项的含义与其它项相反。零风险，但用户会看到「↑」把歌多的排前面。
+- **B. 计数项改成正常语义**（比较器换成 `compareBy` 升序，`DESC` 才反转）：与其它排序键一致，是一处**有意行为变更**，三个键各要改一行 + 改对应测试。
+- **C. 排序菜单里给计数项固定「多的在前」并隐藏箭头**（把「ASC = 多在前」当默认而不是方向）：不动比较器，只动 UI，属于接 UI 那批的事务。
+
+按 §4 排期，sorting 菜单属于 P4 的 screens 批次，所以这条等接 UI 时一并裁决；在那之前保持逐字对齐（A）。
 
 **ReplayGain 的 PCM 解码方案**（Android 端 `ReplayGainScanner.kt` 用 `MediaExtractor`+`MediaCodec`，桌面无等价物）：
 
@@ -168,7 +194,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 2. ~~**原生库 CMake 适配**~~ ✅ 已解决：TagLib 3.x 在 CMake 4.4.2 下可配置；`-flto`/`--pack-dyn-relocs`/`android`+`log` 链接已替换；ebur128 缺 `<sys/queue.h>`（自带 `compat/sys/queue.h`）与 `M_PI`（加 `_USE_MATH_DEFINES`）两处已补。复用 `/MT` 静态 CRT，DLL 无第三方运行时依赖。
 3. **compose-destinations 的 KSP 代码生成**是否支持 CMP Desktop（不支持则退化为手写 `when` 导航，screens 共 24 个，可控）。
 4. **Miuix desktop 与 Android 版的行为差异**（`BackHandler`、`TopAppBar`、滚动条、窗口拖拽区）——逐屏过。
-5. **`androidx.lifecycle.ViewModel` 30 处在桌面端的生命周期**——CMP 自带 `lifecycle-viewmodel-compose`，但要确认 Koin 的 `viewModel {}` 在桌面可用。
+5. **`androidx.lifecycle.ViewModel` 30 处在桌面端的生命周期**——CMP 自带 `lifecycle-viewmodel-compose`，但要确认 Koin 的 `viewModel {}` 在桌面可用。**部分已证伪**：`lifecycle-viewmodel-compose` 在多平台构件里存在 `-desktop` 变体，显式声明 `implementation(libs.androidx.lifecycle.viewmodel.compose)` 后 `ViewModel`/`viewModelScope` 在 `kotlin("jvm")` 模块编译并运行正常（它原本只在运行期 classpath 上，所以看起来像「桌面没有 ViewModel」）。剩下未验证的是 Koin 的 `viewModel {}` 注入（`di/AppModule.kt` 要被搬过来才会遇到）。
 6. **非 ASCII 工程路径 + Gradle 参数文件编码**（已踩中并修复，勿回退）：工程位于 `H:\VibeCoding\03-应用\Lyrico-Desktop`。Gradle 用**守护进程默认字符集**（`ArgWriter` → `new PrintWriter(File)`）把 worker JVM 的 classpath 写进临时 `@argfile`，而 `java.exe` 用 **Windows ANSI 代码页（936/GBK）** 解析该文件；`gradle.properties` 里原本的 `-Dfile.encoding=UTF-8` 会把含中文的工程路径写成乱码 → worker 报 `ClassNotFoundException`（每个测试类都找不到，甚至 `GradleWorkerMain`）。修复：`org.gradle.jvmargs` 用 `-Dfile.encoding=GBK`（= 本机 ANSI 代码页）。**换机器时该值必须等于该机 ANSI 代码页**；`run`/`JavaExec` 任务同样走这条路径，所以 P2 之后不要再改回 UTF-8。
 
 ## 7. 约定
@@ -180,7 +206,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P1 复现命令（Gradle 侧，真 Kotlin 绑定）**：`./gradlew :lyrico-audiotag:test`（13 项检查 0 失败，覆盖 7 种格式的标签/封面读写、CJK 路径端到端）。跑之前确保 `build/native/windows-x64/*.dll` 已由 `scripts/build-native.ps1` 产出。
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层的 38 项后全量现为 **316 项 0 失败 0 跳过**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项与浏览/搜索 viewmodel 40 项后，全量现为 **356 项 0 失败 0 跳过**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。
