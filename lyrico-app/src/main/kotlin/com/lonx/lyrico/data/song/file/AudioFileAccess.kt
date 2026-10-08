@@ -1,6 +1,5 @@
 package com.lonx.lyrico.data.song.file
 
-import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -23,32 +22,30 @@ class AudioFileAccess {
     fun getDisplayName(path: Path): String = path.fileName?.toString().orEmpty()
 
     /**
-     * True when the file is gone. Callers use it to tell "the file was already deleted outside the
+     * True when the file is there. Callers use it to tell "the file was already deleted outside the
      * app" apart from a failed operation.
      */
-    fun isUriMissing(path: Path): Boolean = !Files.exists(path)
+    fun exists(path: Path): Boolean = Files.exists(path)
 
-    /** True when the file existed and was deleted; false when it is missing or deletion failed. */
-    fun deleteDocument(path: Path): Boolean = try {
+    /**
+     * Deletes the file. Unlike the Android original, which reported a bare false, this throws: the
+     * caller has to log *why* a delete failed (a locked file, a read-only file, a file that turned
+     * out to be a directory), and a boolean would throw that away. Missing files are reported by
+     * [exists] before the call.
+     */
+    fun delete(path: Path) {
         Files.delete(path)
-        true
-    } catch (_: Exception) {
-        false
     }
 
     /**
-     * Renames the file inside its own directory, returning its new path, or null when the new name is
-     * already taken or the move fails — the same contract as `DocumentsContract.renameDocument`.
+     * Renames the file inside its own directory and returns its new path.
+     *
+     * Throws (rather than returning null the way `DocumentsContract.renameDocument` did) so the
+     * caller can distinguish a name that is already taken from a move the filesystem refused.
      */
-    fun renameDocument(path: Path, newFileName: String): Path? {
-        val parent = path.parent ?: return null
-        return try {
-            Files.move(path, parent.resolve(newFileName))
-        } catch (_: FileAlreadyExistsException) {
-            null
-        } catch (_: Exception) {
-            null
-        }
+    fun move(path: Path, newFileName: String): Path {
+        val parent = path.parent ?: throw IllegalArgumentException("cannot rename a root path: $path")
+        return Files.move(path, parent.resolve(newFileName))
     }
 
     /** Reads the whole file, or null when it cannot be read. */

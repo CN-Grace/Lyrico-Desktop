@@ -32,6 +32,15 @@ interface SongCustomTagKeyDao {
     )
     suspend fun getSongUrisByKey(key: String): List<String>
 
+    /**
+     * The keys recorded for one song.
+     *
+     * Needed when a song's uri changes (a rename): this table is keyed by uri, so the keys have to be
+     * read out under the old uri and written back under the new one.
+     */
+    @Query("SELECT `key` FROM song_custom_tag_keys WHERE songUri = :songUri ORDER BY `key` ASC")
+    suspend fun getKeysForSong(songUri: String): List<String>
+
     @Query("DELETE FROM song_custom_tag_keys WHERE songUri = :songUri")
     suspend fun deleteForSong(songUri: String)
 
