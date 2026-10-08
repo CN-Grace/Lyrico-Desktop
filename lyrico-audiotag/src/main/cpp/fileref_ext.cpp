@@ -57,10 +57,9 @@ namespace TagLibExt {
 
     File *detectByExtension(FileName *fileName, IOStream *stream, bool readAudioProperties,
                             AudioProperties::ReadStyle audioPropertiesStyle) {
-        FileName path = stream->name();
-        if (fileName != nullptr) {
-            path = *fileName;
-        }
+        // FileName only has a copy constructor on Windows (the m_wname member is
+        // const, so copy assignment is deleted); initialise in one go instead.
+        const FileName path = (fileName != nullptr) ? *fileName : stream->name();
         const String s(path);
 
         String ext;

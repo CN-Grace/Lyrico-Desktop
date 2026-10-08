@@ -1,12 +1,9 @@
 package com.lonx.audiotag.model
 
-import androidx.annotation.Keep
-
 /**
  * Metadata contains audio properties, property map and pictures of an audio file.
  */
-@Keep
-public data class Metadata(
+data class Metadata(
     val propertyMap: PropertyMap,
     val pictures: Array<Picture>,
     val supportsTypedPictures: Boolean

@@ -1,63 +1,37 @@
+// lyrico-audiotag — the native TagLib/ebur128/quickjs-ng bridge.
+//
+// Desktop port: this used to be an Android library with an externalNativeBuild (CMake) target. The
+// JVM side is now a plain Kotlin/JVM library, and the native DLLs are produced out-of-band by
+// scripts/build-native.ps1 (MSVC + CMake/Ninja) into build/native/windows-x64/. Gradle never
+// compiles src/main/cpp — it only tells the tests where the built DLLs and the TagLib fixtures are.
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.serialization)
-    id("kotlin-parcelize")
+    alias(libs.plugins.kotlin.jvm)
 }
 
-android {
-    namespace = "com.lonx.audiotag"
-    ndkVersion = "29.0.14206865"
-    compileSdk {
-        version = release(37)
-    }
-
-    defaultConfig {
-        minSdk = 28
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("consumer-rules.pro")
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
-        }
-        externalNativeBuild {
-            cmake {
-                cppFlags += ""
-            }
-        }
-
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "4.1.2"
-        }
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        }
-    }
+kotlin {
+    jvmToolchain(21)
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.monitor)
+    // AudioTagReader/AudioTagWriter are suspend functions, so coroutines are part of the API.
+    api(libs.kotlinx.coroutines.core)
+
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+}
+
+val nativeDir = rootProject.layout.projectDirectory.dir("build/native/windows-x64")
+val tagLibFixtures = layout.projectDirectory.dir("src/main/cpp/taglib/tests/data")
+
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
+}
+
+tasks.withType<Test>().configureEach {
+    // Consumed by NativeLibraryLoader.defaultSearchDirs() and by the binding tests.
+    systemProperty("lyrico.native.dir", nativeDir.asFile.absolutePath)
+    systemProperty("lyrico.tests.fixtures", tagLibFixtures.asFile.absolutePath)
+    testLogging {
+        showStandardStreams = true
+        events("passed", "skipped", "failed")
+    }
 }

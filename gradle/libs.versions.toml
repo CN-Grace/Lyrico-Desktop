@@ -9,6 +9,7 @@ composeMarkdown = "0.5.7"
 coreKtx = "1.19.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
+coroutines = "1.10.2"
 koinAndroid = "4.2.2"
 koinAndroidxCompose = "4.2.2"
 espressoCore = "3.7.0"
@@ -72,8 +73,11 @@ androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-monitor = { group = "androidx.test", name = "monitor", version.ref = "monitor" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 
 [plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }

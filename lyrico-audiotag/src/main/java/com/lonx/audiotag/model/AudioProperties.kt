@@ -1,7 +1,5 @@
 package com.lonx.audiotag.model
 
-import androidx.annotation.Keep
-
 
 /**
  * AudioProperties contains information about the audio properties of a file.
@@ -11,8 +9,7 @@ import androidx.annotation.Keep
  * @property sampleRate Sample rate in Hz
  * @property channels Number of channels
  */
-@Keep
-public data class AudioProperties(
+data class AudioProperties(
     val length: Int,
     val bitrate: Int,
     val sampleRate: Int,

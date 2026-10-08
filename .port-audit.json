@@ -1,0 +1,1284 @@
+[
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/App.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "android.app.Application",
+   "android.app.UiModeManager",
+   "android.content.Context",
+   "android.os.Build",
+   "android.util.Log",
+   "androidx.appcompat.app.AppCompatDelegate"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/DeleteRawPropertiesMigration.kt",
+  "imports": [
+   "androidx.room.DeleteColumn",
+   "androidx.room.migration.AutoMigrationSpec"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/editfield/EditFieldConfigRepository.kt",
+  "imports": [
+   "android.content.Context",
+   "androidx.datastore.preferences.core.MutablePreferences",
+   "androidx.datastore.preferences.core.Preferences",
+   "androidx.datastore.preferences.core.edit",
+   "androidx.datastore.preferences.core.stringPreferencesKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/exception/RequiresUserPermissionException.kt",
+  "imports": [
+   "android.content.IntentSender"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/LyricoDatabase.kt",
+  "imports": [
+   "androidx.room.AutoMigration",
+   "androidx.room.Database",
+   "androidx.room.RoomDatabase",
+   "androidx.room.migration.Migration",
+   "androidx.sqlite.db.SupportSQLiteDatabase"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/BatchMatchConfig.kt",
+  "imports": [
+   "android.os.Parcelable"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/dao/AppLogDao.kt",
+  "imports": [
+   "androidx.room.Dao",
+   "androidx.room.Insert",
+   "androidx.room.Query"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/dao/BatchTaskDao.kt",
+  "imports": [
+   "androidx.room.Dao",
+   "androidx.room.Insert",
+   "androidx.room.Query",
+   "androidx.room.Transaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/dao/FolderDao.kt",
+  "imports": [
+   "androidx.room.Dao",
+   "androidx.room.Insert",
+   "androidx.room.OnConflictStrategy",
+   "androidx.room.Query",
+   "androidx.room.Transaction",
+   "androidx.room.Update"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/dao/LibraryIndexDao.kt",
+  "imports": [
+   "androidx.room.Dao",
+   "androidx.room.Insert",
+   "androidx.room.OnConflictStrategy",
+   "androidx.room.Query"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/dao/SongCustomTagKeyDao.kt",
+  "imports": [
+   "androidx.room.Dao",
+   "androidx.room.Insert",
+   "androidx.room.OnConflictStrategy",
+   "androidx.room.Query",
+   "androidx.room.Transaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/dao/SongDao.kt",
+  "imports": [
+   "androidx.room.Dao",
+   "androidx.room.Insert",
+   "androidx.room.OnConflictStrategy",
+   "androidx.room.Query",
+   "androidx.room.RawQuery",
+   "androidx.room.SkipQueryVerification",
+   "androidx.room.Update",
+   "androidx.room.Upsert",
+   "androidx.sqlite.db.SupportSQLiteQuery"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/dao/SourcePluginDao.kt",
+  "imports": [
+   "androidx.room.Dao",
+   "androidx.room.Delete",
+   "androidx.room.Insert",
+   "androidx.room.OnConflictStrategy",
+   "androidx.room.Query",
+   "androidx.room.Transaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/AlbumEntity.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.Index",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/AlbumSongCrossRef.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.ForeignKey",
+   "androidx.room.Index"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/AppLogEntity.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.Index",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/ArtistEntity.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.Index",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/ArtistSongCrossRef.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.ForeignKey",
+   "androidx.room.Index"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/BatchTaskEntity.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.Index",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/BatchTaskItemEntity.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.Index",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/FolderEntity.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.Index",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/SongCustomTagKeyEntity.kt",
+  "imports": [
+   "androidx.room.Entity",
+   "androidx.room.Index"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/SongEntity.kt",
+  "imports": [
+   "android.net.Uri",
+   "androidx.core.net.toUri",
+   "androidx.room.ColumnInfo",
+   "androidx.room.Entity",
+   "androidx.room.ForeignKey",
+   "androidx.room.Index",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/entity/SourcePluginEntity.kt",
+  "imports": [
+   "androidx.room.ColumnInfo",
+   "androidx.room.Entity",
+   "androidx.room.PrimaryKey"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/lyrics/Lyrics.kt",
+  "imports": [
+   "android.os.Parcelable"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/lyrics/SongSearchResult.kt",
+  "imports": [
+   "android.os.Parcelable"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/metadata/MetadataApplyPolicy.kt",
+  "imports": [
+   "android.os.Parcelable"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/search/LyricsSearchResult.kt",
+  "imports": [
+   "android.os.Parcelable"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/model/SongFile.kt",
+  "imports": [
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/network/NetworkLoggingInterceptor.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/repository/GhContributorRepositoryImpl.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/repository/LibraryIndexRepositoryImpl.kt",
+  "imports": [
+   "androidx.room.withTransaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/repository/PlaybackRepository.kt",
+  "imports": [
+   "android.content.Context",
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/repository/PlaybackRepositoryImpl.kt",
+  "imports": [
+   "android.content.ActivityNotFoundException",
+   "android.content.Context",
+   "android.content.Intent",
+   "android.net.Uri",
+   "android.widget.Toast"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/repository/SettingsRepositoryImpl.kt",
+  "imports": [
+   "android.content.Context",
+   "androidx.datastore.preferences.core.Preferences",
+   "androidx.datastore.preferences.core.booleanPreferencesKey",
+   "androidx.datastore.preferences.core.doublePreferencesKey",
+   "androidx.datastore.preferences.core.edit",
+   "androidx.datastore.preferences.core.intPreferencesKey",
+   "androidx.datastore.preferences.core.longPreferencesKey",
+   "androidx.datastore.preferences.core.stringPreferencesKey",
+   "androidx.datastore.preferences.preferencesDataStore"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/repository/UpdateRepositoryImpl.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/file/AudioFileAccess.kt",
+  "imports": [
+   "android.app.RecoverableSecurityException",
+   "android.content.ContentUris",
+   "android.content.Context",
+   "android.content.IntentSender",
+   "android.net.Uri",
+   "android.os.Build",
+   "android.os.ParcelFileDescriptor",
+   "android.provider.DocumentsContract",
+   "android.provider.MediaStore",
+   "android.provider.OpenableColumns",
+   "android.util.Log",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/file/SongFileRepositoryImpl.kt",
+  "imports": [
+   "android.app.RecoverableSecurityException",
+   "android.content.Context",
+   "android.os.Build",
+   "android.util.Log",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/file/SongFileResults.kt",
+  "imports": [
+   "android.content.IntentSender"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/library/SongLibraryRepositoryImpl.kt",
+  "imports": [
+   "androidx.room.withTransaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/scan/LibraryScanRepositoryImpl.kt",
+  "imports": [
+   "android.content.Context",
+   "android.util.Log",
+   "androidx.room.withTransaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/search/SongSearchRepositoryImpl.kt",
+  "imports": [
+   "androidx.sqlite.db.SimpleSQLiteQuery",
+   "androidx.room.withTransaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/tag/AudioTagMutation.kt",
+  "imports": [
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/tag/AudioTagMutationFactory.kt",
+  "imports": [
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/tag/AudioTagRepositoryImpl.kt",
+  "imports": [
+   "android.content.Context",
+   "android.os.ParcelFileDescriptor",
+   "android.util.Log",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/song/tag/AudioTagWriteResult.kt",
+  "imports": [
+   "android.content.IntentSender"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/data/utils/SongQueryBuilder.kt",
+  "imports": [
+   "androidx.sqlite.db.SimpleSQLiteQuery",
+   "androidx.sqlite.db.SupportSQLiteQuery"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/di/AppModule.kt",
+  "imports": [
+   "androidx.room.Room",
+   "androidx.room.RoomDatabase",
+   "androidx.sqlite.db.SupportSQLiteDatabase"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/domain/song/usecase/DeleteSongsUseCase.kt",
+  "imports": [
+   "android.content.IntentSender",
+   "androidx.room.withTransaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/domain/song/usecase/RenameSongUseCase.kt",
+  "imports": [
+   "android.content.IntentSender",
+   "androidx.room.withTransaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/domain/song/usecase/SaveAudioTagsUseCase.kt",
+  "imports": [
+   "android.content.IntentSender",
+   "androidx.room.withTransaction"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/LyricoApp.kt",
+  "imports": [
+   "android.net.Uri",
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/MainActivity.kt",
+  "imports": [
+   "android.Manifest",
+   "android.app.Activity",
+   "android.content.Context",
+   "android.content.Intent",
+   "android.content.pm.PackageManager",
+   "android.graphics.Color",
+   "android.net.Uri",
+   "android.os.Build",
+   "android.os.Bundle",
+   "android.widget.Toast",
+   "androidx.appcompat.app.AppCompatActivity",
+   "androidx.activity.SystemBarStyle",
+   "androidx.activity.compose.setContent",
+   "androidx.activity.enableEdgeToEdge",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.core.content.ContextCompat",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle",
+   "androidx.lifecycle.lifecycleScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/platform/player/InstalledAppChecker.kt",
+  "imports": [
+   "android.content.Context",
+   "android.content.pm.ApplicationInfo",
+   "android.content.pm.PackageManager"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/platform/player/PlayerIntentFactory.kt",
+  "imports": [
+   "android.content.Intent",
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/plugin/i18n/PluginLocales.kt",
+  "imports": [
+   "android.content.ComponentCallbacks",
+   "android.content.Context",
+   "android.content.res.Configuration",
+   "android.icu.util.ULocale",
+   "android.os.Build",
+   "androidx.appcompat.app.AppCompatDelegate"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/plugin/runtime/QuickJsHostApi.kt",
+  "imports": [
+   "android.util.Base64",
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/plugin/source/PluginJsonParser.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/plugin/source/PluginSearchSourceManager.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/plugin/source/ScriptSearchSource.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/plugin/source/SourcePluginInstaller.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/AboutScreen.kt",
+  "imports": [
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/AlbumDetailScreen.kt",
+  "imports": [
+   "android.widget.Toast",
+   "androidx.activity.compose.BackHandler",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/AppLogScreen.kt",
+  "imports": [
+   "android.content.ClipData",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.contract.ActivityResultContracts"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/ArtistDetailScreen.kt",
+  "imports": [
+   "android.app.Activity",
+   "android.content.Intent",
+   "android.net.Uri",
+   "android.widget.Toast",
+   "androidx.activity.compose.BackHandler",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.IntentSenderRequest",
+   "androidx.activity.result.PickVisualMediaRequest",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/ArtistPosterFolderContents.kt",
+  "imports": [
+   "android.widget.MediaController",
+   "android.widget.VideoView",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/ArtistPosterFoldersScreen.kt",
+  "imports": [
+   "android.content.Intent",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/ArtistSplitSettingsScreen.kt",
+  "imports": [
+   "android.widget.Toast",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/BatchEditScreen.kt",
+  "imports": [
+   "androidx.activity.compose.BackHandler",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.PickVisualMediaRequest",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/BatchRenameScreen.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/EditFieldSettingsScreen.kt",
+  "imports": [
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/EditMetadataScreen.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "android.app.Activity",
+   "android.content.ClipData",
+   "android.graphics.Bitmap",
+   "android.graphics.BitmapFactory",
+   "android.net.Uri",
+   "androidx.activity.compose.BackHandler",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.IntentSenderRequest",
+   "androidx.activity.result.PickVisualMediaRequest",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/FolderManagerScreen.kt",
+  "imports": [
+   "android.content.Intent",
+   "androidx.activity.compose.BackHandler",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.contract.ActivityResultContracts"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/library/AlbumsPage.kt",
+  "imports": [
+   "android.widget.Toast",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/library/ArtistsPage.kt",
+  "imports": [
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/library/SongsPage.kt",
+  "imports": [
+   "android.content.Intent",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/LibraryHomeScreen.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "androidx.activity.compose.BackHandler"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/LocalSearchScreen.kt",
+  "imports": [
+   "androidx.activity.compose.BackHandler",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/PluginConfigScreen.kt",
+  "imports": [
+   "android.widget.Toast"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/PluginManagerScreen.kt",
+  "imports": [
+   "android.content.Context",
+   "android.widget.Toast",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.contract.ActivityResultContracts"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/QuickJsTestScreen.kt",
+  "imports": [
+   "android.util.Log",
+   "android.widget.Toast"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/SearchCoverScreen.kt",
+  "imports": [
+   "android.annotation.SuppressLint"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/SearchLyricsScreen.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "android.content.ClipData",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/SearchResultsScreen.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "android.content.ClipData",
+   "android.graphics.BitmapFactory",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/screens/SettingsScreen.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "android.text.format.Formatter",
+   "android.widget.Toast",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.appcompat.app.AppCompatDelegate",
+   "androidx.core.os.LocaleListCompat",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/album/AlbumListItem.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "android.view.HapticFeedbackConstants"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/artist/ArtistListItem.kt",
+  "imports": [
+   "android.annotation.SuppressLint"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/bar/AlphaBetSideBar.kt",
+  "imports": [
+   "android.view.HapticFeedbackConstants"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/bar/SongSelectionSupport.kt",
+  "imports": [
+   "android.content.Context",
+   "android.content.Intent",
+   "androidx.activity.compose.rememberLauncherForActivityResult",
+   "androidx.activity.result.contract.ActivityResultContracts",
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/blur/BarBlur.kt",
+  "imports": [
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/cover/ArtistPosterSource.kt",
+  "imports": [
+   "androidx.lifecycle.compose.collectAsStateWithLifecycle"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/cover/CoverImage.kt",
+  "imports": [
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/CoverRequest.kt",
+  "imports": [
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/crop/ImageCropper.kt",
+  "imports": [
+   "android.graphics.Bitmap",
+   "androidx.core.graphics.scale"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/library/AlbumGridItem.kt",
+  "imports": [
+   "android.view.HapticFeedbackConstants"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/PainterUtils.kt",
+  "imports": [
+   "android.content.Context",
+   "android.graphics.Bitmap",
+   "android.graphics.BitmapFactory",
+   "android.graphics.ImageDecoder",
+   "android.net.Uri",
+   "android.os.Build",
+   "android.provider.MediaStore",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/player/PlayerPickerBottomSheet.kt",
+  "imports": [
+   "android.content.ActivityNotFoundException",
+   "android.content.Context",
+   "android.content.Intent",
+   "android.net.Uri",
+   "android.widget.Toast",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/song/SongActionSheets.kt",
+  "imports": [
+   "android.content.Intent",
+   "android.net.Uri",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/song/SongDetailBottomSheet.kt",
+  "imports": [
+   "android.content.ClipData",
+   "android.text.format.Formatter",
+   "android.widget.Toast"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/ui/components/song/SongListItem.kt",
+  "imports": [
+   "android.annotation.SuppressLint",
+   "android.view.HapticFeedbackConstants"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/ArtistPosterFileWriter.kt",
+  "imports": [
+   "android.content.Context",
+   "android.provider.DocumentsContract",
+   "android.util.Log",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/CacheManager.kt",
+  "imports": [
+   "android.content.Context"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/coil/AudioCoverFetcher.kt",
+  "imports": [
+   "android.content.ContentResolver",
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/coil/ExternalArtistPosterReader.kt",
+  "imports": [
+   "android.content.Context",
+   "android.graphics.Bitmap",
+   "android.graphics.BitmapFactory",
+   "android.media.MediaMetadataRetriever",
+   "android.util.Log",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/coil/PosterFileFetcher.kt",
+  "imports": [
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/CoverSourceType.kt",
+  "imports": [
+   "android.graphics.Bitmap",
+   "android.net.Uri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/LibraryScanManager.kt",
+  "imports": [
+   "android.content.Context"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/LyricDecoder.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/LyricEncoder.kt",
+  "imports": [
+   "android.annotation.SuppressLint"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/LyricFormatter.kt",
+  "imports": [
+   "android.annotation.SuppressLint"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/LyricsSearchTextExtractor.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/MediaScanner.kt",
+  "imports": [
+   "android.content.Context",
+   "android.net.Uri",
+   "android.provider.DocumentsContract",
+   "android.util.Log",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/ReplayGainScanner.kt",
+  "imports": [
+   "android.content.Context",
+   "android.media.AudioFormat",
+   "android.media.MediaCodec",
+   "android.media.MediaCodecList",
+   "android.media.MediaExtractor",
+   "android.media.MediaFormat",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/SafDocuments.kt",
+  "imports": [
+   "android.content.Context",
+   "android.database.Cursor",
+   "android.net.Uri",
+   "android.provider.DocumentsContract",
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/SafSiblingFileWriter.kt",
+  "imports": [
+   "android.content.Context",
+   "android.net.Uri",
+   "android.provider.DocumentsContract"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/UiMessage.kt",
+  "imports": [
+   "android.content.Context"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/utils/UriUtils.kt",
+  "imports": [
+   "android.content.ContentResolver",
+   "android.content.Context",
+   "android.content.Intent",
+   "android.net.Uri",
+   "android.os.Environment",
+   "android.provider.DocumentsContract",
+   "android.provider.MediaStore",
+   "android.util.Log",
+   "androidx.core.net.toUri"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/AboutViewModel.kt",
+  "imports": [
+   "android.content.Context",
+   "android.content.Intent",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/AlbumActionsViewModel.kt",
+  "imports": [
+   "android.content.Context",
+   "android.content.Intent",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/AlbumDetailViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/AlbumLibraryViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/AppLogViewModel.kt",
+  "imports": [
+   "android.content.Context",
+   "android.net.Uri",
+   "android.os.Build",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/ArtistDetailViewModel.kt",
+  "imports": [
+   "android.app.Application",
+   "android.content.Context",
+   "android.content.IntentSender",
+   "android.net.Uri",
+   "android.util.Log",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/ArtistLibraryViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/ArtistPosterFoldersViewModel.kt",
+  "imports": [
+   "android.app.Application",
+   "android.net.Uri",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/ArtistSplitSettingsViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchEditViewModel.kt",
+  "imports": [
+   "android.net.Uri",
+   "android.util.Log",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchExportViewModel.kt",
+  "imports": [
+   "android.net.Uri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchLyricsFormatViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchMatchViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchRenameViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchReplayGainViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchTaskDetailViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/BatchTaskListViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/CharacterMappingViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/CoverSearchViewModel.kt",
+  "imports": [
+   "android.util.Log",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/EditFieldSettingsViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/EditMetadataViewModel.kt",
+  "imports": [
+   "android.app.RecoverableSecurityException",
+   "android.content.ContentValues",
+   "android.content.Context",
+   "android.content.IntentSender",
+   "android.graphics.Bitmap",
+   "android.net.Uri",
+   "android.os.Build",
+   "android.os.Environment",
+   "android.provider.MediaStore",
+   "android.util.Log",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/FolderManagerViewModel.kt",
+  "imports": [
+   "android.app.Application",
+   "android.util.Log",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/LocalSearchViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/LyricsSearchViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/PluginViewModel.kt",
+  "imports": [
+   "android.content.Context",
+   "android.net.Uri",
+   "android.util.Log",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/SearchSourceConfigViewModel.kt",
+  "imports": [
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/SearchViewModel.kt",
+  "imports": [
+   "android.util.Log",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/SettingsViewModel.kt",
+  "imports": [
+   "android.content.Context",
+   "android.net.Uri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/SongListViewModel.kt",
+  "imports": [
+   "android.os.Parcelable",
+   "android.util.Log",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/viewmodel/SongSelectionViewModel.kt",
+  "imports": [
+   "android.content.Context",
+   "android.content.Intent",
+   "androidx.core.net.toUri",
+   "androidx.lifecycle.ViewModel",
+   "androidx.lifecycle.viewModelScope"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/worker/BatchTaskCancelReceiver.kt",
+  "imports": [
+   "android.content.BroadcastReceiver",
+   "android.content.Context",
+   "android.content.Intent",
+   "androidx.work.WorkManager"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/worker/BatchTaskNotification.kt",
+  "imports": [
+   "android.app.Notification",
+   "android.app.NotificationChannel",
+   "android.app.NotificationManager",
+   "android.app.PendingIntent",
+   "android.content.Context",
+   "android.content.Intent",
+   "android.os.Build",
+   "androidx.core.app.NotificationCompat"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/worker/BatchTaskScheduler.kt",
+  "imports": [
+   "android.content.Context",
+   "androidx.work.Data",
+   "androidx.work.ExistingWorkPolicy",
+   "androidx.work.OneTimeWorkRequestBuilder",
+   "androidx.work.WorkManager"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/worker/BatchTaskWorker.kt",
+  "imports": [
+   "android.content.Context",
+   "android.content.pm.ServiceInfo",
+   "android.os.Build",
+   "android.os.PowerManager",
+   "android.util.Log",
+   "androidx.work.CoroutineWorker",
+   "androidx.work.ForegroundInfo",
+   "androidx.work.WorkerParameters"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/worker/processor/BatchExportProcessor.kt",
+  "imports": [
+   "android.content.Context",
+   "android.net.Uri",
+   "androidx.core.net.toUri",
+   "androidx.documentfile.provider.DocumentFile"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/worker/processor/EditTagsProcessor.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ },
+ {
+  "file": "lyrico-app/src/main/java/com/lonx/lyrico/worker/processor/MatchMetadataProcessor.kt",
+  "imports": [
+   "android.util.Log"
+  ]
+ }
+]

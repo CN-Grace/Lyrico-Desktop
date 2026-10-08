@@ -11,6 +11,63 @@
 
 #include <memory>
 #include <stdexcept>
+#include <string>
+
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <windows.h>
+#endif
+
+namespace {
+
+// The desktop port addresses files by absolute path rather than by POSIX file
+// descriptor: TagLib's FileStream(int) constructor is unavailable on Windows
+// (see taglib/taglib/toolkit/tfilestream.cpp).
+//
+// On Windows the path is taken as UTF-16 straight from the JVM. Going through
+// GetStringUTFChars would hand us *modified* UTF-8, which only coincides with
+// real UTF-8 for the BMP - a supplementary character (an emoji in a file name,
+// say) is encoded as a surrogate pair there and would be mangled. The JVM's
+// internal representation is already the wide string TagLib wants, so we read it
+// directly and let FileName copy it.
+std::unique_ptr<TagLib::FileStream> openFileStream(JNIEnv *env, jstring path, bool readOnly) {
+    if (path == nullptr) {
+        return nullptr;
+    }
+
+    std::unique_ptr<TagLib::FileStream> stream;
+
+#ifdef _WIN32
+    static_assert(sizeof(wchar_t) == sizeof(jchar), "Windows wchar_t must be 16-bit for this cast");
+
+    const jchar *chars = env->GetStringChars(path, nullptr);
+    if (chars == nullptr) {
+        return nullptr;
+    }
+
+    const std::wstring wide(reinterpret_cast<const wchar_t *>(chars),
+                            static_cast<size_t>(env->GetStringLength(path)));
+    env->ReleaseStringChars(path, chars);
+
+    stream = std::make_unique<TagLib::FileStream>(TagLib::FileName(wide.c_str()), readOnly);
+#else
+    const char *utf8 = env->GetStringUTFChars(path, nullptr);
+    if (utf8 == nullptr) {
+        return nullptr;
+    }
+    stream = std::make_unique<TagLib::FileStream>(TagLib::FileName(utf8), readOnly);
+    env->ReleaseStringUTFChars(path, utf8);
+#endif
+
+    return stream;
+}
+
+}  // namespace
 
 template<typename FileType>
 TagLib::File *createSupportedFile(TagLib::IOStream *stream,
@@ -79,11 +136,10 @@ TagLib::File* createFileFromContent(TagLib::IOStream *stream,
 extern "C" {
 
 JNIEXPORT jobject JNICALL
-Java_com_lonx_audiotag_TagLib_getAudioProperties(
-        JNIEnv *env, jclass, jint fd, jint read_style) {
+Java_com_lonx_audiotag_internal_AudioTagNative_getAudioProperties(
+        JNIEnv *env, jclass, jstring path, jint read_style) {
     try {
-        // fd readOnly = true
-        auto stream = std::make_unique<TagLib::FileStream>(fd, true);
+        auto stream = openFileStream(env, path, true);
         const auto style = static_cast<TagLib::AudioProperties::ReadStyle>(read_style);
 
         std::unique_ptr<TagLib::File> file(createFileFromContent(stream.get(), true, style));
@@ -103,10 +159,10 @@ Java_com_lonx_audiotag_TagLib_getAudioProperties(
 }
 
 JNIEXPORT jobject JNICALL
-Java_com_lonx_audiotag_TagLib_getMetadata(
-        JNIEnv *env, jclass, jint fd, jboolean read_pictures) {
+Java_com_lonx_audiotag_internal_AudioTagNative_getMetadata(
+        JNIEnv *env, jclass, jstring path, jboolean read_pictures) {
     try {
-        auto stream = std::make_unique<TagLib::FileStream>(fd, true);
+        auto stream = openFileStream(env, path, true);
         std::unique_ptr<TagLib::File> file(createFileFromContent(stream.get(), false, TagLib::AudioProperties::Average));
 
         if (!file) {
@@ -146,14 +202,14 @@ Java_com_lonx_audiotag_TagLib_getMetadata(
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_lonx_audiotag_TagLib_getMetadataPropertyValues(
-        JNIEnv *env, jclass, jint fd, jstring property_name) {
+Java_com_lonx_audiotag_internal_AudioTagNative_getMetadataPropertyValues(
+        JNIEnv *env, jclass, jstring path, jstring property_name) {
 
     const char *propertyName = env->GetStringUTFChars(property_name, nullptr);
     if (propertyName == nullptr) return nullptr;
 
     try {
-        auto stream = std::make_unique<TagLib::FileStream>(fd, true);
+        auto stream = openFileStream(env, path, true);
         std::unique_ptr<TagLib::File> file(createFileFromContent(stream.get(), false, TagLib::AudioProperties::Average));
 
         if (!file) {
@@ -191,10 +247,10 @@ Java_com_lonx_audiotag_TagLib_getMetadataPropertyValues(
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_lonx_audiotag_TagLib_getPictures(
-        JNIEnv *env, jclass, jint fd) {
+Java_com_lonx_audiotag_internal_AudioTagNative_getPictures(
+        JNIEnv *env, jclass, jstring path) {
     try {
-        auto stream = std::make_unique<TagLib::FileStream>(fd, true);
+        auto stream = openFileStream(env, path, true);
         std::unique_ptr<TagLib::File> file(createFileFromContent(stream.get(), false, TagLib::AudioProperties::Average));
 
         if (!file) {
@@ -209,11 +265,10 @@ Java_com_lonx_audiotag_TagLib_getPictures(
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_lonx_audiotag_TagLib_savePropertyMap(
-        JNIEnv *env, jclass, jint fd, jobject property_map) {
+Java_com_lonx_audiotag_internal_AudioTagNative_savePropertyMap(
+        JNIEnv *env, jclass, jstring path, jobject property_map) {
     try {
-        // 写操作，fd readOnly = false
-        auto stream = std::make_unique<TagLib::FileStream>(fd, false);
+        auto stream = openFileStream(env, path, false);
         std::unique_ptr<TagLib::File> file(createFileFromContent(stream.get(), false, TagLib::AudioProperties::Average));
 
         if (!file) {
@@ -245,11 +300,10 @@ Java_com_lonx_audiotag_TagLib_savePropertyMap(
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_lonx_audiotag_TagLib_savePictures(
-        JNIEnv *env, jclass, jint fd, jobjectArray pictures) {
+Java_com_lonx_audiotag_internal_AudioTagNative_savePictures(
+        JNIEnv *env, jclass, jstring path, jobjectArray pictures) {
     try {
-        // 写操作，fd readOnly = false
-        auto stream = std::make_unique<TagLib::FileStream>(fd, false);
+        auto stream = openFileStream(env, path, false);
         std::unique_ptr<TagLib::File> file(createFileFromContent(stream.get(), false, TagLib::AudioProperties::Average));
 
         if (!file) {

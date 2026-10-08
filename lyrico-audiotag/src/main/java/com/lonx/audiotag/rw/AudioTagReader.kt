@@ -1,9 +1,7 @@
 package com.lonx.audiotag.rw
 
-import android.os.ParcelFileDescriptor
-import android.util.Log
 import com.lonx.audiotag.TagLib
-import com.lonx.audiotag.internal.FdUtils
+import com.lonx.audiotag.internal.TagLog
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
 import com.lonx.audiotag.model.AudioTagData
@@ -11,27 +9,25 @@ import com.lonx.audiotag.model.AudioTagKeys
 import com.lonx.audiotag.model.CustomTagField
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
 object AudioTagReader {
 
     private const val TAG = "AudioTagReader"
 
     suspend fun read(
-        pfd: ParcelFileDescriptor,
+        path: Path,
         readPictures: Boolean = true,
         multiValueSeparator: String = "/",
         strict: Boolean = false
     ): AudioTagData {
         return withContext(Dispatchers.IO) {
             try {
-                val nativeFd = FdUtils.getNativeFd(pfd)
-
                 // 读取音频属性
-                val audioProps = TagLib.getAudioProperties(nativeFd)
+                val audioProps = TagLib.getAudioProperties(path)
 
                 // 读取 Metadata
-                val metaFd = FdUtils.getNativeFd(pfd)
-                val metadata = TagLib.getMetadata(metaFd, readPictures)
+                val metadata = TagLib.getMetadata(path, readPictures)
                     ?: throw IllegalStateException("Unable to read audio metadata")
 
                 // 处理图片
@@ -51,7 +47,7 @@ object AudioTagReader {
                 val props = metadata.propertyMap
 
                 props.forEach{(key, value) ->
-                    Log.d(TAG, "Read tag: $key = ${value.joinToString()}")
+                    TagLog.d(TAG, "Read tag: $key = ${value.joinToString()}")
                 }
 
                 fun firstOf(vararg keys: String): String? {
@@ -223,7 +219,7 @@ object AudioTagReader {
 
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException || strict) throw e
-                Log.e(TAG, "Read error", e)
+                TagLog.e(TAG, "Read error", e)
                 AudioTagData()
             }
         }
@@ -232,7 +228,7 @@ object AudioTagReader {
      * @param description 需要优先匹配的图片描述（艺术家图片用它记录归属），为空时只按类型取。
      */
     suspend fun readPicture(
-        pfd: ParcelFileDescriptor,
+        path: Path,
         pictureType: AudioPictureType = AudioPictureType.FrontCover,
         fallbackPictureTypes: List<AudioPictureType> = emptyList(),
         fallbackToAny: Boolean = pictureType == AudioPictureType.FrontCover,
@@ -240,18 +236,16 @@ object AudioTagReader {
     ): ByteArray {
         return withContext(Dispatchers.IO) {
             try {
-                val metaFd = FdUtils.getNativeFd(pfd)
-                val metadata = TagLib.getPicture(
-                    fd = metaFd,
+                val picture = TagLib.getPicture(
+                    path = path,
                     pictureType = pictureType,
                     fallbackPictureTypes = fallbackPictureTypes,
                     fallbackToAny = fallbackToAny,
                     description = description
                 )
-                val pic = metadata?.data
-                return@withContext pic ?: byteArrayOf()
+                return@withContext picture?.data ?: byteArrayOf()
             } catch (e: Exception) {
-                Log.e(TAG, "Read error", e)
+                TagLog.e(TAG, "Read error", e)
                 byteArrayOf()
             }
         }

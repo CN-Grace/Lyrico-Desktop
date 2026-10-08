@@ -2,17 +2,32 @@
 #define TAGLIB_UTILS_H
 
 #include <jni.h>
-#include <unistd.h>
-#include <android/log.h>
+#include <cstdarg>
+#include <cstdio>
 #include "fileref_ext.h"
 #include "tpropertymap.h"
 
 
 #define LOG_TAG "taglib_jni"
-#define LOGE(...) \
-  ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
-#define LOGD(...) \
-  ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
+
+namespace lyrico_jni {
+
+// Android's __android_log_print is not available on desktop, so the JNI layer
+// logs to stderr. Gradle keeps the native stderr attached unless it is
+// explicitly redirected, which makes this readable from the build/run console.
+inline void logLine(const char *level, const char *format, ...) {
+    std::fprintf(stderr, "[%s] [%s] ", LOG_TAG, level);
+    va_list args;
+    va_start(args, format);
+    std::vfprintf(stderr, format, args);
+    va_end(args);
+    std::fprintf(stderr, "\n");
+}
+
+}  // namespace lyrico_jni
+
+#define LOGE(...) ::lyrico_jni::logLine("ERROR", __VA_ARGS__)
+#define LOGD(...) ::lyrico_jni::logLine("DEBUG", __VA_ARGS__)
 jclass stringClass = nullptr;
 
 jclass hashMapClass = nullptr;
@@ -317,7 +332,7 @@ JniPictureArrayToPictureList(JNIEnv *env, jobjectArray pictures) {
         const jsize pictureDataSize = env->GetArrayLength(bytes);
         TagLib::ByteVector pictureDataVector(
                 reinterpret_cast<const char *>(pictureData),
-                static_cast<uint>(pictureDataSize)
+                static_cast<unsigned int>(pictureDataSize)
         );
         env->ReleaseByteArrayElements(bytes, pictureData, JNI_ABORT);
 

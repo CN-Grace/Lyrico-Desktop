@@ -1,12 +1,10 @@
 package com.lonx.audiotag.model
 
-import android.os.Parcelable
-import androidx.annotation.Keep
-import kotlinx.parcelize.Parcelize
 import java.util.ArrayList
 
-@Keep
-@Parcelize
+// Desktop port: the Android Parcelable/@Keep annotations were dropped. Nothing serialises these
+// types through an Intent any more, and the desktop build ships unobfuscated, so the native layer's
+// cached constructor/method lookups (see JNI_OnLoad in src/main/cpp/utils.h) keep their names.
 data class AudioTagData(
     val title: String? = null,
     val artist: String? = null,
@@ -41,23 +39,19 @@ data class AudioTagData(
     val pictures: List<AudioPicture> = ArrayList(),
     val picUrl: String? = null,
     val supportsTypedPictures: Boolean = false,
-): Parcelable
+)
 
-@Keep
-@Parcelize
 data class CustomTagField(
     val key: String = "",
     val value: String = ""
-) : Parcelable
+)
 
-@Keep
-@Parcelize
 data class AudioPicture(
     val data: ByteArray,
     val mimeType: String = "image/jpeg",
     val description: String = "",
     val pictureType: String = "Front Cover"
-): Parcelable {
+) {
     /**
      * 比较图片数据与归属信息。
      *

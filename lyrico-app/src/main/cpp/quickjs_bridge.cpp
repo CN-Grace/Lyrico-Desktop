@@ -52,7 +52,7 @@ JNIEnv *getEnv(QuickJsRuntimeState *state) {
         return env;
     }
     if (status == JNI_EDETACHED &&
-        state->javaVm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        state->javaVm->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) == JNI_OK) {
         return env;
     }
     return nullptr;
