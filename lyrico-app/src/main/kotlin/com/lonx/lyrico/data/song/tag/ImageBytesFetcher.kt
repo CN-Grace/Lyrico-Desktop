@@ -17,7 +17,7 @@ class DefaultImageBytesFetcher(
     override suspend fun fetch(source: PictureSource): ByteArray? = withContext(Dispatchers.IO) {
         when (source) {
             is PictureSource.Bytes -> source.bytes
-            is PictureSource.UriSource -> fileAccess.openInputBytes(source.uri)
+            is PictureSource.FileSource -> fileAccess.openInputBytes(source.path)
             is PictureSource.UrlSource -> fetchUrl(source.url)
         }
     }

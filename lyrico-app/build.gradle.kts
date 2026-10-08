@@ -132,6 +132,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.kotlinx.serialization.json)
 
+    // The Android build got OkHttp from the app's DI graph; the tag layer needs it for
+    // `PictureSource.UrlSource`, and the plugin-search runtime will reuse the same client.
+    implementation(libs.okhttp)
+
     // Desktop UI tests render the real composables off-screen (no window needed) and assert on the
     // semantics tree — this is the harness the 24 screens of phase 4 will be ported against.
     testImplementation(kotlin("test"))
@@ -164,6 +168,13 @@ tasks.named<Test>("test") {
     systemProperty(
         "lyrico.android.schema.dir",
         layout.projectDirectory.dir("schemas-android").asFile.absolutePath,
+    )
+    // TagLib's vendored test audio files, used as tag read/write fixtures.
+    systemProperty(
+        "lyrico.audiotag.fixtures.dir",
+        rootProject.layout.projectDirectory
+            .dir("lyrico-audiotag/src/main/cpp/taglib/tests/data")
+            .asFile.absolutePath,
     )
 }
 

@@ -1,10 +1,11 @@
 package com.lonx.lyrico.data.song.tag
 
-import android.net.Uri
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
 import com.lonx.audiotag.model.AudioTagData
 import com.lonx.audiotag.model.CustomTagField
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 
 object AudioTagMutationFactory {
     /**
@@ -101,11 +102,19 @@ object AudioTagMutationFactory {
                     basePictures = basePictures
                 )
             } else {
-                PictureUpdate.ReplacePicture(
-                    type = AudioPictureType.FrontCover,
-                    source = PictureSource.UriSource(Uri.parse(normalizedPicUrl)),
-                    basePictures = basePictures
-                )
+                // A cover picked from disk: the value is an absolute path. A stored value that is not
+                // a usable path (a leftover `content://` row, say) leaves the picture untouched
+                // rather than failing the whole tag write.
+                val picturePath = normalizedPicUrl.toPathOrNull()
+                if (picturePath == null) {
+                    PictureUpdate.Unchanged
+                } else {
+                    PictureUpdate.ReplacePicture(
+                        type = AudioPictureType.FrontCover,
+                        source = PictureSource.FileSource(picturePath),
+                        basePictures = basePictures
+                    )
+                }
             }
         }
 
@@ -131,5 +140,11 @@ object AudioTagMutationFactory {
         return takeIf {
             mode == AudioTagMutationMode.Overwrite && (picturesAuthored || it.isNotEmpty())
         }
+    }
+
+    private fun String.toPathOrNull(): Path? = try {
+        Path.of(this)
+    } catch (_: InvalidPathException) {
+        null
     }
 }

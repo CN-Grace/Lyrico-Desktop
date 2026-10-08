@@ -1,9 +1,9 @@
 package com.lonx.lyrico.data.song.tag
 
-import android.net.Uri
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
 import com.lonx.audiotag.model.CustomTagField
+import java.nio.file.Path
 
 data class AudioTagMutation(
     val mode: AudioTagMutationMode,
@@ -97,8 +97,8 @@ sealed interface PictureSource {
         }
     }
 
-    data class UriSource(
-        val uri: Uri
+    data class FileSource(
+        val path: Path
     ) : PictureSource
 
     data class UrlSource(
