@@ -1,0 +1,821 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_language">應用程式語言</string>
+    <string name="language_system">跟隨系統</string>
+    <string name="search_settings">搜尋設定</string>
+    <string name="plugin_manager_title">外掛管理</string>
+    <string name="search_source_priority_tip">每個類型分頁會獨立儲存啟用狀態和順序；元數據來源同時用於單曲主搜尋和批次元數據比對</string>
+    <string name="plugin_type_metadata">元數據來源</string>
+    <string name="plugin_type_lyrics">歌詞來源</string>
+    <string name="plugin_type_cover">封面來源</string>
+    <string name="plugin_type_with_value">外掛類型：%1$s</string>
+    <string name="plugin_type_empty">尚未安裝%1$s外掛</string>
+
+    <!-- 搜尋 -->
+    <string name="search_lyrics_placeholder">搜尋歌詞…</string>
+    <string name="search_main_placeholder">搜尋歌曲…</string>
+    <string name="action_main_search">主搜尋</string>
+    <string name="action_search_cover">搜尋封面</string>
+    <string name="action_search_lyrics">搜尋歌詞</string>
+    <string name="search_source_type_title">選擇搜尋類型</string>
+    <string name="unknown_title">未知標題</string>
+    <string name="unknown_album">未知專輯</string>
+    <string name="unknown_year">未知年份</string>
+    <string name="search_cover_placeholder">搜尋封面…</string>
+    <string name="search_no_results">找不到相關結果</string>
+    <string name="fetch_lyrics_failed">取得歌詞失敗，請重試</string>
+    <string name="lyrics_loading">正在載入歌詞…</string>
+    <string name="search_apply_tab_metadata">資料</string>
+    <string name="apply_action">套用</string>
+    <string name="apply_lyrics_only_action">僅歌詞</string>
+    <string name="cd_no_results">搜尋結果為空</string>
+    <string name="local_search_hint">搜尋歌曲中繼資料</string>
+    <string name="search_field_preview">%1$s：%2$s</string>
+
+    <!-- 一般 -->
+    <string name="settings_title">設定</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">確定</string>
+
+    <!-- 快取 -->
+    <string name="clear_cache">清除快取</string>
+    <string name="calculating_cache">正在計算快取大小…</string>
+    <string name="clear_cache_confirm">確定要清除所有快取嗎？</string>
+    <string name="cache_item">%1$s: %2$s</string>
+    <string name="cache_total">總計：%1$s</string>
+    <string name="cache_size_label">快取大小：%1$s</string>
+
+    <!-- 分組標題 -->
+    <string name="section_appearance">外觀</string>
+    <string name="section_scan">掃描設定</string>
+    <string name="section_search">搜尋設定</string>
+    <string name="section_lyrics">歌詞</string>
+    <string name="section_text_processing">文字處理</string>
+    <string name="section_other">其他</string>
+
+    <!-- 外觀 -->
+    <string name="theme_mode">主題模式</string>
+
+    <string name="lyric_index_title">歌詞索引</string>
+    <string name="lyric_index_summary">掃描時建立歌詞索引，用於本機歌詞搜尋，會增加掃描耗時。開啟後，已有歌曲需重新掃描</string>
+    <!-- 掃描 -->
+    <string name="folder_manager">資料夾管理</string>
+    <string name="folder_manage_hint">管理 Lyrico 掃描的音樂資料夾</string>
+    <string name="folder_found">已發現 %1$d 個資料夾</string>
+    <string name="folder_ignored">，已忽略 %1$d 個</string>
+    <string name="ignore_short_audio">不掃描 60 秒以下的音訊</string>
+
+    <!-- 搜尋 -->
+    <string name="search_limit">單次載入數量</string>
+    <string name="search_limit_tip">每個搜尋來源每次載入的結果數量，設定更大的值會消耗更多流量，同時產生更多圖片快取</string>
+    <string name="search_loading_more">正在載入更多…</string>
+    <string name="search_load_more">載入更多</string>
+    <string name="search_load_more_failed">載入失敗，點擊重試</string>
+    <string name="show_all_search_result_fields">顯示全部欄位</string>
+    <string name="show_all_search_result_fields_summary">在搜尋結果詳細資料中顯示欄位值為空的欄位</string>
+    <string name="search_result_empty_value">（空）</string>
+    <string name="search_source_tab_style">搜尋來源標籤樣式</string>
+    <string name="search_source_tab_style_icon_only">僅圖示</string>
+    <string name="search_source_tab_style_text_only">僅文字</string>
+    <string name="search_source_tab_style_icon_and_text">圖示和文字</string>
+    <string name="search_result_track_of_disc">第 %2$s 碟 · 第 %1$s 軌</string>
+    <string name="batch_match_overwrite_mode">覆寫模式</string>
+    <string name="batch_match_overwrite_mode_summary">開啟後覆寫已有內容，關閉時只補充缺失的部分</string>
+    <string name="batch_match_prefer_filename">依檔名比對</string>
+    <string name="batch_match_prefer_filename_summary">忽略內置標籤，一律以檔名作為比對依據</string>
+    <!-- 歌詞 -->
+    <string name="lyric_mode">歌詞模式</string>
+    <string name="lyric_line_order">歌詞內容順序</string>
+    <string name="lyric_line_order_hint">拖曳已啟用的歌詞內容，調整行式歌詞的輸出順序</string>
+    <string name="lyric_line_order_drag_handle">拖曳排序</string>
+    <string name="lyric_line_original">原詞</string>
+    <string name="lyric_line_romanization">音譯</string>
+    <string name="lyric_line_translation">翻譯</string>
+    <string name="roma">羅馬拼音</string>
+    <string name="roma_hint">歌詞中包含羅馬拼音</string>
+    <string name="translation">翻譯</string>
+    <string name="translation_hint">歌詞中包含翻譯</string>
+
+    <!-- 元數據 -->
+    <string name="artist_separator">演出者分隔符號</string>
+    <string name="artist_separator_hint">存在多位演出者時使用</string>
+    <string name="replay_gain_no_songs">沒有可用於回放增益掃描的歌曲</string>
+    <string name="action_calculate_replay_gain">計算回放增益</string>
+    <string name="replay_gain_calculate_in_progress">正在計算回放增益，點擊中止</string>
+    <string name="replay_gain_calculate_success">已計算回放增益</string>
+    <string name="replay_gain_calculate_cancelled">已取消回放增益計算</string>
+    <string name="replay_gain_calculate_failed">回放增益計算失敗：%1$s</string>
+    <string name="replay_gain_error_no_audio_track">找不到有效的音軌</string>
+    <string name="replay_gain_error_unknown_mime_type">無法辨識音訊編碼</string>
+    <string name="replay_gain_error_zero_sample_count">解碼資料為空</string>
+    <string name="replay_gain_error_unsupported_codec">裝置不支援 %1$s 解碼</string>
+    <string name="replay_gain_error_alac_issue">系統 ALAC 解碼器不穩定，請重新啟動應用程式</string>
+    <string name="replay_gain_error_codec_exception">解碼器異常：%1$s</string>
+    <string name="replay_gain_error_general">掃描失敗：%1$s</string>
+    <string name="album_replay_gain_calculating">計算中</string>
+    <string name="album_replay_gain_success">已寫入 %1$d 首歌的專輯回放增益</string>
+    <string name="album_replay_gain_write_permission_required">需要授權才能寫入專輯回放增益</string>
+    <string name="album_replay_gain_write_failed">寫入專輯回放增益失敗：%1$s</string>
+    <string name="settings_replay_gain_target_loudness">回放增益參考響度</string>
+    <string name="settings_replay_gain_target_loudness_summary">計算回放增益時使用的目標響度</string>
+    <string name="settings_replay_gain_peak_mode">回放增益峰值類型</string>
+    <string name="replay_gain_peak_mode_sample">取樣峰值</string>
+    <string name="replay_gain_peak_mode_true">真實峰值</string>
+    <string name="replay_gain_target_preset_ebu">-23 LUFS（EBU R128）</string>
+    <string name="replay_gain_target_preset_default">-18 LUFS（預設）</string>
+    <string name="replay_gain_target_preset_streaming">-14 LUFS（串流媒體常用）</string>
+    <string name="replay_gain_target_preset_custom">自訂</string>
+    <string name="replay_gain_target_custom_hint">自訂（LUFS）</string>
+    <string name="replay_gain_target_invalid">請輸入 -60 到 0 之間的數值</string>
+
+
+    <string name="cache_category_image">圖片快取</string>
+    <string name="cache_category_network">網絡快取</string>
+    <string name="cache_category_external">外部快取</string>
+    <string name="cache_category_other">其他快取</string>
+
+    <string name="load_failed">載入失敗</string>
+
+
+    <string name="about_title">關於</string>
+
+    <!-- 應用程式資訊 -->
+    <string name="about_app_info">應用程式資訊</string>
+    <string name="about_app_version">應用程式版本</string>
+    <string name="about_project_url">GitHub</string>
+    <string name="about_project_url_sub">在 GitHub 上檢視原始碼</string>
+
+    <string name="about_auto_check_update">自動檢查新版本</string>
+    <string name="about_auto_check_update_sub">應用程式啟動時檢查是否有新版本</string>
+
+    <string name="about_check_update">檢查更新</string>
+    <string name="about_check_update_default">立即檢查更新</string>
+
+    <!-- 貢獻者 -->
+    <string name="about_contributors">貢獻者</string>
+    <string name="about_no_contributors">尚無貢獻者</string>
+
+    <string name="about_contribution_count">貢獻了 %1$d 次提交</string>
+
+
+    <!-- 更新狀態 -->
+    <string name="update_already_latest">已經是最新版本</string>
+
+    <string name="update_api_error">API 錯誤：%1$d</string>
+    <string name="update_network_error">網絡錯誤，請檢查連線</string>
+    <string name="update_parse_error">解析更新資訊失敗</string>
+    <string name="update_timeout">檢查更新逾時</string>
+
+    <!-- 歌詞格式 -->
+    <string name="lyric_format_plain">逐行歌詞</string>
+    <string name="lyric_format_verbatim">逐字歌詞</string>
+    <string name="lyric_format_enhanced">增強型逐字歌詞</string>
+    <string name="lyric_format_ttml">TTML (實驗性)</string>
+
+    <!-- 主題模式 -->
+    <string name="theme_mode_auto">跟隨系統</string>
+    <string name="theme_mode_light">淺色模式</string>
+    <string name="theme_mode_dark">深色模式</string>
+    <string name="color_teal">青色</string>
+    <string name="color_blue">藍色</string>
+    <string name="color_green">綠色</string>
+    <string name="color_purple">紫色</string>
+    <string name="color_yellow">黃色</string>
+    <string name="color_orange">橙色</string>
+    <string name="color_pink">粉紅色</string>
+    <string name="color_default">系統預設</string>
+    <string name="monet">莫內取色</string>
+    <string name="key_color">種子色</string>
+    <string name="floating_bottom_bar">懸浮導航欄</string>
+    <string name="floating_bottom_bar_summary">在手機上使用懸浮底部導航欄</string>
+    <string name="bar_blur">模糊</string>
+    <string name="bar_blur_summary">啟用頂欄和底欄的模糊效果</string>
+    <string name="floating_bar_effect">懸浮導航欄效果</string>
+    <string name="floating_bar_effect_none">無</string>
+    <string name="floating_bar_effect_frosted_glass">毛玻璃</string>
+    <string name="floating_bar_effect_liquid_glass">液態玻璃</string>
+
+    <!-- 統計文字 -->
+    <string name="batch_match_stat_format">
+    成功：%1$d | 失敗：%2$d | 略過：%3$d
+    </string>
+
+    <string name="batch_match_duration_format">
+    耗時：%1$.1fs
+    </string>
+
+    <!-- 無障礙 -->
+    <string name="common_delete">刪除</string>
+
+    <!-- Top Bar -->
+    <string name="song_list_title">歌曲（%d）</string>
+    <string name="song_list_empty_title">尚未新增資料夾</string>
+    <string name="song_list_empty_desc">新增音樂資料夾後，Lyrico 會掃描其中的音訊檔案</string>
+    <string name="action_add_folder">新增資料夾</string>
+    <string name="action_refresh_folder">重新整理資料夾</string>
+    <string name="scan_progress_listing">正在掃描資料夾…</string>
+    <string name="scan_progress_reading">正在讀取標籤 %1$d / %2$d</string>
+    <string name="scan_progress_writing">正在更新音樂庫…</string>
+    <string name="scan_progress_finished">掃描完成</string>
+    <string name="cd_search">搜尋</string>
+    <string name="cd_sort">排序方式</string>
+    <string name="cd_more_actions">更多操作</string>
+
+    <!-- 選擇模式 -->
+    <string name="selection_mode_selected_count">已選擇 %d 項</string>
+    <string name="swipe_selection_enter_selection">進入多選</string>
+    <string name="swipe_selection_range_start">區間起點</string>
+    <string name="swipe_selection_range_end">區間終點</string>
+    <string name="action_select_all">全選</string>
+    <string name="action_deselect_all">取消全選</string>
+    <string name="action_share">分享</string>
+    <string name="action_delete">刪除</string>
+    <string name="action_batch_match_metadata">批次比對元數據</string>
+    <string name="action_batch_match_lyrics">批次比對歌詞</string>
+    <string name="action_batch_match_cover">批次比對封面</string>
+
+    <!-- 清單項目 -->
+    <string name="unknown_artist">未知演出者</string>
+    <string name="unknown_album_artist">未知專輯演出者</string>
+
+    <!-- 歌曲菜單 -->
+    <string name="menu_play_music">播放音樂</string>
+    <string name="share_chooser_title">分享音訊</string>
+
+    <!-- 刪除對話框 -->
+    <string name="dialog_delete_file_title">刪除檔案？</string>
+    <string name="dialog_delete_file_content">刪除“%s”？\n此操作無法復原</string>
+    <string name="dialog_batch_delete_content">刪除 %d 個檔案？\n此操作無法復原</string>
+
+    <!-- 批次比對對話框 -->
+    <string name="batch_matching_title">批次比對</string>
+    <string name="batch_matching_success">成功：%d</string>
+    <string name="batch_matching_skipped">略過：%d</string>
+    <string name="batch_matching_failure">失敗：%d</string>
+    <string name="batch_matching_total_time">耗時 %.2f 秒</string>
+    <string name="action_abort">中止</string>
+    <string name="action_close">關閉</string>
+
+    <!-- 歌曲詳細資料 -->
+    <string name="label_title">標題</string>
+    <string name="label_artists">演出者</string>
+    <string name="label_album">專輯</string>
+    <string name="label_year">年份</string>
+    <string name="label_language">語言</string>
+    <string name="label_genre">曲風</string>
+    <string name="label_date">日期</string>
+    <string name="plugin_config_title">外掛設定</string>
+    <string name="source_config_basic">基本設定</string>
+    <string name="source_config_required_error">此項為必填欄位</string>
+    <string name="source_config_save">儲存</string>
+    <string name="source_config_saved">已儲存</string>
+    <string name="source_config_invalid_source">無效的外掛</string>
+    <string name="source_config_empty">尚無可設定的項目</string>
+    <string name="source_config_plugin_disabled_hint">目前外掛未啟用，可以在此編輯設定，但啟用前不會參與搜尋或批次比對</string>
+    <string name="label_track_number">音軌編號</string>
+    <string name="label_duration">長度</string>
+    <string name="label_bitrate">位元率</string>
+    <string name="label_sample_rate">取樣率</string>
+    <string name="label_channels">聲道</string>
+    <string name="label_date_added">加入時間</string>
+    <string name="label_date_modified">修改時間</string>
+    <string name="label_file_path">檔案路徑</string>
+    <string name="label_cover">封面</string>
+    <string name="label_artist">演出者</string>
+    <string name="label_custom">自訂</string>
+    <!-- 標題 -->
+    <string name="label_extension">副檔名</string>
+    <string name="folder_manager_title">資料夾管理</string>
+
+    <!-- 對話框 -->
+    <string name="dialog_remove_folder_title">是否移除此資料夾？</string>
+    <string name="dialog_remove_folder_content_tip">這會從 Lyrico 移除此資料夾，並清除音樂庫中對應的歌曲\n本機檔案不會被刪除，之後仍可重新新增此資料夾</string>
+
+    <!-- 資料夾清單狀態 -->
+    <string name="folder_scanning">正在掃描資料夾…</string>
+    <string name="folder_scan_queued">排隊等待掃描…</string>
+    <string name="folder_scan_failed">掃描失敗：%s</string>
+
+    <!-- 資料夾項目資訊 -->
+    <string name="folder_root_path">資料夾</string>
+    <string name="folder_browser_count_format">%1$d 個資料夾，%2$d 首歌曲</string>
+    <string name="folder_child_song_count_format">%1$d 個資料夾，%2$d 首歌曲</string>
+    <string name="folder_hidden_child_song_count_format">已隱藏，%1$d 個資料夾，%2$d 首歌曲</string>
+
+    <!-- 資料夾操作菜單 -->
+    <string name="folder_action_remove">移除資料夾</string>
+    <string name="folder_action_hide">隱藏資料夾</string>
+    <string name="folder_action_show">顯示資料夾</string>
+
+    <!-- 一般操作 -->
+    <string name="action_undo_changes">復原修改</string>
+    <string name="action_back">返回</string>
+    <string name="action_search">搜尋</string>
+    <string name="action_export_lyrics">匯出</string>
+    <string name="action_import_lyrics">匯入</string>
+
+    <!-- 提示訊息 -->
+    <string name="msg_save_success">儲存成功</string>
+    <string name="msg_export_lyrics_success">歌詞匯出成功</string>
+    <string name="msg_export_lyrics_failed">歌詞匯出失敗</string>
+    <string name="msg_import_lyrics_success">歌詞匯入成功</string>
+    <string name="msg_import_lyrics_failed">歌詞匯入失敗</string>
+    <string name="msg_field_reverted">已復原“%1$s”的修改</string>
+    <string name="action_cancel_undo">取消復原</string>
+
+    <!-- 元數據標籤 -->
+    <string name="edit_metadata_default_title">編輯元數據</string>
+    <string name="label_album_artist">專輯演出者</string>
+    <string name="label_disc_number">光碟編號</string>
+    <string name="label_composer">作曲者</string>
+    <string name="label_lyricist">作詞者</string>
+    <string name="label_comment">註解</string>
+    <string name="label_lyrics">歌詞</string>
+    <string name="group_replay_gain">回放增益</string>
+    <string name="label_replaygain_track_gain">曲目增益</string>
+    <string name="label_replaygain_track_peak">曲目峰值</string>
+    <string name="label_replaygain_album_gain">專輯增益</string>
+    <string name="label_replaygain_album_peak">專輯峰值</string>
+    <string name="label_replaygain_reference_loudness">參考響度</string>
+    <string name="label_custom_tag_name">標籤名稱</string>
+    <string name="label_custom_tag_value">標籤值</string>
+
+    <!-- 封面編輯 -->
+    <string name="group_credits_other">其他資訊</string>
+    <string name="label_file_size">檔案大小</string>
+    <string name="status_modified">已修改</string>
+    <string name="cd_cover">封面</string>
+
+    <!-- 歌曲菜單 -->
+    <string name="menu_action_play">播放音樂</string>
+    <string name="menu_action_play_sub">使用外部播放器播放音訊</string>
+    <string name="menu_action_info">歌曲資訊</string>
+    <string name="menu_action_share">分享歌曲</string>
+    <string name="menu_action_delete">刪除歌曲</string>
+    <string name="menu_action_delete_sub">刪除檔案且無法復原</string>
+    <string name="menu_action_rename">重新命名檔案</string>
+    <string name="menu_action_share_album">分享專輯</string>
+    <string name="menu_action_delete_album">刪除專輯</string>
+    <string name="menu_action_delete_album_sub">刪除專輯中的所有檔案</string>
+    <string name="menu_action_calculate_album_replay_gain">計算專輯回放增益</string>
+    <string name="album_action_more">專輯操作</string>
+    <string name="dialog_delete_album_title">刪除專輯</string>
+    <string name="dialog_delete_album_content">刪除“%2$s”中的全部 %1$d 首歌？</string>
+    <string name="album_delete_success">已刪除 %1$d / %2$d 首歌</string>
+    <string name="dialog_rename_title">重新命名</string>
+    <string name="msg_copied_to_clipboard">已複製到剪貼簿</string>
+
+    <string name="dialog_action_go_update">更新</string>
+    <string name="dialog_title_update_available">發現新版本：%s</string>
+    <string name="batch_match_metadata_config_title">批次元數據比對</string>
+    <string name="batch_match_lyrics_config_title">批次歌詞比對</string>
+    <string name="batch_match_cover_config_title">批次封面比對</string>
+    <string name="batch_match_config_concurrency">並行數</string>
+
+    <string name="only_translation_if_available">僅下載翻譯歌詞</string>
+    <string name="only_translation_if_available_hint">若存在翻譯，僅下載翻譯歌詞（需啟用翻譯下載）</string>
+    <string name="remove_empty_lines">移除空白行</string>
+    <string name="remove_empty_lines_hint">刪除歌詞和其他多行文字欄位中的空白行</string>
+
+    <string name="permission_denied_cannot_save">權限遭拒，無法儲存變更</string>
+    <string name="import_config">匯入設定</string>
+    <string name="section_backup">備份與還原</string>
+    <string name="export_config">匯出設定</string>
+    <string name="export_config_hint">將目前設定儲存為 JSON 檔案</string>
+    <string name="import_config_hint">從 JSON 檔案還原設定</string>
+    <string name="export_success">設定匯出成功</string>
+    <string name="export_failed">設定匯出失敗：%1$s</string>
+    <string name="import_success">設定匯入成功</string>
+    <string name="import_failed">設定匯入失敗：%1$s</string>
+    <string name="import_failed_format">無效的設定檔</string>
+
+    <string name="unknown_error">未知錯誤：%1$s</string>
+    <string name="clear_songs">清除所有歌曲</string>
+
+
+
+    <string name="action_reset">重設</string>
+    <string name="action_batch_rename">重新命名</string>
+    <string name="no_tag_data">音訊標籤載入失敗</string>
+    <string name="batch_rename_title">批次重新命名</string>
+    <string name="batch_rename_tab_config">設定</string>
+    <string name="batch_rename_tab_preview">預覽（%1$d）</string>
+    <string name="rename_format">命名格式</string>
+    <string name="format_hint">輸入命名格式，例如 @1 - @2</string>
+    <string name="format_preset_show_placeholders">檢視佔位符說明</string>
+    <string name="action_rename">重新命名</string>
+    <string name="preview_title">預覽（%1$d）</string>
+    <string name="preview_title_generating">預覽（%1$d） · 產生中…</string>
+    <string name="preview_empty_tip">沒有可預覽的檔案</string>
+
+    <string name="label_old_name">舊：%1$s</string>
+    <string name="label_new_name">新：%1$s</string>
+    <string name="label_old_path">舊路徑：%1$s</string>
+    <string name="label_new_path">新路徑：%1$s</string>
+
+    <string name="rename_conflict_warning">名稱衝突，將自動附加數字後綴</string>
+
+
+
+    <!-- 字元對應 -->
+    <string name="configure_character_mapping">設定字元對應</string>
+
+    <string name="character_mapping_description">點選字元可修改其取代規則</string>
+    <string name="character_to_replace">字元 %1$s</string>
+    <string name="no_character_mappings">尚無字元對應</string>
+    <string name="character_replacement_selector_subtitle">選擇取代內容</string>
+
+    <string name="replacement_remove">移除</string>
+    <string name="replacement_ideographic_comma">頓號（、）</string>
+    <string name="replacement_half_width_comma">半形逗號（,）</string>
+    <string name="replacement_full_width_comma">全形逗號（，）</string>
+    <string name="replacement_full_width_backslash">全形反斜線（＼）</string>
+    <string name="replacement_full_width_slash">全形斜線（／）</string>
+    <string name="replacement_full_width_colon">全形冒號（：）</string>
+    <string name="replacement_full_width_asterisk">全形星號（＊）</string>
+    <string name="replacement_full_width_question_mark">全形問號（？）</string>
+    <string name="replacement_full_width_quotation_mark">全形雙引號（＂）</string>
+    <string name="replacement_full_width_less_than_sign">全形小於符號（＜）</string>
+    <string name="replacement_full_width_greater_than_sign">全形大於符號（＞）</string>
+    <string name="replacement_full_width_vertical_bar">全形直線符號（｜）</string>
+    <string name="replacement_ampersand">和號（&amp;）</string>
+    <string name="replacement_not_selected">未選擇</string>
+
+
+    <string name="label_change_cover">從本地選擇封面</string>
+    <string name="label_remove_cover">移除封面</string>
+    <string name="label_save_cover">儲存封面</string>
+    <string name="label_artist_image">演出者海報</string>
+    <string name="label_change_artist_image">從本地選擇演出者海報</string>
+    <string name="label_remove_artist_image">移除演出者海報</string>
+    <string name="label_save_artist_image">儲存演出者海報</string>
+    <string name="label_crop_artist_image">裁切演出者海報</string>
+    <string name="msg_read_artist_image_failed">讀取演出者海報失敗</string>
+    <string name="edit_artist_image">編輯演出者海報</string>
+    <string name="label_reassign_artist_image">重新選擇「%1$s」對應的演出者</string>
+    <string name="label_select_artist">選擇演出者</string>
+    <string name="label_select_artist_image">選擇演出者海報</string>
+    <string name="label_artist_image_count">已有 %1$d 張（只會保留一張）</string>
+    <string name="label_artist_image_exists">已有海報</string>
+    <string name="label_artist_image_duplicate">%1$s（第 %2$d/%3$d 張）</string>
+    <string name="label_artist_image_unmatched">未關聯演出者</string>
+    <string name="artist_image_untagged">未標註</string>
+    <string name="label_image_source_embedded">內嵌</string>
+    <string name="label_image_source_external">外部檔案</string>
+    <string name="msg_artist_field_empty_for_poster">請先填寫演出者欄位</string>
+    <string name="msg_artist_image_reassigned">海報已改掛到「%1$s」</string>
+    <string name="label_artist_image_conflict_title">「%1$s」已有海報</string>
+    <string name="label_artist_image_conflict_message">交換歸屬會保留兩張海報，取代會刪除原有海報</string>
+    <string name="label_artist_image_swap">交換歸屬</string>
+    <string name="label_artist_image_replace">直接取代</string>
+    <string name="chinese_conversion_mode_none">不轉換</string>
+    <string name="chinese_conversion_mode_traditional_to_simplified">繁體轉簡體</string>
+    <string name="chinese_conversion_mode_simplified_to_traditional">簡體轉繁體</string>
+    <string name="conversion_mode">中文文字轉換</string>
+    <string name="conversion_mode_hint">套用於搜尋到的文字元數據和歌詞；ID、日期、數字、URL、封面不會轉換</string>
+    <string name="offset_adjust_hint">調整位移</string>
+    <string name="label_lyrics_offset">歌詞位移（毫秒）</string>
+    <string name="action_manual_input">手動輸入</string>
+    <string name="lyrics_offset_input_invalid">請輸入毫秒數值</string>
+    <string name="lyrics_offset_input_out_of_range">數值超出範圍。%1$s</string>
+    <string name="lyrics_offset_input_hint">範圍 %1$d ~ %2$d 毫秒，正數延後歌詞，負數提前歌詞</string>
+    <string name="pull_to_refresh">下拉重新整理</string>
+    <string name="release_to_refresh">放開以重新整理</string>
+    <string name="refresh">重新整理</string>
+    <string name="refreshing">正在重新整理</string>
+    <string name="refresh_success">重新整理成功</string>
+    <string name="lyrics_empty">無歌詞</string>
+    <string name="lyrics_source_empty">沒有已啟用的外掛同時支援歌曲搜尋和歌詞取得</string>
+    <string name="cover_source_empty">沒有啟用任何封面來源</string>
+    <string name="label_copyright">版權</string>
+    <string name="label_rating">評分</string>
+    <string name="group_basic_info">基本資訊</string>
+    <string name="group_track_details">音軌資訊</string>
+    <string name="group_custom_tags">自訂標籤</string>
+    <string name="action_add_custom_tag">新增自訂標籤</string>
+    <string name="custom_tag_add_key">新增標籤</string>
+    <string name="custom_tag_key">標籤鍵名</string>
+    <string name="custom_tag_key_hint">自訂音訊標籤的鍵名，例如 SOURCE、MOOD</string>
+    <string name="custom_tag_key_invalid">標籤鍵名無效</string>
+    <string name="custom_tag_library_section">音樂庫中發現的標籤</string>
+    <string name="custom_tag_library_empty">音樂庫中沒有其他標籤</string>
+    <string name="custom_tag_delete_title">刪除標籤？</string>
+    <string name="custom_tag_delete_message">刪除“%1$s”？不會刪除歌曲裡已有的資料</string>
+    <string name="edit_field_songs_empty">暫無符合條件的歌曲</string>
+
+    <!-- 批次編輯 -->
+    <string name="batch_edit_title">編輯標籤</string>
+    <string name="batch_edit_tab_config">設定</string>
+    <string name="batch_edit_tab_preview">預覽（%1$d）</string>
+    <string name="batch_edit_song_count">已選擇 %d 首歌曲</string>
+    <string name="batch_edit_result_summary">成功：%1$d / 總數：%2$d，略過：%3$d，失敗：%4$d</string>
+    <string name="batch_edit_cover_change">從本地選擇封面</string>
+    <string name="batch_edit_cover_remove">移除封面</string>
+    <string name="batch_edit_cover_revert">還原封面</string>
+    <string name="batch_edit_cover_hint">點擊選擇封面圖片</string>
+    <string name="batch_edit_select_from_selected_songs">從已選歌曲中選擇</string>
+    <string name="batch_edit_select_cover_from_selected_songs">從已選歌曲中選擇封面</string>
+    <string name="batch_edit_loading_selected_values">正在讀取已選歌曲…</string>
+    <string name="batch_edit_no_selected_values">已選歌曲中沒有可用值</string>
+    <string name="batch_edit_no_selected_covers">已選歌曲中沒有可用封面</string>
+    <string name="batch_edit_cover_mismatch">所選歌曲的專輯或演出者不同，無法套用同一張封面</string>
+    <string name="batch_edit_preview_empty">尚無可預覽的修改</string>
+    <string name="batch_edit_preview_change_count">將修改 %1$d 個欄位</string>
+    <string name="batch_edit_preview_old_value">舊：%1$s</string>
+    <string name="batch_edit_preview_new_value">新：%1$s</string>
+    <string name="batch_edit_preview_empty_value">（空）</string>
+    <string name="batch_edit_preview_current_cover">目前封面</string>
+    <string name="batch_edit_preview_remove_cover">移除封面</string>
+    <string name="batch_edit_info_summary">使用說明</string>
+    <string name="batch_edit_info_content">批次編輯說明：
+
+\n• 所有欄位預設顯示“&lt;keep&gt;”，表示該欄位不會被修改
+\n• 編輯欄位內容後，該欄位將更新到所有選取的歌曲
+\n• 點擊欄位右側的復原按鈕可以還原為“&lt;keep&gt;”狀態
+\n• 對於評分欄位，點擊星星可以設定新的評分，或點擊“復原”按鈕不修改
+\n• 點擊封面可以更換或移除
+\n• 點擊“儲存”按鈕後，修改會寫入所有選取歌曲的檔案標籤</string>
+    <string name="search_type_all">全部</string>
+    <string name="search_type_title">標題</string>
+    <string name="search_type_artist">演出者</string>
+    <string name="search_type_album">專輯</string>
+    <string name="search_type_filename">檔名</string>
+    <string name="action_lyrics_options">歌詞選項</string>
+    <string name="limit_lyrics_input_lines">限制編輯框行數</string>
+    <string name="limit_lyrics_input_lines_hint">將歌詞編輯框保持在固定高度，方便選擇和編輯長歌詞</string>
+    <string name="label_cover_options">封面選項</string>
+    <string name="label_artist_image_options">演出者海報選項</string>
+    <string name="label_crop_cover">裁切封面</string>
+    <string name="label_select_same_album_cover">從同專輯選擇封面</string>
+    <string name="msg_read_cover_failed">讀取封面失敗</string>
+    <string name="msg_picture_saved">%1$s已儲存</string>
+    <string name="msg_picture_save_failed">%1$s儲存失敗</string>
+    <string name="label_image_ratio">圖片比例</string>
+    <string name="option_free_ratio">自由比例</string>
+    <string name="edit_cover">編輯封面</string>
+    <string name="title_opensource_licence">開放源碼授權</string>
+    <string name="batch_edit_processing">處理中</string>
+
+    <!-- 同專輯封面 -->
+    <string name="msg_same_album_cover_applied">已套用同專輯封面</string>
+    <string name="msg_no_same_album_cover_found">找不到同專輯的封面</string>
+    <string name="msg_load_same_album_cover_failed">載入同專輯封面失敗</string>
+
+    <!-- 批次 ReplayGain -->
+    <string name="action_batch_replay_gain">計算回放增益</string>
+    <string name="batch_replay_gain_concurrency">並行數</string>
+    <string name="batch_replay_gain_concurrency_tip">並行數越高掃描越快，但會佔用更多 CPU 和記憶體</string>
+    <string name="batch_replay_gain_total_time">耗時 %.2f 秒</string>
+    <string name="batch_replay_gain_success">成功：%d</string>
+    <string name="batch_replay_gain_skipped">略過：%d</string>
+    <string name="batch_replay_gain_failure">失敗：%d</string>
+
+    <!-- 歌詞格式轉換 -->
+    <string name="unknown_format">未知格式</string>
+    <string name="action_format_lyrics">格式化歌詞</string>
+    <string name="action_format_lyrics_title">格式化歌詞</string>
+    <string name="current_detected_format">目前格式：%s</string>
+    <string name="lyrics_format_keep_current">保持目前格式</string>
+    <string name="lyrics_format_line_order">依句排序</string>
+    <string name="lyrics_format_line_order_hint">將先列原文、後列翻譯或羅馬拼音的歌詞整理為逐句對應</string>
+    <string name="lyrics_remove_tag_lines">移除非歌詞內容</string>
+    <string name="lyrics_remove_tag_lines_hint">使用“非歌詞內容過濾規則”移除作詞、作曲、來源等內容</string>
+    <string name="lyrics_remove_tag_lines_settings_hint">使用設定中的“非歌詞內容過濾規則”處理目前歌詞</string>
+    <string name="lyrics_remove_empty_lines_manual_hint">手動刪除目前歌詞中無內容或僅包含佔位符的行</string>
+    <string name="non_lyrics_cleanup_rules_title">非歌詞內容過濾規則</string>
+    <string name="non_lyrics_cleanup_rules_summary">用於“格式化歌詞”的“移除非歌詞內容”操作</string>
+    <string name="non_lyrics_cleanup_rules_section">過濾規則</string>
+    <string name="non_lyrics_cleanup_rules_hint">這些規則只會在單曲或批次“格式化歌詞”中勾選“移除非歌詞內容”時使用；規則會依完整文字比對原始歌詞行，逐字歌詞會先拼成整行後再判斷</string>
+    <string name="add_non_lyrics_cleanup_rule">新增規則</string>
+    <string name="edit_non_lyrics_cleanup_rule">編輯規則</string>
+    <string name="non_lyrics_cleanup_rule_input_hint">輸入要移除的標籤或詞語，例如 [by:、作詞：</string>
+    <string name="invalid_or_duplicate_rule">規則為空或已存在</string>
+    <string name="non_lyrics_cleanup_delete_rule_title">刪除規則？</string>
+    <string name="non_lyrics_cleanup_delete_rule_message">刪除“%1$s”？</string>
+    <string name="label_plain_lyrics">純文字歌詞</string>
+    <string name="action_view_plain_lyrics">檢視純文字歌詞</string>
+    <string name="action_batch_convert_lyrics_format">格式化歌詞</string>
+    <string name="action_batch_export_lyrics">匯出歌詞</string>
+    <string name="action_batch_export_cover">匯出封面</string>
+    <string name="batch_export_running">正在匯出</string>
+    <string name="export_destination_title">匯出位置</string>
+    <string name="export_destination_selected_folder">指定資料夾</string>
+    <string name="export_destination_selected_folder_summary">選擇匯出檔案的儲存資料夾</string>
+    <string name="export_destination_audio_folder">音訊同目錄</string>
+    <string name="export_destination_audio_folder_summary">每個匯出檔案儲存到對應音訊所在目錄</string>
+    <string name="current_target_format">目標格式：%s</string>
+
+    <!-- Batch Task Types -->
+    <string name="batch_task_match_tags">標籤比對</string>
+    <string name="batch_task_match_lyrics">歌詞比對</string>
+    <string name="batch_task_match_cover">封面比對</string>
+    <string name="batch_task_edit_tags">標籤編輯</string>
+    <string name="batch_task_rename_files">檔案重新命名</string>
+    <string name="batch_task_convert_lyrics_format">歌詞格式化</string>
+    <string name="batch_task_scan_replay_gain">回放增益計算</string>
+    <string name="batch_task_export_lyrics">匯出歌詞</string>
+    <string name="batch_task_export_cover">匯出封面</string>
+
+    <!-- Batch Task Status -->
+    <string name="batch_task_status_queued">排隊中</string>
+    <string name="batch_task_status_running">執行中</string>
+    <string name="batch_task_status_succeeded">成功</string>
+    <string name="batch_task_status_failed">失敗</string>
+    <string name="batch_task_status_skipped">略過</string>
+    <string name="batch_task_status_cancelled">已取消</string>
+
+    <!-- Batch Task List Screen -->
+    <string name="batch_task_list_title">任務歷史</string>
+    <string name="batch_task_filter_all">全部</string>
+    <string name="batch_task_filter_type">任務類型</string>
+    <string name="batch_task_filter_status">狀態</string>
+    <string name="batch_task_no_tasks">找不到任務</string>
+    <string name="no_song_selected">未選擇歌曲</string>
+    <string name="batch_task_delete_title">刪除任務</string>
+    <string name="batch_task_delete_message">確定要刪除此任務記錄嗎？</string>
+    <string name="batch_task_delete_selected_message">確定要刪除 %d 筆任務記錄嗎？</string>
+    <string name="batch_task_clear_title">清除歷史</string>
+    <string name="batch_task_clear_message">確定要刪除目前篩選條件下已結束的任務記錄嗎？執行中的任務會保留</string>
+    <string name="batch_task_type_label">任務類型：</string>
+    <string name="batch_task_status_label">執行狀態：</string>
+    <string name="batch_task_detail_title">任務詳細資料</string>
+    <string name="batch_task_detail_progress">進度：%1$d / %2$d</string>
+    <string name="batch_task_detail_no_records">無記錄</string>
+
+    <string name="extra_write_mode_disabled">停用</string>
+    <string name="extra_write_mode_supplement">補充</string>
+    <string name="extra_write_mode_overwrite">覆寫</string>
+    <string name="msg_save_failed_with_reason">儲存失敗：%1$s</string>
+    <string name="unknown_error_simple">未知錯誤</string>
+    <string name="app_log_title">應用程式日誌</string>
+    <string name="app_log_summary">檢視當機、元數據和批次操作日誌</string>
+    <string name="app_log_empty">尚無日誌</string>
+    <string name="action_copy_log">複製日誌</string>
+    <string name="action_export_logs">匯出</string>
+    <string name="app_log_delete_title">刪除日誌？</string>
+    <string name="app_log_delete_message">確認刪除 %d 筆日誌嗎？此操作無法復原</string>
+    <string name="app_log_filter_all">全部</string>
+    <string name="app_log_filter_level">等級</string>
+    <string name="app_log_filter_type">類型</string>
+    <string name="app_log_detail_title">日誌詳細資料</string>
+    <string name="app_log_field_time">時間</string>
+    <string name="app_log_field_level">等級</string>
+    <string name="app_log_field_type">類型</string>
+    <string name="app_log_field_tag">標籤</string>
+    <string name="app_log_field_related">關聯物件</string>
+    <string name="app_log_field_message">訊息</string>
+    <string name="app_log_field_detail">詳細內容</string>
+    <string name="app_log_level_debug">除錯</string>
+    <string name="app_log_level_info">資訊</string>
+    <string name="app_log_level_warning">警告</string>
+    <string name="app_log_level_error">錯誤</string>
+    <string name="app_log_type_app">應用程式</string>
+    <string name="app_log_type_crash">當機</string>
+    <string name="app_log_type_metadata">元數據</string>
+    <string name="app_log_type_batch">批次</string>
+    <string name="app_log_type_database">資料庫</string>
+    <string name="app_log_type_network">網絡</string>
+    <string name="app_log_type_plugin">外掛</string>
+    <string name="log_retention_title">日誌保留期間</string>
+    <string name="log_retention_summary">控制應用程式日誌的保留期間</string>
+    <string name="log_retention_none">不記錄</string>
+    <string name="log_retention_7_days">7 天</string>
+    <string name="log_retention_30_days">30 天</string>
+    <string name="log_retention_90_days">90 天</string>
+    <string name="log_retention_forever">永久保留</string>
+
+    <string name="edit_field_settings_title">編輯欄位</string>
+    <string name="edit_field_settings_summary">調整編輯頁欄位的順序與顯示</string>
+    <string name="edit_field_settings_hint">長按卡片排序，點擊按鈕操作</string>
+    <string name="edit_field_settings_enabled_count">已啟用 %1$d / %2$d</string>
+    <string name="edit_field_settings_drag_handle">拖曳排序</string>
+    <string name="edit_field_settings_custom_tag_badge">自訂</string>
+    <string name="edit_field_settings_scope_single">僅在單曲編輯頁顯示</string>
+    <string name="edit_field_settings_scope_batch">僅在批次編輯頁顯示</string>
+    <string name="edit_field_settings_reset_message">還原預設順序與顯示？自訂標籤會從清單中移除，但歌曲裡已有的資料不會被刪除</string>
+    <string name="edit_field_songs_with">已填寫</string>
+    <string name="edit_field_songs_without">未填寫</string>
+    <string name="edit_field_songs_truncated">歌曲較多，僅顯示前一部分</string>
+    <string name="custom_tag_song_count">%1$d 首歌</string>
+    <string name="edit_field_group_cover">封面</string>
+    <string name="reset_to_default">還原預設值</string>
+    <string name="edit_field_scope_single_edit">單曲編輯</string>
+    <string name="edit_field_scope_batch_edit">批次編輯</string>
+    <string name="edit_field_scope_both">單曲編輯和批次編輯</string>
+    <string name="local_search_title">本機搜尋</string>
+    <string name="search_section_songs">歌曲</string>
+    <string name="search_section_albums">專輯</string>
+    <string name="search_section_artists">演出者</string>
+    <string name="search_empty">沒有搜尋結果</string>
+    <string name="album_detail_title">專輯</string>
+    <string name="artist_detail_title">演出者</string>
+    <string name="library_tab_songs">歌曲</string>
+    <string name="library_tab_artists">演出者</string>
+    <string name="library_tab_albums">專輯</string>
+    <string name="artist_list_title">演出者（%1$d）</string>
+    <string name="album_list_title">專輯（%1$d）</string>
+    <string name="label_name">名稱</string>
+    <string name="label_song_count">歌曲數量</string>
+    <string name="label_album_count">專輯數量</string>
+    <string name="empty_artists_title">尚無演出者</string>
+    <string name="empty_albums_title">尚無專輯</string>
+    <string name="empty_songs_title">尚無歌曲</string>
+    <string name="empty_library_index_summary">音樂庫中尚無可顯示的歌曲</string>
+    <string name="artist_tab_songs">歌曲</string>
+    <string name="artist_tab_albums">專輯</string>
+    <string name="song_count">%1$d 首</string>
+    <string name="album_count">%1$d 張專輯</string>
+    <string name="album_song_count">%1$d 張專輯 · %2$d 首</string>
+    <string name="sort_ascending">遞增</string>
+    <string name="sort_descending">遞減</string>
+    <string name="artist_split_settings_title">演出者拆分規則</string>
+    <string name="artist_split_settings_summary">設定演出者檢視中的多位演出者拆分與不拆分白名單</string>
+    <string name="artist_split_general_section">演出者拆分</string>
+    <string name="artist_split_enabled">啟用演出者拆分</string>
+    <string name="artist_split_enabled_summary">啟用後，多位演出者會在演出者檢視中分別歸類</string>
+    <string name="section_artist_separators">分隔符號</string>
+    <string name="section_no_split_artists">不拆分演出者</string>
+    <string name="add_custom_separator">新增分隔符號</string>
+    <string name="edit_custom_separator">編輯分隔符號</string>
+    <string name="add_no_split_artist">新增不拆分演出者</string>
+    <string name="edit_no_split_artist">編輯不拆分演出者</string>
+    <string name="rebuild_artist_index">重建演出者索引</string>
+    <string name="rebuild_artist_index_now">立即重建演出者索引</string>
+    <string name="artist_index_current">目前演出者索引已是最新</string>
+    <string name="artist_index_rebuild_pending">拆分規則已變更，建議重建演出者索引</string>
+    <string name="artist_index_rebuilding">正在重建演出者索引…</string>
+    <string name="artist_index_rebuild_complete">演出者索引已重建</string>
+    <string name="artist_index_rebuild_failed">演出者索引重建失敗</string>
+    <string name="separator_input_hint">輸入分隔符號</string>
+    <string name="artist_name_input_hint">輸入演出者名稱</string>
+    <string name="invalid_empty_input">內容不能為空</string>
+    <string name="duplicate_item">該項目已存在</string>
+    <string name="duplicate_builtin_item">該項目已存在於內置清單中</string>
+    <string name="artist_split_delete_rule_title">刪除規則？</string>
+    <string name="artist_split_delete_rule_message">刪除“%1$s”？重建演出者索引後生效</string>
+    <string name="album_grid_columns_format">%1$d 欄</string>
+
+    <!-- QuickJS 測試 -->
+    <string name="quickjs_test_title">QuickJS 測試</string>
+    <string name="quickjs_test_description">測試說明</string>
+    <string name="quickjs_test_description_summary">執行測試以驗證 QuickJS 執行階段功能，包括 eval、函式呼叫、逾時處理和記憶體限制</string>
+    <string name="quickjs_test_run">執行測試</string>
+
+    <string name="quickjs_test_eval_title">Eval 測試</string>
+    <string name="quickjs_test_eval_desc">測試基礎 JavaScript 執行：\"hello\".toUpperCase()</string>
+
+    <string name="quickjs_test_call_title">函式呼叫測試</string>
+    <string name="quickjs_test_call_desc">測試使用 JSON 參數呼叫 JavaScript 函式</string>
+
+    <string name="quickjs_test_timeout_title">逾時測試</string>
+    <string name="quickjs_test_timeout_desc">測試無限迴圈中斷 (while(true){}) - 應在 2 秒後逾時</string>
+
+    <string name="quickjs_test_memory_title">記憶體限制測試</string>
+    <string name="quickjs_test_memory_desc">測試大型陣列配置的記憶體限制（4MB 限制）</string>
+    <string name="plugin_empty">未安裝外掛</string>
+    <string name="plugin_import_archive">匯入外掛</string>
+
+    <string name="plugin_config">設定</string>
+    <string name="plugin_custom_name">名稱</string>
+    <string name="plugin_custom_name_hint">留空則使用原始名稱：%1$s</string>
+    <string name="plugin_uninstall">解除安裝</string>
+    <string name="plugin_uninstall_confirm_message">確定要解除安裝“%1$s”？此操作無法復原</string>
+    <string name="plugin_update_source_configured">更新來源</string>
+    <string name="plugin_version_with_value">版本：%1$s</string>
+    <string name="plugin_api_versions_with_value">外掛 API %1$d · 最低主程式 API %2$d</string>
+    <string name="plugin_switch_to_compact">切換為簡潔模式</string>
+    <string name="plugin_switch_to_detailed">切換為詳細模式</string>
+    <string name="plugin_author_with_value">作者：%1$s</string>
+    <string name="plugin_import_found_title">發現外掛套件</string>
+    <string name="plugin_import_install">安裝</string>
+    <string name="plugin_import_installable_title">可安裝外掛（%1$d）</string>
+    <string name="plugin_import_failed_title">無法安裝（%1$d）</string>
+    <string name="plugin_import_version">版本：%1$s</string>
+    <string name="plugin_import_path">路徑：%1$s</string>
+    <string name="plugin_import_description">描述：%1$s</string>
+    <string name="plugin_import_conflict_new">新安裝</string>
+    <string name="plugin_import_conflict_update">更新</string>
+    <string name="plugin_import_conflict_overwrite">覆寫</string>
+    <string name="plugin_import_conflict_downgrade">降級</string>
+    <string name="plugin_import_expand">展開</string>
+    <string name="plugin_import_collapse">收起</string>
+
+    <string name="password_show">顯示密碼</string>
+    <string name="password_hide">隱藏密碼</string>
+
+    <string name="folder_tab_folders">資料夾</string>
+    <string name="folder_tab_songs">歌曲</string>
+
+
+    <string name="field_group_basic_info">基本資訊</string>
+    <string name="field_group_credits">創作人員</string>
+    <string name="field_group_lyrics_cover">歌詞與封面</string>
+    <string name="field_group_extra_info">擴充資訊</string>
+    <string name="field_group_replay_gain">回放增益</string>
+    <string name="lyric_preview_text">歌詞：%s</string>
+    <string name="edit_field_view_songs">查看歌曲</string>
+    <string name="edit_field_manage_members">管理欄位</string>
+    <string name="edit_field_component_hint">長按卡片調整內部順序，開關控制欄位顯示</string>
+    <string name="edit_field_component_short_tag">組</string>
+    <string name="edit_field_custom_short_tag">自</string>
+</resources>

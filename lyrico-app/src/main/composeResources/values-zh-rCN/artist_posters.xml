@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="artist_poster_folders_empty">选择用于读取和添加艺术家海报的文件夹</string>
+    <string name="artist_poster_folder_unavailable">文件夹不可用，请重新授权</string>
+    <string name="artist_poster_file_count">%1$d 张海报</string>
+    <string name="artist_poster_folder_status">%1$d 张海报 · %2$d 张匹配到库内艺术家</string>
+    <string name="artist_poster_folder_remove_tip">停止使用此文件夹中的海报，不会删除文件。</string>
+    <string name="artist_poster_folders">艺术家海报文件夹</string>
+    <string name="artist_poster_folder_not_selected">未选择文件夹</string>
+    <string name="artist_poster_folder_selected">已选择文件夹</string>
+    <string name="artist_poster_folders_help">**命名规则**\n\n- `艺术家.jpg` —— 与艺术家名完全一致\n- `艺术家_live.jpg` —— 艺术家名后接 `_` 和后缀\n- `AC_DC.jpg`、`AC-DC.jpg`、`AC／DC.jpg` 或 `ACDC.jpg` —— 艺术家名中含有文件名不能出现的字符时（`\\ / : * ? \" &lt; &gt; |`）\n\n支持 JPG、JPEG、PNG、WebP 和 MP4。\n\n仅查找所选文件夹中的文件，优先匹配与艺术家名完全一致的文件名。</string>
+    <string name="artist_poster_folder_add">选择文件夹</string>
+    <string name="artist_poster_folder_change">更换文件夹</string>
+    <string name="artist_poster_folder_remove">移除文件夹</string>
+    <string name="artist_poster_folder_error">操作失败，请重试</string>
+    <string name="artist_poster_folders_summary">内嵌海报不可用时从此文件夹读取，新增海报也会添加到这里</string>
+    <string name="artist_poster_naming">命名规则</string>
+    <string name="artist_poster_back">返回</string>
+    <string name="artist_poster_no_files">没有找到海报</string>
+    <string name="artist_poster_preview_error">无法预览</string>
+
+    <string name="label_set_artist_poster">添加艺术家海报</string>
+    <string name="label_artist_poster_embed_to_songs">嵌入到歌曲</string>
+    <string name="label_artist_poster_embed_to_songs_summary">从本地选择图片嵌入到该艺术家的所有歌曲</string>
+    <string name="label_artist_poster_add_to_folder">添加到艺术家海报文件夹</string>
+    <string name="label_artist_poster_add_to_folder_summary">从本地选择图片添加到艺术家海报文件夹</string>
+    <string name="label_artist_poster_add_to_folder_no_folder">需先选择艺术家海报文件夹</string>
+    <string name="label_artist_poster_write_progress">正在嵌入艺术家海报</string>
+    <string name="label_artist_poster_write_count">%1$d / %2$d</string>
+    <string name="label_artist_poster_write_failed">%1$d 首失败</string>
+    <string name="msg_artist_poster_embedded">已将艺术家海报嵌入 %1$d 首歌曲</string>
+    <string name="msg_artist_poster_embed_partial">%1$d 首完成，%2$d 首失败</string>
+    <string name="msg_artist_poster_embed_failed">无法嵌入艺术家海报</string>
+    <string name="msg_artist_poster_folder_save_failed">无法添加到艺术家海报文件夹</string>
+    <string name="msg_artist_poster_saved_to_folder">已添加：%1$s</string>
+    <string name="msg_artist_poster_permission_required">需要授权才能修改歌曲</string>
+    <string name="msg_artist_poster_cancelled">已取消</string>
+    <string name="action_done">完成</string>
+    <string name="action_grant_permission">授权</string>
+</resources>

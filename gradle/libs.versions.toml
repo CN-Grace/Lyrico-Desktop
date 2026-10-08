@@ -26,10 +26,12 @@ datastorePreferences = "1.2.1"
 deviceCompat = "2.6"
 documentfile = "1.1.0"
 room = "2.8.5"
+sqlite = "2.6.2"
 work = "2.11.2"
 tinypinyin = "2.0.3"
 monitor = "1.8.0"
-miuix = "0.9.3"
+miuix = "0.9.4"
+composeMultiplatform = "1.12.0"
 
 [libraries]
 aboutlibraries-compose-core = { module = "com.mikepenz:aboutlibraries-compose-core", version.ref = "aboutLibraries" }
@@ -54,10 +56,15 @@ androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 compose-destinations-ksp = { module = "io.github.raamcosta.compose-destinations:ksp", version.ref = "core" }
 lazycolumnscrollbar = { module = "com.github.nanihadesuka:LazyColumnScrollbar", version.ref = "lazycolumnscrollbar" }
-miuix-preference-android = { module = "top.yukonga.miuix.kmp:miuix-preference-android", version.ref = "miuix" }
-miuix-ui-android = { module = "top.yukonga.miuix.kmp:miuix-ui-android", version.ref = "miuix" }
-miuix-icons-android = { module = "top.yukonga.miuix.kmp:miuix-icons-android", version.ref = "miuix" }
-miuix-blur-android = { module = "top.yukonga.miuix.kmp:miuix-blur-android", version.ref = "miuix" }
+# Miuix desktop (-desktop) artifacts are compiled against Compose Multiplatform 1.12.0 + Kotlin 2.4.20
+# (see the 0.9.4 pom), which is why composeMultiplatform is pinned to 1.12.0.
+miuix-preference-desktop = { module = "top.yukonga.miuix.kmp:miuix-preference-desktop", version.ref = "miuix" }
+miuix-ui-desktop = { module = "top.yukonga.miuix.kmp:miuix-ui-desktop", version.ref = "miuix" }
+miuix-icons-desktop = { module = "top.yukonga.miuix.kmp:miuix-icons-desktop", version.ref = "miuix" }
+miuix-blur-desktop = { module = "top.yukonga.miuix.kmp:miuix-blur-desktop", version.ref = "miuix" }
+# Desktop UI tests (off-screen rendering + semantics assertions). The plugin's `compose.uiTest`
+# accessor is deprecated/experimental, so the coordinate is pinned directly.
+compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "composeMultiplatform" }
 opencc4j = { module = "com.github.houbb:opencc4j", version.ref = "opencc4j" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 tinypinyin = { module = "com.github.promeg:tinypinyin", version.ref = "tinypinyin" }
@@ -71,6 +78,9 @@ androidx-documentfile = { group = "androidx.documentfile", name = "documentfile"
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+# BundledSQLiteDriver: ships SQLite itself, so the desktop app does not depend on a system sqlite
+# (version matches what Room 2.8.5's room-runtime-jvm pulls in).
+androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-monitor = { group = "androidx.test", name = "monitor", version.ref = "monitor" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -83,4 +93,5 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 aboutLibraries = {id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutLibraries"}

@@ -1,0 +1,814 @@
+<resources>
+    <string name="app_language">App language</string>
+    <string name="language_system">Follow system</string>
+    <string name="language_english" translatable="false">English</string>
+    <string name="language_simplified_chinese" translatable="false">简体中文</string>
+    <string name="language_traditional_chinese_taiwan" translatable="false">繁體中文（台灣）</string>
+    <string name="language_traditional_chinese_hong_kong" translatable="false">繁體中文（香港）</string>
+    <string name="app_name" translatable="false">Lyrico</string>
+    <string name="search_settings">Search Settings</string>
+    <string name="plugin_manager_title">Plugin Manager</string>
+    <string name="search_source_priority_tip">Each tab keeps its own enabled plugins and order. Metadata sources are shared by Main Search and batch metadata matching</string>
+    <string name="plugin_type_metadata">Metadata</string>
+    <string name="plugin_type_lyrics">Lyrics</string>
+    <string name="plugin_type_cover">Cover</string>
+    <string name="plugin_type_with_value">Type: %1$s</string>
+    <string name="plugin_type_empty">No %1$s plugins installed</string>
+
+
+    <!-- Search -->
+    <string name="search_lyrics_placeholder">Search lyrics…</string>
+    <string name="search_main_placeholder">Search songs…</string>
+    <string name="action_main_search">Main search</string>
+    <string name="action_search_cover">Search cover</string>
+    <string name="action_search_lyrics">Search lyrics</string>
+    <string name="search_source_type_title">Choose search type</string>
+    <string name="unknown_title">Unknown title</string>
+    <string name="unknown_album">Unknown album</string>
+    <string name="unknown_year">Unknown year</string>
+    <string name="search_cover_placeholder">Search cover…</string>
+    <string name="search_no_results">No results found</string>
+    <string name="fetch_lyrics_failed">Failed to fetch lyrics, try again</string>
+    <string name="lyrics_loading">Loading lyrics…</string>
+    <string name="search_apply_tab_metadata">Data</string>
+    <string name="apply_action">Apply</string>
+    <string name="apply_lyrics_only_action">Lyrics Only</string>
+    <string name="cd_no_results">No results</string>
+    <string name="search_limit">Results per load</string>
+    <string name="search_limit_tip">Results loaded from each source at a time. Higher values use more data and cache more images</string>
+    <string name="search_loading_more">Loading more…</string>
+    <string name="search_load_more">Load more</string>
+    <string name="search_load_more_failed">Load failed. Tap to retry</string>
+    <string name="show_all_search_result_fields">Show All Fields</string>
+    <string name="show_all_search_result_fields_summary">Show empty fields in search result details</string>
+    <string name="search_result_empty_value">(empty)</string>
+    <string name="search_source_tab_style">Search source tab style</string>
+    <string name="search_source_tab_style_icon_only">Icon only</string>
+    <string name="search_source_tab_style_text_only">Text only</string>
+    <string name="search_source_tab_style_icon_and_text">Icon and text</string>
+    <string name="search_result_track_of_disc">track %1$s of disc %2$s</string>
+    <string name="local_search_hint">Search song metadata</string>
+    <string name="search_field_preview">%1$s: %2$s</string>
+
+    <!-- General -->
+    <string name="settings_title">Settings</string>
+    <string name="cancel">Cancel</string>
+    <string name="confirm">Confirm</string>
+
+    <!-- Cache -->
+    <string name="clear_cache">Clear Cache</string>
+    <string name="calculating_cache">Calculating cache size…</string>
+    <string name="clear_cache_confirm">Clear all cache?</string>
+    <string name="cache_item">%1$s: %2$s</string>
+    <string name="cache_total">Total: %1$s</string>
+    <string name="cache_size_label">Cache size: %1$s</string>
+
+    <!-- Sections -->
+    <string name="section_appearance">Appearance</string>
+    <string name="lyric_index_title">Lyrics indexing</string>
+    <string name="lyric_index_summary">Index lyrics during scans for local lyrics search. This increases scan time. Rescan existing songs after enabling</string>
+    <string name="section_scan">Scan Settings</string>
+    <string name="section_search">Search Settings</string>
+    <string name="section_lyrics">Lyrics</string>
+    <string name="section_text_processing">Text Processing</string>
+    <string name="section_other">Others</string>
+
+    <!-- Appearance -->
+    <string name="theme_mode">Theme Mode</string>
+
+    <!-- Scan -->
+    <string name="folder_manager">Folder Management</string>
+    <string name="folder_manage_hint">Manage folders scanned by Lyrico</string>
+    <string name="folder_found">%1$d folders found</string>
+    <string name="folder_ignored">, %1$d ignored</string>
+    <string name="ignore_short_audio">Ignore audio shorter than 60 seconds</string>
+
+    <string name="batch_match_overwrite_mode">Overwrite mode</string>
+    <string name="batch_match_overwrite_mode_summary">Overwrite existing content when enabled; only fill in missing content when disabled</string>
+    <string name="batch_match_prefer_filename">Match by file name</string>
+    <string name="batch_match_prefer_filename_summary">Ignore embedded tags and always match by file name</string>
+    <!-- Lyrics -->
+    <string name="lyric_mode">Lyric Mode</string>
+    <string name="lyric_line_order">Lyric Line Order</string>
+    <string name="lyric_line_order_hint">Drag enabled lyric parts to adjust their output order for line-based formats</string>
+    <string name="lyric_line_order_drag_handle">Drag to reorder</string>
+    <string name="lyric_line_original">Original</string>
+    <string name="lyric_line_romanization">Romanization</string>
+    <string name="lyric_line_translation">Translation</string>
+    <string name="roma">Romaji</string>
+    <string name="roma_hint">Include romaji in lyric</string>
+    <string name="translation">Translation</string>
+    <string name="translation_hint">Include translations in lyric</string>
+
+    <!-- Metadata -->
+    <string name="artist_separator">Artist Separator</string>
+    <string name="artist_separator_hint">Used when multiple artists exist</string>
+    <string name="replay_gain_no_songs">No songs available for ReplayGain scanning</string>
+    <string name="action_calculate_replay_gain">Calculate ReplayGain</string>
+    <string name="replay_gain_calculate_in_progress">Calculating, tap to stop</string>
+    <string name="replay_gain_calculate_success">ReplayGain calculated</string>
+    <string name="replay_gain_calculate_cancelled">ReplayGain calculation cancelled</string>
+    <string name="replay_gain_calculate_failed">ReplayGain calculation failed: %1$s</string>
+    <string name="replay_gain_error_no_audio_track">No valid audio track found</string>
+    <string name="replay_gain_error_unknown_mime_type">Unable to recognize audio codec</string>
+    <string name="replay_gain_error_zero_sample_count">Decoded data is empty</string>
+    <string name="replay_gain_error_unsupported_codec">Device does not support %1$s decoding</string>
+    <string name="replay_gain_error_alac_issue">System ALAC decoder is unstable, restart the app</string>
+    <string name="replay_gain_error_codec_exception">Decoder exception: %1$s</string>
+    <string name="replay_gain_error_general">Scan failed: %1$s</string>
+    <string name="album_replay_gain_calculating">Calculating</string>
+    <string name="album_replay_gain_success">Album ReplayGain written to %1$d songs</string>
+    <string name="album_replay_gain_write_permission_required">Permission required to write album ReplayGain</string>
+    <string name="album_replay_gain_write_failed">Failed to write album ReplayGain: %1$s</string>
+    <string name="settings_replay_gain_target_loudness">ReplayGain reference loudness</string>
+    <string name="settings_replay_gain_target_loudness_summary">Target loudness used for ReplayGain calculation</string>
+    <string name="settings_replay_gain_peak_mode">ReplayGain peak type</string>
+    <string name="replay_gain_peak_mode_sample">Sample peak</string>
+    <string name="replay_gain_peak_mode_true">True peak</string>
+    <string name="replay_gain_target_preset_ebu">-23 LUFS (EBU R128)</string>
+    <string name="replay_gain_target_preset_default">-18 LUFS (Default)</string>
+    <string name="replay_gain_target_preset_streaming">-14 LUFS (Streaming)</string>
+    <string name="replay_gain_target_preset_custom">Custom</string>
+    <string name="replay_gain_target_custom_hint">Custom (LUFS)</string>
+    <string name="replay_gain_target_invalid">Enter a number between -60 and 0</string>
+
+
+    <string name="cache_category_image">Image Cache</string>
+    <string name="cache_category_network">Network Cache</string>
+    <string name="cache_category_external">External Cache</string>
+    <string name="cache_category_other">Other Cache</string>
+
+    <string name="load_failed">Failed to load</string>
+
+    <string name="about_title">About</string>
+
+    <!-- App Info -->
+    <string name="about_app_info">App Info</string>
+    <string name="about_app_version">App Version</string>
+    <string name="about_project_url">GitHub</string>
+    <string name="about_project_url_sub">View source on GitHub</string>
+
+    <string name="about_auto_check_update">Auto-check for updates</string>
+    <string name="about_auto_check_update_sub">Check for updates when the app starts</string>
+
+    <string name="about_check_update">Check for updates</string>
+    <string name="about_check_update_default">Check for updates now</string>
+
+    <!-- Contributors -->
+    <string name="about_contributors">Contributors</string>
+    <string name="about_no_contributors">No contributors yet</string>
+
+    <string name="about_contribution_count">%1$d commits</string>
+
+    <!-- Update status -->
+    <string name="update_already_latest">You are already on the latest version</string>
+
+    <string name="update_api_error">API error: %1$d</string>
+    <string name="update_network_error">Network error. Please check your connection</string>
+    <string name="update_parse_error">Failed to parse update info</string>
+    <string name="update_timeout">Update check timed out</string>
+
+    <!-- Lyric Format -->
+    <string name="lyric_format_plain">Line-by-line lyrics</string>
+    <string name="lyric_format_verbatim">Word-by-word lyrics</string>
+    <string name="lyric_format_enhanced">Enhanced word-by-word lyrics</string>
+    <string name="lyric_format_ttml">TTML(Experimental)</string>
+    <!-- Theme Mode -->
+    <string name="theme_mode_auto">Follow system</string>
+    <string name="theme_mode_light">Light mode</string>
+    <string name="theme_mode_dark">Dark mode</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_green">Green</string>
+    <string name="color_purple">Purple</string>
+    <string name="color_yellow">Yellow</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_pink">Pink</string>
+    <string name="color_teal">Teal</string>
+    <string name="color_default">Default</string>
+    <string name="monet">Monet palette</string>
+    <string name="key_color">Key Color</string>
+    <string name="floating_bottom_bar">Floating navigation bar</string>
+    <string name="floating_bottom_bar_summary">Use a floating glass bar on phones</string>
+    <string name="bar_blur">Blur</string>
+    <string name="bar_blur_summary">Enable blur effect on the top and bottom bars</string>
+    <string name="floating_bar_effect">Floating bar effect</string>
+    <string name="floating_bar_effect_none">None</string>
+    <string name="floating_bar_effect_frosted_glass">Frosted glass</string>
+    <string name="floating_bar_effect_liquid_glass">Liquid glass</string>
+
+    <!-- Stats -->
+    <string name="batch_match_stat_format">
+    Success: %1$d | Failed: %2$d | Skipped: %3$d
+    </string>
+
+    <string name="batch_match_duration_format">
+    Duration: %1$.1fs
+    </string>
+    <!-- Accessibility -->
+    <string name="common_delete">Delete</string>
+
+    <!-- Top Bar -->
+    <string name="song_list_title">Songs (%d)</string>
+    <string name="song_list_empty_title">No folders added</string>
+    <string name="song_list_empty_desc">Add a music folder to scan audio files with Lyrico</string>
+    <string name="action_add_folder">Add folder</string>
+    <string name="action_refresh_folder">Refresh folder</string>
+    <string name="scan_progress_listing">Scanning folders…</string>
+    <string name="scan_progress_reading">Reading metadata %1$d / %2$d</string>
+    <string name="scan_progress_writing">Updating library…</string>
+    <string name="scan_progress_finished">Scan complete</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_sort">Sort</string>
+    <string name="cd_more_actions">More actions</string>
+
+    <!-- Selection Mode -->
+    <string name="selection_mode_selected_count">Selected %d items</string>
+    <string name="swipe_selection_enter_selection">Enter multi-select</string>
+    <string name="swipe_selection_range_start">Range start</string>
+    <string name="swipe_selection_range_end">Range end</string>
+    <string name="action_select_all">Select All</string>
+    <string name="action_deselect_all">Deselect All</string>
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_batch_match_metadata">Match metadata</string>
+    <string name="action_batch_match_lyrics">Match lyrics</string>
+    <string name="action_batch_match_cover">Match cover</string>
+
+    <!-- Song List Item -->
+    <string name="unknown_artist">Unknown artist</string>
+    <string name="unknown_album_artist">Unknown album artist</string>
+
+    <!-- Song Menu Bottom Sheet -->
+    <string name="menu_play_music">Play Music</string>
+    <string name="share_chooser_title">Share Audio</string>
+
+    <!-- Delete Dialog -->
+    <string name="dialog_delete_file_title">Delete file?</string>
+    <string name="dialog_delete_file_content">Delete "%s"?\nThis cannot be undone</string>
+    <string name="dialog_batch_delete_content">Delete %d files?\nThis cannot be undone</string>
+
+    <!-- Batch Matching Dialog -->
+    <string name="batch_matching_title">Batch Match</string>
+    <string name="batch_matching_success">Success: %d</string>
+    <string name="batch_matching_skipped">Skipped: %d</string>
+    <string name="batch_matching_failure">Failure: %d</string>
+    <string name="batch_matching_total_time">Total time: %.2f s</string>
+    <string name="action_abort">Abort</string>
+    <string name="action_close">Close</string>
+
+    <!-- Song Details -->
+    <string name="label_title">Title</string>
+    <string name="label_artists">Artists</string>
+    <string name="label_album">Album</string>
+    <string name="label_year">Year</string>
+    <string name="label_language">Language</string>
+    <string name="label_genre">Genre</string>
+    <string name="label_date">Date</string>
+    <string name="plugin_config_title">Plugin Configuration</string>
+    <string name="source_config_basic">Basic settings</string>
+    <string name="source_config_required_error">This field is required</string>
+    <string name="source_config_save">Save</string>
+    <string name="source_config_saved">Saved</string>
+    <string name="source_config_invalid_source">Invalid plugin</string>
+    <string name="source_config_empty">No configurable items</string>
+    <string name="source_config_plugin_disabled_hint">This plugin is disabled. You can edit its settings here, but it will not be used for search or batch matching until enabled</string>
+    <string name="label_track_number">Track Number</string>
+    <string name="label_duration">Duration</string>
+    <string name="label_bitrate">Bitrate</string>
+    <string name="label_sample_rate">Sample Rate</string>
+    <string name="label_channels">Channels</string>
+    <string name="label_date_added">Date Added</string>
+    <string name="label_date_modified">Date Modified</string>
+    <string name="label_file_path">File Path</string>
+    <string name="label_cover">Cover</string>
+    <string name="label_artist">Artist</string>
+    <string name="label_custom">Custom</string>
+    <string name="label_extension">Extension</string>
+    <!-- Screen Titles -->
+    <string name="folder_manager_title">Folder Management</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_remove_folder_title">Remove this folder?</string>
+    <string name="dialog_remove_folder_content_tip">This will remove the folder from Lyrico and clear its songs from the library.\nLocal files will not be deleted. You can add this folder again later</string>
+    <!-- Folder List Status -->
+    <string name="folder_scanning">Scanning folder…</string>
+    <string name="folder_scan_queued">Queued for scanning…</string>
+    <string name="folder_scan_failed">Scan failed: %s</string>
+
+    <!-- Folder Item Info -->
+    <string name="folder_root_path">Folders</string>
+    <string name="folder_browser_count_format">%1$d folders, %2$d songs</string>
+    <string name="folder_child_song_count_format">Folders: %1$d, Songs: %2$d</string>
+    <string name="folder_hidden_child_song_count_format">Hidden, Folders: %1$d, Songs: %2$d</string>
+
+    <!-- Folder Action Sheet -->
+    <string name="folder_action_remove">Remove Folder</string>
+    <string name="folder_action_hide">Hide Folder</string>
+    <string name="folder_action_show">Show Folder</string>
+
+    <!-- General Actions -->
+    <string name="action_undo_changes">Undo changes</string>
+    <string name="action_back">Back</string>
+    <string name="action_search">Search</string>
+    <string name="action_export_lyrics">Export</string>
+    <string name="action_import_lyrics">Import</string>
+
+    <!-- Snackbar Messages -->
+    <string name="msg_save_success">Save successful</string>
+    <string name="msg_export_lyrics_success">Lyrics exported</string>
+    <string name="msg_export_lyrics_failed">Failed to export lyrics</string>
+    <string name="msg_import_lyrics_success">Lyrics imported</string>
+    <string name="msg_import_lyrics_failed">Failed to import lyrics</string>
+    <string name="msg_field_reverted">Reverted %1$s</string>
+    <string name="action_cancel_undo">Cancel undo</string>
+
+    <!-- Metadata Labels -->
+    <string name="edit_metadata_default_title">Edit Metadata</string>
+    <string name="label_album_artist">Album Artist</string>
+    <string name="label_disc_number">Disc Number</string>
+    <string name="label_composer">Composer</string>
+    <string name="label_lyricist">Lyricist</string>
+    <string name="label_comment">Comment</string>
+    <string name="label_lyrics">Lyrics</string>
+    <string name="group_replay_gain">ReplayGain</string>
+    <string name="label_replaygain_track_gain">Track Gain</string>
+    <string name="label_replaygain_track_peak">Track Peak</string>
+    <string name="label_replaygain_album_gain">Album Gain</string>
+    <string name="label_replaygain_album_peak">Album Peak</string>
+    <string name="label_replaygain_reference_loudness">Reference Loudness</string>
+    <string name="extra_write_mode_disabled">Disabled</string>
+    <string name="extra_write_mode_supplement">Supplement</string>
+    <string name="extra_write_mode_overwrite">Overwrite</string>
+    <string name="label_custom_tag_name">Tag Name</string>
+    <string name="label_custom_tag_value">Tag Value</string>
+    <string name="label_copyright">Copyright</string>
+    <string name="label_rating">Rating</string>
+    <string name="group_basic_info">Basic info</string>
+    <string name="group_track_details">Track Details</string>
+    <string name="group_custom_tags">Custom Tags</string>
+    <string name="group_credits_other">Credits &amp; Others</string>
+    <string name="action_add_custom_tag">Add Custom Tag</string>
+    <string name="custom_tag_add_key">Add tag</string>
+    <string name="custom_tag_key">Tag key</string>
+    <string name="custom_tag_key_hint">Enter a tag key, for example SOURCE, MOOD, or CATALOG_NO</string>
+    <string name="custom_tag_key_invalid">Invalid tag key</string>
+    <string name="custom_tag_library_section">Tags found in the library</string>
+    <string name="custom_tag_library_empty">No other tags found in the library</string>
+    <string name="custom_tag_delete_title">Delete tag?</string>
+    <string name="custom_tag_delete_message">Delete \"%1$s\"? Existing song data will not be removed</string>
+    <string name="edit_field_songs_empty">No matching songs</string>
+    <string name="label_file_size">File Size</string>
+    <!-- Cover Editor -->
+    <string name="status_modified">Modified</string>
+    <string name="cd_cover">Cover Art</string>
+    <!-- Song Menu -->
+    <string name="menu_action_play">Play Music</string>
+    <string name="menu_action_play_sub">Play with an external player</string>
+    <string name="menu_action_info">Song Info</string>
+    <string name="menu_action_share">Share Song</string>
+    <string name="menu_action_delete">Delete Song</string>
+    <string name="menu_action_delete_sub">Deletes the file permanently</string>
+    <string name="menu_action_rename">Rename File</string>
+    <string name="menu_action_share_album">Share Album</string>
+    <string name="menu_action_delete_album">Delete Album</string>
+    <string name="menu_action_delete_album_sub">Deletes all files in the album</string>
+    <string name="menu_action_calculate_album_replay_gain">Calculate Album ReplayGain</string>
+    <string name="album_action_more">Album actions</string>
+    <string name="dialog_delete_album_title">Delete album</string>
+    <string name="dialog_delete_album_content">Delete all %1$d songs in "%2$s"?</string>
+    <string name="album_delete_success">Deleted %1$d / %2$d songs</string>
+    <string name="dialog_rename_title">Rename</string>
+    <string name="msg_copied_to_clipboard">Copied to clipboard</string>
+
+    <string name="dialog_action_go_update">Update</string>
+    <string name="dialog_title_update_available">New version available: %s</string>
+    <string name="batch_match_metadata_config_title">Batch metadata matching</string>
+    <string name="batch_match_lyrics_config_title">Batch lyrics matching</string>
+    <string name="batch_match_cover_config_title">Batch cover matching</string>
+    <string name="batch_match_config_concurrency">Concurrency</string>
+
+    <string name="only_translation_if_available">Translated lyrics only</string>
+    <string name="only_translation_if_available_hint">Download only translated lyrics when available. Requires translation download to be enabled</string>
+    <string name="remove_empty_lines">Remove Empty Lines</string>
+    <string name="remove_empty_lines_hint">Remove blank lines from lyrics and other multiline text fields</string>
+
+    <string name="permission_denied_cannot_save">Permission denied, changes not saved</string>
+    <string name="import_config">Import Settings</string>
+    <string name="section_backup">Backup &amp; Restore</string>
+    <string name="export_config">Export Settings</string>
+    <string name="export_config_hint">Save current settings to a JSON file</string>
+    <string name="import_config_hint">Restore settings from a JSON file</string>
+    <string name="export_success">Configuration exported</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="import_success">Configuration imported</string>
+    <string name="import_failed">Import failed: %1$s</string>
+    <string name="import_failed_format">Invalid configuration file</string>
+
+    <string name="unknown_error">Unknown error: %1$s</string>
+    <string name="unknown_error_simple">Unknown error</string>
+    <string name="clear_songs">Clear All Songs</string>
+
+    <string name="action_reset">Reset</string>
+    <string name="action_batch_rename">Rename</string>
+    <string name="no_tag_data">Failed to load tag data for selected songs</string>
+    <string name="batch_rename_title">Batch Rename</string>
+    <string name="batch_rename_tab_config">Config</string>
+    <string name="batch_rename_tab_preview">Preview (%1$d)</string>
+    <string name="rename_format">Rename Format</string>
+    <string name="format_hint">Enter the naming format, for example @1 - @2</string>
+    <string name="format_preset_show_placeholders">Placeholder help</string>
+    <string name="action_rename">Rename</string>
+    <string name="preview_title">Preview (%1$d)</string>
+    <string name="preview_title_generating">Preview (%1$d) · Generating…</string>
+    <string name="preview_empty_tip">No files available for preview</string>
+    <string name="label_old_name">Old: %1$s</string>
+    <string name="label_new_name">New: %1$s</string>
+    <string name="label_old_path">Old path: %1$s</string>
+    <string name="label_new_path">New path: %1$s</string>
+
+    <string name="rename_conflict_warning">Name conflict, a numeric suffix will be added</string>
+
+
+
+    <!-- Character Mapping -->
+    <string name="configure_character_mapping">Configure Character Mapping</string>
+    <string name="character_mapping_description">Tap a character to change its replacement</string>
+    <string name="character_to_replace">Character %1$s</string>
+    <string name="no_character_mappings">No character mappings</string>
+    <string name="character_replacement_selector_subtitle">Select a replacement</string>
+
+    <string name="replacement_remove">Remove</string>
+    <string name="replacement_ideographic_comma">Ideographic comma (、)</string>
+    <string name="replacement_half_width_comma">Half-width comma (,)</string>
+    <string name="replacement_full_width_comma">Full-width comma (，)</string>
+    <string name="replacement_full_width_backslash">Full-width backslash (＼)</string>
+    <string name="replacement_full_width_slash">Full-width slash (／)</string>
+    <string name="replacement_full_width_colon">Full-width colon (：)</string>
+    <string name="replacement_full_width_asterisk">Full-width asterisk (＊)</string>
+    <string name="replacement_full_width_question_mark">Full-width question mark (？)</string>
+    <string name="replacement_full_width_quotation_mark">Full-width quotation mark (＂)</string>
+    <string name="replacement_full_width_less_than_sign">Full-width less-than sign (＜)</string>
+    <string name="replacement_full_width_greater_than_sign">Full-width greater-than sign (＞)</string>
+    <string name="replacement_full_width_vertical_bar">Full-width vertical bar (｜)</string>
+    <string name="replacement_ampersand">Ampersand (&amp;)</string>
+    <string name="replacement_not_selected">Not selected</string>
+
+
+    <string name="label_change_cover">Choose Cover from This Device</string>
+    <string name="label_remove_cover">Remove Cover</string>
+    <string name="label_save_cover">Save Cover</string>
+    <string name="label_artist_image">Artist Poster</string>
+    <string name="label_change_artist_image">Choose Artist Poster from This Device</string>
+    <string name="label_remove_artist_image">Remove Artist Poster</string>
+    <string name="label_save_artist_image">Save Artist Poster</string>
+    <string name="label_crop_artist_image">Crop artist poster</string>
+    <string name="msg_read_artist_image_failed">Failed to read artist poster</string>
+    <string name="edit_artist_image">Edit Artist Poster</string>
+    <string name="label_reassign_artist_image">Reassign “%1$s” to an artist</string>
+    <string name="label_select_artist">Select Artist</string>
+    <string name="label_select_artist_image">Select Artist Poster</string>
+    <string name="label_artist_image_count">%1$d posters (only one is kept)</string>
+    <string name="label_artist_image_exists">Poster set</string>
+    <string name="label_artist_image_duplicate">%1$s (%2$d/%3$d)</string>
+    <string name="label_artist_image_unmatched">Not linked to an artist</string>
+    <string name="artist_image_untagged">Untagged</string>
+    <string name="label_image_source_embedded">Embedded</string>
+    <string name="label_image_source_external">Poster file</string>
+    <string name="msg_artist_field_empty_for_poster">Fill in the artist field first</string>
+    <string name="msg_artist_image_reassigned">Poster moved to %1$s</string>
+    <string name="label_artist_image_conflict_title">“%1$s” already has a poster</string>
+    <string name="label_artist_image_conflict_message">Swap keeps both posters; replace deletes the current one</string>
+    <string name="label_artist_image_swap">Swap artists</string>
+    <string name="label_artist_image_replace">Replace</string>
+    <string name="chinese_conversion_mode_none">None</string>
+    <string name="chinese_conversion_mode_traditional_to_simplified">CHT -> CHS</string>
+    <string name="chinese_conversion_mode_simplified_to_traditional">CHS -> CHT</string>
+    <string name="conversion_mode">Chinese Text Conversion</string>
+    <string name="conversion_mode_hint">Applies to searchable text metadata and lyrics. IDs, dates, numbers, URLs, and covers are not converted</string>
+    <string name="offset_adjust_hint">Adjust Offset</string>
+    <string name="label_lyrics_offset">Lyrics Offset (ms)</string>
+    <string name="action_manual_input">Enter Manually</string>
+    <string name="lyrics_offset_input_invalid">Enter a number in milliseconds</string>
+    <string name="lyrics_offset_input_out_of_range">Value is out of range. %1$s</string>
+    <string name="lyrics_offset_input_hint">Range %1$d ~ %2$d ms. Positive delays the lyrics, negative advances them</string>
+
+    <string name="pull_to_refresh">Pull down to refresh</string>
+    <string name="release_to_refresh">Release to refresh</string>
+    <string name="refresh">Refresh</string>
+    <string name="refreshing">Refreshing</string>
+    <string name="refresh_success">Refreshed</string>
+    <string name="lyrics_empty">Lyrics is empty</string>
+    <string name="lyrics_source_empty">No enabled plugin supports both song search and lyrics</string>
+    <string name="cover_source_empty">No cover source enabled</string>
+
+    <!-- Batch Edit -->
+    <string name="batch_edit_title">Edit Tags</string>
+    <string name="batch_edit_tab_config">Config</string>
+    <string name="batch_edit_tab_preview">Preview (%1$d)</string>
+    <string name="batch_edit_song_count">%d songs selected</string>
+    <string name="batch_edit_result_summary">Success: %1$d / Total: %2$d, skipped: %3$d, failed: %4$d</string>
+    <string name="batch_edit_cover_change">Choose Cover from This Device</string>
+    <string name="batch_edit_cover_remove">Remove Cover</string>
+    <string name="batch_edit_cover_revert">Revert Cover</string>
+    <string name="batch_edit_cover_hint">Tap to select a cover image</string>
+    <string name="batch_edit_select_from_selected_songs">Select from selected songs</string>
+    <string name="batch_edit_select_cover_from_selected_songs">Select cover from selected songs</string>
+    <string name="batch_edit_loading_selected_values">Loading selected songs…</string>
+    <string name="batch_edit_no_selected_values">No available values in selected songs</string>
+    <string name="batch_edit_no_selected_covers">No available covers in selected songs</string>
+    <string name="batch_edit_cover_mismatch">Selected songs are from different albums or artists, cannot apply one cover</string>
+    <string name="batch_edit_preview_empty">No changes to preview</string>
+    <string name="batch_edit_preview_change_count">%1$d fields will change</string>
+    <string name="batch_edit_preview_old_value">Old: %1$s</string>
+    <string name="batch_edit_preview_new_value">New: %1$s</string>
+    <string name="batch_edit_preview_empty_value">(empty)</string>
+    <string name="batch_edit_preview_current_cover">Current cover</string>
+    <string name="batch_edit_preview_remove_cover">Remove cover</string>
+    <string name="batch_edit_info_summary">How to use</string>
+    <string name="batch_edit_info_content">Batch Edit Guide:
+
+\n• All fields default to "&lt;keep&gt;", meaning that field will not be changed
+\n• Editing a field applies its value to all selected songs
+\n• Tap the undo button next to a field to restore it to "&lt;keep&gt;"
+\n• For rating, tap the stars to set a new rating, or tap Undo to keep it unchanged
+\n• Tap the cover to change or remove it
+\n• Tap Save to write the changes to the file tags of all selected songs</string>
+    <string name="search_type_all">All</string>
+    <string name="search_type_title">Title</string>
+    <string name="search_type_artist">Artist</string>
+    <string name="search_type_album">Album</string>
+    <string name="search_type_filename">File name</string>
+    <string name="action_lyrics_options">Lyrics options</string>
+    <string name="limit_lyrics_input_lines">Limit editor lines</string>
+    <string name="limit_lyrics_input_lines_hint">Keep the lyrics editor at a fixed height so very long lyrics are easier to select and edit</string>
+    <string name="label_cover_options">Cover options</string>
+    <string name="label_artist_image_options">Artist poster options</string>
+    <string name="label_crop_cover">Crop cover</string>
+    <string name="label_select_same_album_cover">Choose Cover from Same Album</string>
+    <string name="msg_read_cover_failed">Failed to read cover</string>
+    <string name="msg_picture_saved">%1$s saved</string>
+    <string name="msg_picture_save_failed">Failed to save %1$s</string>
+    <string name="label_image_ratio">Image ratio</string>
+    <string name="option_free_ratio">Free ratio</string>
+    <string name="edit_cover">Edit Cover</string>
+    <string name="title_opensource_licence">Open source licenses</string>
+    <string name="batch_edit_processing">Processing</string>
+
+    <!-- Same Album Cover -->
+    <string name="msg_same_album_cover_applied">Applied album cover</string>
+    <string name="msg_no_same_album_cover_found">No cover found in same album</string>
+    <string name="msg_load_same_album_cover_failed">Failed to load the same album cover</string>
+
+    <!-- Batch ReplayGain -->
+    <string name="action_batch_replay_gain">Calculate ReplayGain</string>
+    <string name="batch_replay_gain_concurrency">Concurrency</string>
+    <string name="batch_replay_gain_concurrency_tip">Higher concurrency scans faster but uses more CPU and memory</string>
+    <string name="batch_replay_gain_total_time">Total time: %.2f s</string>
+    <string name="batch_replay_gain_success">Success: %d</string>
+    <string name="batch_replay_gain_skipped">Skipped: %d</string>
+    <string name="batch_replay_gain_failure">Failure: %d</string>
+    
+    <!-- Lyrics Format Conversion -->
+    <string name="unknown_format">Unknown format</string>
+    <string name="action_format_lyrics">Format lyrics</string>
+    <string name="action_format_lyrics_title">Format Lyrics</string>
+    <string name="action_batch_convert_lyrics_format">Format Lyrics</string>
+    <string name="action_batch_export_lyrics">Export Lyrics</string>
+    <string name="action_batch_export_cover">Export Covers</string>
+    <string name="batch_export_running">Exporting</string>
+    <string name="export_destination_title">Export location</string>
+    <string name="export_destination_selected_folder">Specified folder</string>
+    <string name="export_destination_selected_folder_summary">Choose a folder for the exported files</string>
+    <string name="export_destination_audio_folder">Audio folder</string>
+    <string name="export_destination_audio_folder_summary">Save each exported file next to its audio file</string>
+    <string name="current_detected_format">Detected format: %s</string>
+    <string name="current_target_format">Target format: %s</string>
+    <string name="lyrics_format_keep_current">Keep current format</string>
+    <string name="lyrics_format_line_order">Sort by lyric line</string>
+    <string name="lyrics_format_line_order_hint">Merge lyrics that list all originals first, then translations or romanization, into one line per original</string>
+    <string name="lyrics_remove_tag_lines">Remove non-lyric content</string>
+    <string name="lyrics_remove_tag_lines_hint">Use Non-Lyric Content Rules to remove lyricist, composer, source, and similar lines</string>
+    <string name="lyrics_remove_tag_lines_settings_hint">Use Non-Lyric Content Rules from Settings on the current lyrics</string>
+    <string name="lyrics_remove_empty_lines_manual_hint">Delete lyric lines that are empty or contain only placeholders</string>
+    <string name="non_lyrics_cleanup_rules_title">Non-Lyric Content Rules</string>
+    <string name="non_lyrics_cleanup_rules_summary">Used by the Remove non-lyric content option in Format lyrics</string>
+    <string name="non_lyrics_cleanup_rules_section">Filter Rules</string>
+    <string name="non_lyrics_cleanup_rules_hint">These rules are used only when Remove non-lyric content is selected in single-song or batch Format lyrics. Rules match complete text in the raw lyric line. Word-by-word lyrics are joined into full lines before matching</string>
+    <string name="add_non_lyrics_cleanup_rule">Add rule</string>
+    <string name="edit_non_lyrics_cleanup_rule">Edit rule</string>
+    <string name="non_lyrics_cleanup_rule_input_hint">Enter a tag or phrase to remove, such as [by: or Lyricist:</string>
+    <string name="invalid_or_duplicate_rule">Rule is empty or already exists</string>
+    <string name="non_lyrics_cleanup_delete_rule_title">Delete rule?</string>
+    <string name="non_lyrics_cleanup_delete_rule_message">Delete \"%1$s\"?</string>
+    <string name="label_plain_lyrics">Plain lyrics</string>
+    <string name="action_view_plain_lyrics">View plain lyrics</string>
+
+    <!-- Batch Task Types -->
+    <string name="batch_task_match_tags">Match Metadata</string>
+    <string name="batch_task_match_lyrics">Match Lyrics</string>
+    <string name="batch_task_match_cover">Match Cover</string>
+    <string name="batch_task_edit_tags">Edit Tags</string>
+    <string name="batch_task_rename_files">Rename Files</string>
+    <string name="batch_task_convert_lyrics_format">Format Lyrics</string>
+    <string name="batch_task_scan_replay_gain">Scan ReplayGain</string>
+    <string name="batch_task_export_lyrics">Export Lyrics</string>
+    <string name="batch_task_export_cover">Export Covers</string>
+
+    <!-- Batch Task Status -->
+    <string name="batch_task_status_queued">Queued</string>
+    <string name="batch_task_status_running">Running</string>
+    <string name="batch_task_status_succeeded">Succeeded</string>
+    <string name="batch_task_status_failed">Failed</string>
+    <string name="batch_task_status_skipped">Skipped</string>
+    <string name="batch_task_status_cancelled">Cancelled</string>
+
+    <!-- Batch Task List Screen -->
+    <string name="batch_task_list_title">Task History</string>
+    <string name="batch_task_filter_all">All</string>
+    <string name="batch_task_filter_type">Task Type</string>
+    <string name="batch_task_filter_status">Status</string>
+    <string name="batch_task_no_tasks">No tasks found</string>
+    <string name="no_song_selected">No songs selected</string>
+    <string name="batch_task_delete_title">Delete Task</string>
+    <string name="batch_task_delete_message">Delete this task record?</string>
+    <string name="batch_task_delete_selected_message">Are you sure you want to delete %d task records?</string>
+    <string name="batch_task_clear_title">Clear History</string>
+    <string name="batch_task_clear_message">Delete finished task records under the current filters? Running tasks will be kept</string>
+    <string name="batch_task_type_label">Task Type: </string>
+    <string name="batch_task_status_label">Status: </string>
+    <string name="batch_task_detail_title">Task Detail</string>
+    <string name="batch_task_detail_progress">Progress: %1$d / %2$d</string>
+    <string name="batch_task_detail_no_records">No records</string>
+    <string name="msg_save_failed_with_reason">Save failed: %1$s</string>
+    <string name="app_log_title">App Logs</string>
+    <string name="app_log_summary">View crash, metadata, and batch operation logs</string>
+    <string name="app_log_empty">No logs yet</string>
+    <string name="action_copy_log">Copy log</string>
+    <string name="action_export_logs">Export</string>
+    <string name="app_log_delete_title">Delete logs?</string>
+    <string name="app_log_delete_message">Delete %d log entries? This cannot be undone</string>
+    <string name="app_log_filter_all">All</string>
+    <string name="app_log_filter_level">Level</string>
+    <string name="app_log_filter_type">Type</string>
+    <string name="app_log_detail_title">Log Detail</string>
+    <string name="app_log_field_time">Time</string>
+    <string name="app_log_field_level">Level</string>
+    <string name="app_log_field_type">Type</string>
+    <string name="app_log_field_tag">Tag</string>
+    <string name="app_log_field_related">Related</string>
+    <string name="app_log_field_message">Message</string>
+    <string name="app_log_field_detail">Detail</string>
+    <string name="app_log_level_debug">Debug</string>
+    <string name="app_log_level_info">Info</string>
+    <string name="app_log_level_warning">Warning</string>
+    <string name="app_log_level_error">Error</string>
+    <string name="app_log_type_app">App</string>
+    <string name="app_log_type_crash">Crash</string>
+    <string name="app_log_type_metadata">Metadata</string>
+    <string name="app_log_type_batch">Batch</string>
+    <string name="app_log_type_database">Database</string>
+    <string name="app_log_type_network">Network</string>
+    <string name="app_log_type_plugin">Plugin</string>
+    <string name="log_retention_title">Log retention</string>
+    <string name="log_retention_summary">How long app logs are kept</string>
+    <string name="log_retention_none">Do not record</string>
+    <string name="log_retention_7_days">7 days</string>
+    <string name="log_retention_30_days">30 days</string>
+    <string name="log_retention_90_days">90 days</string>
+    <string name="log_retention_forever">Always keep</string>
+
+    <string name="edit_field_settings_title">Edit Fields</string>
+    <string name="edit_field_settings_summary">Reorder and show or hide editor fields</string>
+    <string name="edit_field_settings_hint">Hold a card to reorder; use buttons for actions</string>
+    <string name="edit_field_settings_enabled_count">%1$d / %2$d enabled</string>
+    <string name="edit_field_settings_drag_handle">Drag to reorder</string>
+    <string name="edit_field_settings_custom_tag_badge">Custom</string>
+    <string name="edit_field_settings_scope_single">Single edit only</string>
+    <string name="edit_field_settings_scope_batch">Batch edit only</string>
+    <string name="edit_field_settings_reset_message">Reset order and visibility to defaults? Custom tags are removed from the list, but existing song data is not deleted</string>
+    <string name="edit_field_songs_with">Populated</string>
+    <string name="edit_field_songs_without">Missing</string>
+    <string name="edit_field_songs_truncated">Too many songs—only the first part is shown</string>
+    <string name="custom_tag_song_count">%1$d songs</string>
+    <string name="edit_field_group_cover">Cover</string>
+    <string name="reset_to_default">Reset to default</string>
+    <string name="edit_field_scope_single_edit">Single edit</string>
+    <string name="edit_field_scope_batch_edit">Batch edit</string>
+    <string name="edit_field_scope_both">Single edit and batch edit</string>
+    <string name="local_search_title">Local Search</string>
+    <string name="search_section_songs">Songs</string>
+    <string name="search_section_albums">Albums</string>
+    <string name="search_section_artists">Artists</string>
+    <string name="search_empty">No search results</string>
+    <string name="album_detail_title">Album</string>
+    <string name="artist_detail_title">Artist</string>
+    <string name="library_tab_songs">Songs</string>
+    <string name="library_tab_artists">Artists</string>
+    <string name="library_tab_albums">Albums</string>
+    <string name="artist_list_title">Artists (%1$d)</string>
+    <string name="album_list_title">Albums (%1$d)</string>
+    <string name="label_name">Name</string>
+    <string name="label_song_count">Song count</string>
+    <string name="label_album_count">Album count</string>
+    <string name="empty_artists_title">No artists yet</string>
+    <string name="empty_albums_title">No albums yet</string>
+    <string name="empty_songs_title">No songs yet</string>
+    <string name="empty_library_index_summary">No songs to show in the library</string>
+    <string name="artist_tab_songs">Songs</string>
+    <string name="artist_tab_albums">Albums</string>
+    <string name="song_count">%1$d songs</string>
+    <string name="album_count">%1$d albums</string>
+    <string name="album_song_count">%1$d albums · %2$d songs</string>
+    <string name="sort_ascending">Ascending</string>
+    <string name="sort_descending">Descending</string>
+    <string name="artist_split_settings_title">Artist split rules</string>
+    <string name="artist_split_settings_summary">Configure artist splitting and no-split allowlist for the artist view</string>
+    <string name="artist_split_general_section">Artist split</string>
+    <string name="artist_split_enabled">Enable artist splitting</string>
+    <string name="artist_split_enabled_summary">When enabled, multiple artists are listed separately in the artist view</string>
+    <string name="section_artist_separators">Separators</string>
+    <string name="section_no_split_artists">No-split artists</string>
+    <string name="add_custom_separator">Add separator</string>
+    <string name="edit_custom_separator">Edit separator</string>
+    <string name="add_no_split_artist">Add no-split artist</string>
+    <string name="edit_no_split_artist">Edit no-split artist</string>
+    <string name="rebuild_artist_index">Rebuild artist index</string>
+    <string name="rebuild_artist_index_now">Rebuild artist index now</string>
+    <string name="artist_index_current">The current artist index is up to date</string>
+    <string name="artist_index_rebuild_pending">Split rules changed, rebuild the artist index to apply them</string>
+    <string name="artist_index_rebuilding">Rebuilding artist index…</string>
+    <string name="artist_index_rebuild_complete">Artist index rebuilt</string>
+    <string name="artist_index_rebuild_failed">Artist index rebuild failed</string>
+    <string name="separator_input_hint">Enter separator</string>
+    <string name="artist_name_input_hint">Enter artist name</string>
+    <string name="invalid_empty_input">Content cannot be empty</string>
+    <string name="duplicate_item">This item already exists</string>
+    <string name="duplicate_builtin_item">This item already exists in the built-in list</string>
+    <string name="artist_split_delete_rule_title">Delete rule?</string>
+    <string name="artist_split_delete_rule_message">Delete "%1$s"? Rebuild the artist index to apply the change</string>
+    <string name="album_grid_columns_format">%1$d columns</string>
+
+    <!-- QuickJS Test -->
+    <string name="quickjs_test_title">QuickJS Test</string>
+    <string name="quickjs_test_description">Test Description</string>
+    <string name="quickjs_test_description_summary">Run tests to verify QuickJS runtime functionality including eval, function calls, timeout handling, and memory limits</string>
+    <string name="quickjs_test_run">Run Test</string>
+    
+    <string name="quickjs_test_eval_title">Eval Test</string>
+    <string name="quickjs_test_eval_desc">Test basic JavaScript evaluation: \"hello\".toUpperCase()</string>
+    
+    <string name="quickjs_test_call_title">Function Call Test</string>
+    <string name="quickjs_test_call_desc">Test calling JavaScript functions with JSON parameters</string>
+    
+    <string name="quickjs_test_timeout_title">Timeout Test</string>
+    <string name="quickjs_test_timeout_desc">Test infinite loop interruption (while(true){}) - should timeout in 2 seconds</string>
+    
+    <string name="quickjs_test_memory_title">Memory Limit Test</string>
+    <string name="quickjs_test_memory_desc">Test memory limit enforcement with large array allocation (4MB limit)</string>
+    <string name="plugin_empty">No Plugin Installed</string>
+    <string name="plugin_import_archive">Import Plugin</string>
+
+    <string name="plugin_config">Configure</string>
+    <string name="plugin_custom_name">Name</string>
+    <string name="plugin_custom_name_hint">Leave empty to use the original name: %1$s</string>
+    <string name="plugin_uninstall">Uninstall</string>
+    <string name="plugin_uninstall_confirm_message">Uninstall "%1$s"? This cannot be undone</string>
+    <string name="plugin_update_source_configured">Update source</string>
+    <string name="plugin_version_with_value">Version: %1$s</string>
+    <string name="plugin_api_versions_with_value">Plugin API %1$d · Minimum Host API %2$d</string>
+    <string name="plugin_switch_to_compact">Switch to compact mode</string>
+    <string name="plugin_switch_to_detailed">Switch to detailed mode</string>
+    <string name="plugin_author_with_value">Author: %1$s</string>
+    <string name="plugin_import_found_title">Plugin package found</string>
+    <string name="plugin_import_install">Install</string>
+    <string name="plugin_import_installable_title">Installable plugins (%1$d)</string>
+    <string name="plugin_import_failed_title">Not installable (%1$d)</string>
+    <string name="plugin_import_version">Version: %1$s</string>
+    <string name="plugin_import_path">Path: %1$s</string>
+    <string name="plugin_import_description">Description: %1$s</string>
+    <string name="plugin_import_conflict_new">New</string>
+    <string name="plugin_import_conflict_update">Update</string>
+    <string name="plugin_import_conflict_overwrite">Overwrite</string>
+    <string name="plugin_import_conflict_downgrade">Downgrade</string>
+    <string name="plugin_import_expand">Expand</string>
+    <string name="plugin_import_collapse">Collapse</string>
+
+    <string name="password_show">Show password</string>
+    <string name="password_hide">Hide password</string>
+
+    <string name="folder_tab_folders">Folders</string>
+    <string name="folder_tab_songs">Songs</string>
+
+
+    <string name="field_group_basic_info">Basic info</string>
+    <string name="field_group_credits">Credits</string>
+    <string name="field_group_lyrics_cover">Lyrics &amp; cover</string>
+    <string name="field_group_extra_info">Extra info</string>
+    <string name="field_group_replay_gain">ReplayGain</string>
+    <string name="lyric_preview_text">Lyrics: %s</string>
+    <string name="edit_field_view_songs">View songs</string>
+    <string name="edit_field_manage_members">Manage fields</string>
+    <string name="edit_field_component_hint">Long press to reorder fields; use switches to control visibility.</string>
+    <string name="edit_field_component_short_tag">G</string>
+    <string name="edit_field_custom_short_tag">C</string>
+</resources>

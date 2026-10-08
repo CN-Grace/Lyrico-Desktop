@@ -33,7 +33,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Lyrico"
 include(":lyrico-audiotag")
-
-// :lyrico-app is not part of the build yet: it is still an Android module and is being re-created
-// as a Compose Multiplatform Desktop module (PLAN.md phase 2). Until then it is excluded so the
-// remaining modules configure without the Android Gradle Plugin.
+include(":lyrico-app")
