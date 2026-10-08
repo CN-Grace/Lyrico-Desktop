@@ -1,8 +1,6 @@
 package com.lonx.lyrico.utils
 
-import android.content.Context
 import com.lonx.lyrico.data.LyricoDatabase
-import com.lonx.lyrico.data.model.entity.FolderEntity
 import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.song.scan.LibraryScanProgress
 import com.lonx.lyrico.data.song.scan.LibraryScanRequest
@@ -25,6 +23,25 @@ data class LibraryScanState(
     val error: String? = null
 )
 
+/**
+ * Runs library scans one at a time and reports progress, for however many screens ask for one.
+ *
+ * The queue exists because scans compete for the same database writer and the same disk; running two
+ * at once would interleave their progress readings and let a per-folder scan and a full scan write
+ * over each other. Requests that arrive while a scan is running are merged (see
+ * [mergePendingRequest]) rather than queued blindly.
+ *
+ * Two Android responsibilities are gone:
+ *
+ * - **`Context`**, which existed only to release persisted SAF permissions. There are no persisted
+ *   permissions on Windows, and the folder bookkeeping that release depended on — normalising the
+ *   path, collapsing a folder into an existing parent, dropping folders a new parent subsumes — now
+ *   lives in `FolderDao.upsertAndGetId`, where it applies to the rows themselves rather than to a
+ *   grant.
+ * - **`addFolderAndScan(path, treeUri)`**: there is no tree uri to record. `addedBySaf` is still
+ *   written, because on desktop it means "the user added this root explicitly" and that is what
+ *   `getLibraryRootFolders` selects on.
+ */
 interface LibraryScanManager {
     val state: StateFlow<LibraryScanState>
 
@@ -32,13 +49,14 @@ interface LibraryScanManager {
         fullRescan: Boolean = false,
         onSuccess: (suspend () -> Unit)? = null
     )
+
     fun scanFolders(folderIds: Set<Long>, fullRescan: Boolean = false)
-    fun addFolderAndScan(path: String, treeUri: String)
+
+    fun addFolderAndScan(path: String)
 }
 
 class LibraryScanManagerImpl(
     private val appScope: CoroutineScope,
-    private val context: Context,
     private val database: LyricoDatabase,
     private val settingsRepository: SettingsRepository,
     private val synchronizeLibraryUseCase: SynchronizeLibraryUseCase
@@ -69,75 +87,30 @@ class LibraryScanManagerImpl(
         enqueueScan(ScanRequest(fullRescan = fullRescan, folderIds = folderIds))
     }
 
-    override fun addFolderAndScan(path: String, treeUri: String) {
+    override fun addFolderAndScan(path: String) {
         appScope.launch {
-            releaseRedundantSafPermissions(path, treeUri)
-            val id = folderDao.upsertAndGetId(
-                path = path,
-                treeUri = treeUri,
-                addedBySaf = true
-            )
+            val id = folderDao.upsertAndGetId(path = path, addedBySaf = true)
             folderDao.setIgnored(id, false)
             enqueueScan(ScanRequest(fullRescan = false, folderIds = setOf(id)))
         }
     }
 
-    private suspend fun releaseRedundantSafPermissions(path: String, treeUri: String) {
-        val normalizedPath = normalizeFolderPath(path)
-        val allFolders = folderDao.getAllFoldersOnce()
-
-        val existing = allFolders.firstOrNull { folder ->
-            normalizeFolderPath(folder.path) == normalizedPath
-        }
-        if (existing != null && existing.treeUri != treeUri) {
-            releaseFolderPermission(existing)
-        }
-
-        val existingParent = allFolders
-            .filter { folder ->
-                folder.id != existing?.id &&
-                        isParentFolder(
-                            parentPath = normalizeFolderPath(folder.path),
-                            childPath = normalizedPath
-                        )
-            }
-            .maxByOrNull { folder -> normalizeFolderPath(folder.path).length }
-        if (existingParent != null) {
-            UriUtils.releasePersistedPermission(context.contentResolver, treeUri)
-            return
-        }
-
-        allFolders
-            .filter { folder ->
-                isParentFolder(
-                    parentPath = normalizedPath,
-                    childPath = normalizeFolderPath(folder.path)
-                )
-            }
-            .forEach { folder -> releaseFolderPermission(folder) }
-    }
-
-    private fun releaseFolderPermission(folder: FolderEntity) {
-        if (folder.addedBySaf) {
-            UriUtils.releasePersistedPermission(context.contentResolver, folder.treeUri)
-        }
-    }
-
-    private fun normalizeFolderPath(path: String): String {
-        val normalized = path
-            .replace('\\', '/')
-            .trim()
-            .trimEnd('/')
-
-        return normalized.ifBlank { path.trim() }
-    }
-
-    private fun isParentFolder(parentPath: String, childPath: String): Boolean {
-        if (parentPath.isBlank() || childPath.isBlank()) return false
-        if (parentPath == childPath) return false
-        return childPath.startsWith("$parentPath/")
-    }
-
+    /**
+     * Adds a request to the queue, merging it with what is already waiting.
+     *
+     * Merging is what keeps a burst of requests from turning into a burst of scans: the UI can ask
+     * for three folders in three calls and get one scan covering all three.
+     *
+     * A whole-library request wins outright, because it covers every folder a pending per-folder
+     * request could name. Otherwise, pending per-folder requests that agree on `fullRescan` are
+     * combined — the flag cannot be merged, since re-reading tags for the union of two folders is not
+     * the same as doing it for one of them.
+     *
+     * This only ever concerns requests that are *waiting*. A request that arrives while a scan is
+     * already running is queued even when that scan is a whole-library one: the running scan may have
+     * listed the folders before this request's folder existed, so absorbing it could silently skip a
+     * scan the user asked for. One redundant scan is the cheaper mistake.
+     */
     private fun enqueueScan(request: ScanRequest) {
         synchronized(queueLock) {
             mergePendingRequest(request)
