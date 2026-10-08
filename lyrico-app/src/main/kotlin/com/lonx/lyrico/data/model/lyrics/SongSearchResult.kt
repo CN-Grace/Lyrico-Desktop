@@ -1,11 +1,8 @@
 package com.lonx.lyrico.data.model.lyrics
 
-import android.os.Parcelable
 import com.lonx.lyrico.data.model.metadata.StandardPluginField
-import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
-@Parcelize
 @Serializable
 data class SongSearchResult(
     val id: String,
@@ -25,7 +22,7 @@ data class SongSearchResult(
 
     // 插件私有上下文
     val internal: Map<String, String> = emptyMap()
-) : Parcelable {
+) {
     fun normalizedFields(): Map<String, String> {
         return buildMap {
             putAll(fields.sanitizeStandardFields())

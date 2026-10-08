@@ -27,7 +27,9 @@ interface SettingsRepository {
     val artistPosterFolder: Flow<String?>
     val artistPosterRevision: Flow<Long>
     suspend fun refreshArtistPosters()
-    suspend fun setArtistPosterFolder(uri: String)
+
+    /** @param path absolute folder path on disk (Android stored a SAF tree uri here). */
+    suspend fun setArtistPosterFolder(path: String)
     suspend fun clearArtistPosterFolder()
     val batchMatchConfig: Flow<BatchMatchConfig>
     val metadataFieldWriteRules: Flow<List<PluginMetadataFieldWriteRule>>

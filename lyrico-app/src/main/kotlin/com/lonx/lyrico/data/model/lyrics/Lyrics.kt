@@ -1,33 +1,27 @@
 package com.lonx.lyrico.data.model.lyrics
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
-@Parcelize
 data class LyricsData(
     val original: String?,
     val translated: String? = null,
     val type: String = "lrc",
     val romanization: String? = null
-) : Parcelable
+)
 
-@Parcelize
 data class LyricsWord(
     val start: Long,
     val end: Long,
     val text: String,
     val ruby: List<LyricsRubySyllable> = emptyList()
-) : Parcelable
+)
 
-@Parcelize
 data class LyricsRubySyllable(
     val start: Long?,
     val end: Long?,
     val text: String
-) : Parcelable
+)
 
-@Parcelize
 data class LyricsLine(
     val start: Long,
     val end: Long,
@@ -36,7 +30,7 @@ data class LyricsLine(
     // key 为带命名空间前缀的 TTML 属性名（如 "ttm:agent"、"itunes:song-part"），value 为属性值。
     // 写回 TTML 时输出到对应 <p>；song-part、key 和 div 时间由 writer 统一管理。
     val extensions: Map<String, String> = emptyMap()
-) : Parcelable
+)
 
 /**
  * structured 协议：演唱者信息（对应 TTML head 的 <ttm:agent>）。
@@ -46,12 +40,11 @@ data class LyricsLine(
  * @param type 类型：person / character / organization / group / other（AMLL 规范 4.1）
  * @param name 演唱者名称（写入 <ttm:name type="full">）
  */
-@Parcelize
 data class LyricsAgentEntry(
     val id: String,
     val type: String? = null,
     val name: String? = null
-) : Parcelable
+)
 
 /**
  * structured 协议：head 元数据元素树节点（与 TTML <head> 内元素一一对应）。
@@ -68,16 +61,14 @@ data class LyricsAgentEntry(
  * @param text       元素文本内容（如 <songwriter>作者名</songwriter> 的作者名）
  * @param children   子元素列表（同级重复的同名元素 = 列表中多个同名节点）
  */
-@Parcelize
 data class LyricsMetadataElement(
     val name: String,
     val namespace: String? = null,
     val attributes: Map<String, String> = emptyMap(),
     val text: String? = null,
     val children: List<LyricsMetadataElement> = emptyList()
-) : Parcelable
+)
 
-@Parcelize
 data class LyricsResult(
     val tags: Map<String, String>,
     val original: List<LyricsLine>,
@@ -104,7 +95,7 @@ data class LyricsResult(
     val romanizationLang: String = "",
     // structured 协议中的 <body dur> 原始时间表达式；空串表示未提供。
     val bodyDur: String = ""
-) : Parcelable
+)
 
 data class LyricsCandidateResult(
     val song: SongSearchResult,
@@ -129,14 +120,12 @@ fun List<LyricsLine>.isWordByWord(): Boolean {
 }
 
 @Serializable
-@Parcelize
 data class KrcLanguageRoot(
     val content: List<KrcLanguageItem>
-) : Parcelable
+)
 
 @Serializable
-@Parcelize
 data class KrcLanguageItem(
     val type: Int,
     val lyricContent: List<List<String>>
-) : Parcelable
+)

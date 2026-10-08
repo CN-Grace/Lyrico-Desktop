@@ -1,5 +1,8 @@
 package com.lonx.lyrico.data.editfield
 
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.label_custom
+
 /**
  * 编辑字段配置——所有字段的**顺序**与**显隐**。
  *
@@ -20,7 +23,7 @@ data class EditFieldConfig(
         EditFieldDefinition(
             code = EditFieldRegistry.customTagCode(key),
             groupCode = EditFieldRegistry.GROUP_CUSTOM_TAGS,
-            titleRes = 0,
+            titleRes = Res.string.label_custom,
             order = Int.MAX_VALUE,
             scope = EditFieldScope.Both,
             kind = EditFieldKind.Custom,

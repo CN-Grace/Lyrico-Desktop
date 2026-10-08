@@ -1,16 +1,19 @@
 package com.lonx.lyrico.data.model.lyrics
 
-import androidx.annotation.StringRes
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.lyric_line_original
+import com.lonx.lyrico.resources.lyric_line_romanization
+import com.lonx.lyrico.resources.lyric_line_translation
 import kotlinx.serialization.Serializable
+import org.jetbrains.compose.resources.StringResource
 
 @Serializable
 enum class LyricLineTrack(
-    @field:StringRes val labelRes: Int
+    val labelRes: StringResource
 ) {
-    ORIGINAL(R.string.lyric_line_original),
-    ROMANIZATION(R.string.lyric_line_romanization),
-    TRANSLATION(R.string.lyric_line_translation);
+    ORIGINAL(Res.string.lyric_line_original),
+    ROMANIZATION(Res.string.lyric_line_romanization),
+    TRANSLATION(Res.string.lyric_line_translation);
 }
 
 val DefaultLyricLineOrder = listOf(

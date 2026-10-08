@@ -1,16 +1,15 @@
 package com.lonx.lyrico.data.editfield
 
-import android.content.Context
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.lonx.lyrico.data.repository.settingsDataStore
 import kotlinx.coroutines.flow.map
 
 /** 所有修改在一次 DataStore 事务内读、改、写；旧键只用于迁移。 */
-class EditFieldConfigRepository(private val context: Context) {
-    val configFlow = context.settingsDataStore.data.map(::readConfig)
+class EditFieldConfigRepository(private val dataStore: DataStore<Preferences>) {
+    val configFlow = dataStore.data.map(::readConfig)
 
     suspend fun setEnabled(code: String, enabled: Boolean) = updateConfig { config ->
         require(config.allFields.any { it.code == code }) { "Unknown edit field: $code" }
@@ -38,7 +37,7 @@ class EditFieldConfigRepository(private val context: Context) {
     suspend fun resetAll() = updateConfig { EditFieldConfig() }
 
     private suspend fun updateConfig(transform: (EditFieldConfig) -> EditFieldConfig) {
-        context.settingsDataStore.edit { prefs -> writeConfig(prefs, transform(readConfig(prefs))) }
+        dataStore.edit { prefs -> writeConfig(prefs, transform(readConfig(prefs))) }
     }
 
     companion object {

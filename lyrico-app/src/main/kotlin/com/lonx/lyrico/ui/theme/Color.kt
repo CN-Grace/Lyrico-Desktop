@@ -1,10 +1,17 @@
 package com.lonx.lyrico.ui.theme
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.color_blue
+import com.lonx.lyrico.resources.color_default
+import com.lonx.lyrico.resources.color_green
+import com.lonx.lyrico.resources.color_orange
+import com.lonx.lyrico.resources.color_pink
+import com.lonx.lyrico.resources.color_purple
+import com.lonx.lyrico.resources.color_teal
+import com.lonx.lyrico.resources.color_yellow
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode.Dark
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode.Light
@@ -12,6 +19,7 @@ import top.yukonga.miuix.kmp.theme.ColorSchemeMode.MonetDark
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode.MonetLight
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode.MonetSystem
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import org.jetbrains.compose.resources.StringResource
 
 
 val isDarkTheme: Boolean
@@ -87,17 +95,17 @@ object LyricoColors {
 }
 
 data class KeyColor(
-    @field:StringRes val nameResId: Int,
+    val nameResId: StringResource,
     val color: Color?
 )
 
 val KeyColors = listOf(
-    KeyColor(R.string.color_default, null),
-    KeyColor(R.string.color_blue, Color(0xFF3482FF)),
-    KeyColor(R.string.color_green, Color(0xFF36D167)),
-    KeyColor(R.string.color_yellow, Color(0xFFFFB21D)),
-    KeyColor(R.string.color_orange, Color(0xFFFF5722)),
-    KeyColor(R.string.color_purple, Color(0xFF7C4DFF)),
-    KeyColor(R.string.color_pink, Color(0xFFE91E63)),
-    KeyColor(R.string.color_teal, Color(0xFF00BCD4))
+    KeyColor(Res.string.color_default, null),
+    KeyColor(Res.string.color_blue, Color(0xFF3482FF)),
+    KeyColor(Res.string.color_green, Color(0xFF36D167)),
+    KeyColor(Res.string.color_yellow, Color(0xFFFFB21D)),
+    KeyColor(Res.string.color_orange, Color(0xFFFF5722)),
+    KeyColor(Res.string.color_purple, Color(0xFF7C4DFF)),
+    KeyColor(Res.string.color_pink, Color(0xFFE91E63)),
+    KeyColor(Res.string.color_teal, Color(0xFF00BCD4))
 )

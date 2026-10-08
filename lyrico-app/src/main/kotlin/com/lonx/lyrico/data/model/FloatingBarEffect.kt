@@ -1,7 +1,10 @@
 package com.lonx.lyrico.data.model
 
-import androidx.annotation.StringRes
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.floating_bar_effect_frosted_glass
+import com.lonx.lyrico.resources.floating_bar_effect_liquid_glass
+import com.lonx.lyrico.resources.floating_bar_effect_none
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * 悬浮导航栏的视觉效果。
@@ -10,11 +13,11 @@ import com.lonx.lyrico.R
  * 而不是两个可以同时打开的开关。
  */
 enum class FloatingBarEffect(
-    @field:StringRes val labelRes: Int
+    val labelRes: StringResource
 ) {
-    NONE(R.string.floating_bar_effect_none),
-    FROSTED_GLASS(R.string.floating_bar_effect_frosted_glass),
-    LIQUID_GLASS(R.string.floating_bar_effect_liquid_glass);
+    NONE(Res.string.floating_bar_effect_none),
+    FROSTED_GLASS(Res.string.floating_bar_effect_frosted_glass),
+    LIQUID_GLASS(Res.string.floating_bar_effect_liquid_glass);
 
     companion object {
         /** 宽松解析持久化的枚举名，遇到未知值回退到 [NONE]。 */

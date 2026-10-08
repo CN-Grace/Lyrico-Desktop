@@ -1,15 +1,18 @@
 package com.lonx.lyrico.data.model
 
-import androidx.annotation.StringRes
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.search_source_tab_style_icon_and_text
+import com.lonx.lyrico.resources.search_source_tab_style_icon_only
+import com.lonx.lyrico.resources.search_source_tab_style_text_only
 import com.lonx.lyrico.data.repository.SettingsDefaults
+import org.jetbrains.compose.resources.StringResource
 
 enum class SearchSourceTabStyle(
-    @field:StringRes val labelRes: Int
+    val labelRes: StringResource
 ) {
-    ICON_ONLY(R.string.search_source_tab_style_icon_only),
-    TEXT_ONLY(R.string.search_source_tab_style_text_only),
-    ICON_AND_TEXT(R.string.search_source_tab_style_icon_and_text)
+    ICON_ONLY(Res.string.search_source_tab_style_icon_only),
+    TEXT_ONLY(Res.string.search_source_tab_style_text_only),
+    ICON_AND_TEXT(Res.string.search_source_tab_style_icon_and_text)
 }
 
 /**

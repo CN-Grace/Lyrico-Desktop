@@ -1,19 +1,16 @@
 package com.lonx.lyrico.data.model
 
-import android.os.Parcelable
 import com.lonx.lyrico.data.editfield.EditFieldRegistry
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
 import com.lonx.lyrico.data.model.metadata.MetadataWriteMode
-import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
-@Parcelize
 @Serializable
 data class BatchMatchConfig(
     val targetModes: Map<MetadataFieldTarget, MetadataWriteMode>,
     val concurrency: Int = 3,
     val preferFileName: Boolean = false
-) : Parcelable {
+) {
     fun restrictedTo(targets: Set<MetadataFieldTarget>): BatchMatchConfig = copy(
         targetModes = targetModes.mapValues { (target, mode) ->
             if (target in targets) mode else MetadataWriteMode.DISABLED

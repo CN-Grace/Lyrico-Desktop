@@ -1,13 +1,13 @@
 package com.lonx.lyrico.data.editfield
 
-import androidx.annotation.StringRes
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
+import org.jetbrains.compose.resources.StringResource
 
 /** 分组仅作元数据；所有页面使用配置中的字段顺序。 */
 data class EditFieldDefinition(
     val code: String,
     val groupCode: String,
-    @field:StringRes val titleRes: Int,
+    val titleRes: StringResource,
     val defaultVisible: Boolean = true,
     val order: Int,
     val scope: EditFieldScope = EditFieldScope.Both,

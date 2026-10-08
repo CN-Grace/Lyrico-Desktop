@@ -1,10 +1,24 @@
 package com.lonx.lyrico.data.model
 
-import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.stringResource
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.replacement_ampersand
+import com.lonx.lyrico.resources.replacement_full_width_asterisk
+import com.lonx.lyrico.resources.replacement_full_width_backslash
+import com.lonx.lyrico.resources.replacement_full_width_colon
+import com.lonx.lyrico.resources.replacement_full_width_comma
+import com.lonx.lyrico.resources.replacement_full_width_greater_than_sign
+import com.lonx.lyrico.resources.replacement_full_width_less_than_sign
+import com.lonx.lyrico.resources.replacement_full_width_question_mark
+import com.lonx.lyrico.resources.replacement_full_width_quotation_mark
+import com.lonx.lyrico.resources.replacement_full_width_slash
+import com.lonx.lyrico.resources.replacement_full_width_vertical_bar
+import com.lonx.lyrico.resources.replacement_half_width_comma
+import com.lonx.lyrico.resources.replacement_ideographic_comma
+import com.lonx.lyrico.resources.replacement_remove
 import kotlinx.serialization.Serializable
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * 字符映射规则
@@ -37,76 +51,76 @@ data class CharacterMappingConfig(
 )
 enum class ReplacementCharOption(
     val value: String,
-    @field:StringRes val labelRes: Int
+    val labelRes: StringResource
 ) {
     REMOVE(
         value = "",
-        labelRes = R.string.replacement_remove
+        labelRes = Res.string.replacement_remove
     ),
 
     IDEOGRAPHIC_COMMA(
         value = "、",
-        labelRes = R.string.replacement_ideographic_comma
+        labelRes = Res.string.replacement_ideographic_comma
     ),
 
     HALF_WIDTH_COMMA(
         value = ",",
-        labelRes = R.string.replacement_half_width_comma
+        labelRes = Res.string.replacement_half_width_comma
     ),
 
     FULL_WIDTH_COMMA(
         value = "，",
-        labelRes = R.string.replacement_full_width_comma
+        labelRes = Res.string.replacement_full_width_comma
     ),
 
     FULL_WIDTH_BACKSLASH(
         value = "＼",
-        labelRes = R.string.replacement_full_width_backslash
+        labelRes = Res.string.replacement_full_width_backslash
     ),
 
     FULL_WIDTH_SLASH(
         value = "／",
-        labelRes = R.string.replacement_full_width_slash
+        labelRes = Res.string.replacement_full_width_slash
     ),
 
     FULL_WIDTH_COLON(
         value = "：",
-        labelRes = R.string.replacement_full_width_colon
+        labelRes = Res.string.replacement_full_width_colon
     ),
 
     FULL_WIDTH_ASTERISK(
         value = "＊",
-        labelRes = R.string.replacement_full_width_asterisk
+        labelRes = Res.string.replacement_full_width_asterisk
     ),
 
     FULL_WIDTH_QUESTION_MARK(
         value = "？",
-        labelRes = R.string.replacement_full_width_question_mark
+        labelRes = Res.string.replacement_full_width_question_mark
     ),
 
     FULL_WIDTH_QUOTATION_MARK(
         value = "＂",
-        labelRes = R.string.replacement_full_width_quotation_mark
+        labelRes = Res.string.replacement_full_width_quotation_mark
     ),
 
     FULL_WIDTH_LESS_THAN_SIGN(
         value = "＜",
-        labelRes = R.string.replacement_full_width_less_than_sign
+        labelRes = Res.string.replacement_full_width_less_than_sign
     ),
 
     FULL_WIDTH_GREATER_THAN_SIGN(
         value = "＞",
-        labelRes = R.string.replacement_full_width_greater_than_sign
+        labelRes = Res.string.replacement_full_width_greater_than_sign
     ),
 
     FULL_WIDTH_VERTICAL_BAR(
         value = "｜",
-        labelRes = R.string.replacement_full_width_vertical_bar
+        labelRes = Res.string.replacement_full_width_vertical_bar
     ),
 
     AMPERSAND(
         value = "&",
-        labelRes = R.string.replacement_ampersand
+        labelRes = Res.string.replacement_ampersand
     );
 
     companion object {
@@ -123,7 +137,7 @@ fun String?.toReplacementOption(): ReplacementCharOption? {
  */
 @Composable
 fun ReplacementCharOption.displayName(): String {
-    return stringResource(id = labelRes)
+    return stringResource(labelRes)
 }
 
 object CharacterMappingDefaults {

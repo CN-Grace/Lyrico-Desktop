@@ -111,6 +111,7 @@ dependencies {
     // SQLite driver means the app carries its own SQLite instead of relying on a system install.
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.sqlite.bundled)
+    implementation(libs.androidx.datastore.preferences.core)
     ksp(libs.androidx.room.compiler)
 
     // Brings the Compose runtime, UI, foundation, material and Skiko (with the Skiko native

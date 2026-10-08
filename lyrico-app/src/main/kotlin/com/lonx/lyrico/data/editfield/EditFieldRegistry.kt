@@ -1,6 +1,7 @@
 package com.lonx.lyrico.data.editfield
 
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.label_lyrics_offset
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
 
 /** 内置字段的稳定代码、文案、默认顺序与显隐定义。 */
@@ -102,7 +103,7 @@ object EditFieldRegistry {
             order = 210, kind = EditFieldKind.Lyrics, target = MetadataFieldTarget.LYRICS,
         ),
         EditFieldDefinition(
-            code = "lyrics_offset", groupCode = GROUP_LYRICS, titleRes = R.string.label_lyrics_offset,
+            code = "lyrics_offset", groupCode = GROUP_LYRICS, titleRes = Res.string.label_lyrics_offset,
             order = 220, scope = EditFieldScope.BatchEdit, kind = EditFieldKind.Number,
         ),
     )

@@ -1,8 +1,9 @@
 package com.lonx.lyrico.data.repository
 
-import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
@@ -10,7 +11,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.lonx.lyrico.data.editfield.EditFieldConfigJson
 import com.lonx.lyrico.data.editfield.EditFieldConfigRepository
 import com.lonx.lyrico.data.model.BatchMatchConfig
@@ -51,22 +51,40 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.contentOrNull
+import java.nio.file.Path
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.collections.first
 
 
-internal val Context.settingsDataStore by preferencesDataStore(name = "settings")
+/**
+ * Desktop settings store. Android used a `Context`-bound `preferencesDataStore` delegate; the JVM
+ * build has no `Context`, so the store is created from an explicit file path (the app data
+ * directory) with the multiplatform `PreferenceDataStoreFactory`.
+ *
+ * @param file the `settings.preferences_pb` file; its parent directory must already exist.
+ * @param scope owns the store's background work. Only tests pass their own scope — cancelling it
+ *   releases the file so a second store can be opened on the same path, which is how tests prove
+ *   the settings really hit the disk.
+ */
+fun createSettingsDataStore(
+    file: Path,
+    scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+): DataStore<Preferences> =
+    PreferenceDataStoreFactory.create(produceFile = { file.toFile() }, scope = scope)
 
 internal fun decodeArtistPosterFolder(value: String?): String? =
     runCatching { Json.decodeFromString<List<String>>(value ?: "[]") }
         .getOrDefault(emptyList())
         .firstOrNull()
 
-internal fun encodeArtistPosterFolder(uri: String?): String =
-    Json.encodeToString(listOfNotNull(uri))
+internal fun encodeArtistPosterFolder(path: String?): String =
+    Json.encodeToString(listOfNotNull(path))
 
 object SettingsDefaults {
     const val MONET_ENABLE: Boolean = false
@@ -107,30 +125,30 @@ object SettingsDefaults {
     val THEME_MODE = ThemeMode.AUTO
 }
 
-class SettingsRepositoryImpl(private val context: Context) : SettingsRepository {
+class SettingsRepositoryImpl(private val dataStore: DataStore<Preferences>) : SettingsRepository {
     private val artistPosterFoldersKey = stringPreferencesKey("artist_poster_folders")
     private val artistPosterRevisionKey = longPreferencesKey("artist_poster_revision")
-    override val artistPosterRevision: Flow<Long> = context.settingsDataStore.data.map {
+    override val artistPosterRevision: Flow<Long> = dataStore.data.map {
         it[artistPosterRevisionKey] ?: 0L
     }
 
     override suspend fun refreshArtistPosters() {
-        context.settingsDataStore.edit {
+        dataStore.edit {
             it[artistPosterRevisionKey] = (it[artistPosterRevisionKey] ?: 0L) + 1L
         }
     }
-    override val artistPosterFolder: Flow<String?> = context.settingsDataStore.data.map {
+    override val artistPosterFolder: Flow<String?> = dataStore.data.map {
         decodeArtistPosterFolder(it[artistPosterFoldersKey])
     }
 
-    override suspend fun setArtistPosterFolder(uri: String) {
-        context.settingsDataStore.edit {
-            it[artistPosterFoldersKey] = encodeArtistPosterFolder(uri)
+    override suspend fun setArtistPosterFolder(path: String) {
+        dataStore.edit {
+            it[artistPosterFoldersKey] = encodeArtistPosterFolder(path)
         }
     }
 
     override suspend fun clearArtistPosterFolder() {
-        context.settingsDataStore.edit {
+        dataStore.edit {
             it[artistPosterFoldersKey] = encodeArtistPosterFolder(null)
         }
     }
@@ -190,7 +208,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
     }
 
     override val lyricFormat: Flow<LyricFormat>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             try {
                 LyricFormat.valueOf(
                     preferences[PreferencesKeys.LYRIC_FORMAT] ?: SettingsDefaults.LYRIC_FORMAT.name
@@ -201,7 +219,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val sortInfo: Flow<SortInfo>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val sortBy = try {
                 SortBy.valueOf(
                     preferences[PreferencesKeys.SORT_BY] ?: SettingsDefaults.SORT_BY.name
@@ -222,7 +240,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val albumSortInfo: Flow<AlbumSortInfo>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val sortBy = runCatching {
                 AlbumSortBy.valueOf(
                     preferences[PreferencesKeys.ALBUM_SORT_BY]
@@ -241,7 +259,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val artistSortInfo: Flow<ArtistSortInfo>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val sortBy = runCatching {
                 ArtistSortBy.valueOf(
                     preferences[PreferencesKeys.ARTIST_SORT_BY]
@@ -260,45 +278,45 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val albumGridColumns: Flow<Int>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val columns = preferences[PreferencesKeys.ALBUM_GRID_COLUMNS]
                 ?: SettingsDefaults.ALBUM_GRID_COLUMNS
             columns.coerceIn(2, 4)
         }
 
     override val separator: Flow<String>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.SEPARATOR] ?: SettingsDefaults.SEPARATOR
         }
 
     override val romaEnabled: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.ROMA_ENABLED] ?: SettingsDefaults.ROMA_ENABLED
         }
 
     override val translationEnabled: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.TRANSLATION_ENABLED] ?: SettingsDefaults.TRANSLATION_ENABLED
         }
 
     override val checkUpdateEnabled: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.CHECK_UPDATE_ENABLED]
                 ?: SettingsDefaults.CHECK_UPDATE_ENABLED
         }
 
     override val lyricIndexEnabled: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.LYRIC_INDEX_ENABLED] ?: false
         }
 
     override val ignoreShortAudio: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.IGNORE_SHORT_AUDIO] ?: SettingsDefaults.IGNORE_SHORT_AUDIO
         }
 
     override val replayGainSettings: Flow<ReplayGainSettings>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             ReplayGainSettings(
                 targetLoudness = preferences[PreferencesKeys.REPLAY_GAIN_TARGET_LOUDNESS]
                     ?: SettingsDefaults.REPLAY_GAIN_TARGET_LOUDNESS,
@@ -312,22 +330,22 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val searchSourceOrder: Flow<List<String>>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.SEARCH_SOURCE_ORDER].csvToIds()
         }
 
     override val enabledSearchSources: Flow<Set<String>>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.ENABLED_SEARCH_SOURCES].csvToIds().toSet()
         }
 
     override val searchPageSize: Flow<Int>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.SEARCH_PAGE_SIZE] ?: SettingsDefaults.SEARCH_PAGE_SIZE
         }
 
     override val searchSourceTabStyle: Flow<SearchSourceTabStyle>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.SEARCH_SOURCE_TAB_STYLE]
                 ?.let { styleName ->
                     runCatching { SearchSourceTabStyle.valueOf(styleName) }.getOrNull()
@@ -336,13 +354,13 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val showAllSearchResultFields: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.SHOW_ALL_SEARCH_RESULT_FIELDS]
                 ?: SettingsDefaults.SHOW_ALL_SEARCH_RESULT_FIELDS
         }
 
     override val themeMode: Flow<ThemeMode>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val modeName = preferences[PreferencesKeys.THEME_MODE]
             if (modeName.isNullOrBlank()) {
                 SettingsDefaults.THEME_MODE
@@ -355,7 +373,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
             }
         }
     override val keyColor: Flow<KeyColor>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             // 检查 DataStore 中是否有保存颜色的 Key
             if (preferences.contains(PreferencesKeys.KEY_THEME_COLOR)) {
                 val savedColorInt = preferences[PreferencesKeys.KEY_THEME_COLOR]!!
@@ -368,21 +386,21 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
             }
         }
     override val monetEnable: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.MONET_ENABLE] ?: false
         }
     override val floatingBottomBarEnabled: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.FLOATING_BOTTOM_BAR_ENABLED]
                 ?: SettingsDefaults.FLOATING_BOTTOM_BAR_ENABLED
         }
     override val barBlurEnabled: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.BAR_BLUR_ENABLED]
                 ?: SettingsDefaults.BAR_BLUR_ENABLED
         }
     override val floatingBarEffect: Flow<FloatingBarEffect>
-        get() = context.settingsDataStore.data.map { it.resolveFloatingBarEffect() }
+        get() = dataStore.data.map { it.resolveFloatingBarEffect() }
 
     /**
      * 读取悬浮导航栏效果。新键缺失时回退到旧版的两个互斥开关，
@@ -399,7 +417,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
                 else -> SettingsDefaults.FLOATING_BAR_EFFECT
             }
     override val conversionMode: Flow<ConversionMode>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val modeName = preferences[PreferencesKeys.CONVERSION_MODE]
             if (modeName.isNullOrBlank()) {
                 ConversionMode.NONE
@@ -413,26 +431,26 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val onlyTranslationIfAvailable: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.ONLY_TRANSLATION_IF_AVAILABLE]
                 ?: SettingsDefaults.ONLY_TRANSLATION_IF_AVAILABLE
         }
 
     override val removeEmptyLines: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.REMOVE_EMPTY_LINES] ?: SettingsDefaults.REMOVE_EMPTY_LINES
         }
     override val lyricsTagLineKeywords: Flow<List<String>>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             decodeLyricsTagLineKeywords(preferences[PreferencesKeys.LYRICS_TAG_LINE_KEYWORDS])
         }
     override val limitLyricsInputLines: Flow<Boolean>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.LIMIT_LYRICS_INPUT_LINES]
                 ?: SettingsDefaults.LIMIT_LYRICS_INPUT_LINES
         }
     override val logRetentionOption: Flow<LogRetentionOption>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val optionName = preferences[PreferencesKeys.LOG_RETENTION_OPTION]
             if (optionName.isNullOrBlank()) {
                 SettingsDefaults.LOG_RETENTION_OPTION
@@ -444,11 +462,11 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
 
 
     override val renameFormat: Flow<String>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.RENAME_FORMAT] ?: SettingsDefaults.RENAME_FORMAT
         }
     override suspend fun getLastScanTime(): Long {
-        return context.settingsDataStore.data.map { preferences ->
+        return dataStore.data.map { preferences ->
             preferences[PreferencesKeys.LAST_SCAN_TIME] ?: 0L
         }.first()
     }
@@ -520,26 +538,26 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override suspend fun saveOnlyTranslationIfAvailable(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.ONLY_TRANSLATION_IF_AVAILABLE] = enabled
         }
     }
 
     override suspend fun saveLyricDisplayMode(mode: LyricFormat) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.LYRIC_FORMAT] = mode.name
         }
     }
 
     override suspend fun saveSortInfo(sortInfo: SortInfo) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.SORT_BY] = sortInfo.sortBy.name
             preferences[PreferencesKeys.SORT_ORDER] = sortInfo.order.name
         }
     }
 
     override val sourceSettingsByIdFlow: Flow<Map<String, SourceRuntimeConfig>>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             decodeSourceSettingsStore(preferences[PreferencesKeys.SOURCE_SETTINGS])
                 .values
                 .mapKeys { (sourceId, _) -> sourceId.toStableSourceId() }
@@ -547,69 +565,69 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override suspend fun saveAlbumSortInfo(sortInfo: AlbumSortInfo) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.ALBUM_SORT_BY] = sortInfo.sortBy.name
             preferences[PreferencesKeys.ALBUM_SORT_ORDER] = sortInfo.order.name
         }
     }
 
     override suspend fun saveArtistSortInfo(sortInfo: ArtistSortInfo) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.ARTIST_SORT_BY] = sortInfo.sortBy.name
             preferences[PreferencesKeys.ARTIST_SORT_ORDER] = sortInfo.order.name
         }
     }
 
     override suspend fun saveAlbumGridColumns(columns: Int) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.ALBUM_GRID_COLUMNS] = columns.coerceIn(2, 4)
         }
     }
 
     override suspend fun saveSeparator(separator: String) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.SEPARATOR] = separator
         }
     }
 
     override suspend fun saveRomaEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.ROMA_ENABLED] = enabled
         }
     }
 
     override suspend fun saveCheckUpdateEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.CHECK_UPDATE_ENABLED] = enabled
         }
     }
 
     override suspend fun saveTranslationEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.TRANSLATION_ENABLED] = enabled
         }
     }
 
     override suspend fun saveLyricIndexEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.LYRIC_INDEX_ENABLED] = enabled
         }
     }
 
     override suspend fun saveIgnoreShortAudio(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.IGNORE_SHORT_AUDIO] = enabled
         }
     }
 
     override suspend fun saveReplayGainTargetLoudness(loudness: Double) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.REPLAY_GAIN_TARGET_LOUDNESS] = loudness
         }
     }
 
     override suspend fun saveReplayGainPeakMode(mode: ReplayGainPeakMode) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.REPLAY_GAIN_PEAK_MODE] = mode.name
         }
     }
@@ -618,79 +636,79 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         replayGainSettings.first()
 
     override suspend fun saveLastScanTime(time: Long) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.LAST_SCAN_TIME] = time
         }
     }
 
     override suspend fun saveSearchSourceOrder(sources: List<String>) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.SEARCH_SOURCE_ORDER] =
                 sources.idsToCsv()
         }
     }
 
     override suspend fun saveEnabledSearchSources(sources: Set<String>) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.ENABLED_SEARCH_SOURCES] = sources.idsToCsv()
         }
     }
 
     override suspend fun saveSearchPageSize(size: Int) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.SEARCH_PAGE_SIZE] = size
         }
     }
 
     override suspend fun saveSearchSourceTabStyle(style: SearchSourceTabStyle) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.SEARCH_SOURCE_TAB_STYLE] = style.name
         }
     }
 
     override suspend fun saveShowAllSearchResultFields(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.SHOW_ALL_SEARCH_RESULT_FIELDS] = enabled
         }
     }
 
     override suspend fun saveConversionMode(mode: ConversionMode) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.CONVERSION_MODE] = mode.name
         }
     }
 
     override suspend fun saveThemeMode(mode: ThemeMode) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.THEME_MODE] = mode.name
         }
     }
     override suspend fun saveMonetEnable(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.MONET_ENABLE] = enabled
         }
     }
 
     override suspend fun saveFloatingBottomBarEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.FLOATING_BOTTOM_BAR_ENABLED] = enabled
         }
     }
 
     override suspend fun saveBarBlurEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.BAR_BLUR_ENABLED] = enabled
         }
     }
 
     override suspend fun saveFloatingBarEffect(effect: FloatingBarEffect) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.FLOATING_BAR_EFFECT] = effect.name
         }
     }
 
     override suspend fun saveKeyColor(selectedKeyColor: KeyColor) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             if (selectedKeyColor.color == null) {
                 // 如果选了“系统默认”，直接移除保存的值
                 preferences.remove(PreferencesKeys.KEY_THEME_COLOR)
@@ -701,32 +719,32 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
     }
     override suspend fun saveRemoveEmptyLines(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.REMOVE_EMPTY_LINES] = enabled
         }
     }
 
     override suspend fun saveLyricsTagLineKeywords(keywords: List<String>) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.LYRICS_TAG_LINE_KEYWORDS] =
                 jsonFormatter.encodeToString(normalizeLyricsTagLineKeywords(keywords))
         }
     }
 
     override suspend fun saveLimitLyricsInputLines(enabled: Boolean) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.LIMIT_LYRICS_INPUT_LINES] = enabled
         }
     }
 
     override suspend fun saveLogRetentionOption(option: LogRetentionOption) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.LOG_RETENTION_OPTION] = option.name
         }
     }
 
     override suspend fun getLyricRenderConfig(): LyricRenderConfig {
-        val prefs = context.settingsDataStore.data.first()
+        val prefs = dataStore.data.first()
 
         val format = LyricFormat.valueOf(
             prefs[PreferencesKeys.LYRIC_FORMAT]
@@ -754,7 +772,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
     }
 
     override suspend fun exportSettings(): String {
-        val prefs = context.settingsDataStore.data.first()
+        val prefs = dataStore.data.first()
         val charMapping = getCharacterMappingConfig()
         val batchMatchConfig = getBatchMatchConfig()
         val artistSplitConfig = getArtistSplitConfig()
@@ -860,7 +878,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         return try {
             val backup = jsonFormatter.decodeFromString<SettingsBackup>(jsonString)
 
-            context.settingsDataStore.edit { prefs ->
+            dataStore.edit { prefs ->
                 backup.removeEmptyLines?.let { prefs[PreferencesKeys.REMOVE_EMPTY_LINES] = it }
                 backup.lyricsTagLineKeywords?.let {
                     prefs[PreferencesKeys.LYRICS_TAG_LINE_KEYWORDS] =
@@ -975,7 +993,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
 
 
     override val characterMappingConfig: Flow<CharacterMappingConfig>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val configJson = preferences[PreferencesKeys.CHARACTER_MAPPING_CONFIG]
             if (configJson.isNullOrBlank()) {
                 CharacterMappingConfig(
@@ -993,7 +1011,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val artistSplitConfigFlow: Flow<ArtistSplitConfig>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             preferences[PreferencesKeys.ARTIST_SPLIT_CONFIG]
                 ?.let { json ->
                     runCatching {
@@ -1004,7 +1022,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val batchMatchConfig: Flow<BatchMatchConfig>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val configJson = preferences[PreferencesKeys.BATCH_MATCH_CONFIG]
             if (configJson.isNullOrBlank()) {
                 BatchMatchConfigDefaults.DEFAULT_CONFIG
@@ -1014,7 +1032,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override val metadataFieldWriteRules: Flow<List<PluginMetadataFieldWriteRule>>
-        get() = context.settingsDataStore.data.map { preferences ->
+        get() = dataStore.data.map { preferences ->
             val rulesJson = preferences[PreferencesKeys.METADATA_FIELD_WRITE_RULES]
             if (!rulesJson.isNullOrBlank()) {
                 decodeMetadataFieldWriteRules(rulesJson)
@@ -1024,33 +1042,33 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         }
 
     override suspend fun saveCharacterMappingConfig(config: CharacterMappingConfig) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             val configJson = jsonFormatter.encodeToString(config)
             preferences[PreferencesKeys.CHARACTER_MAPPING_CONFIG] = configJson
         }
     }
 
     override suspend fun saveRenameFormat(format: String) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.RENAME_FORMAT] = format
         }
     }
     override suspend fun saveBatchMatchConfig(config: BatchMatchConfig) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             val configJson = jsonFormatter.encodeToString(config)
             preferences[PreferencesKeys.BATCH_MATCH_CONFIG] = configJson
         }
     }
 
     override suspend fun saveMetadataFieldWriteRules(rules: List<PluginMetadataFieldWriteRule>) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.METADATA_FIELD_WRITE_RULES] =
                 jsonFormatter.encodeToString(rules)
         }
     }
 
     override suspend fun saveSourceSettings(sourceId: String, values: Map<String, String>) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             val currentStore = decodeSourceSettingsStore(preferences[PreferencesKeys.SOURCE_SETTINGS])
             val newStore = currentStore.copy(
                 values = currentStore.values + (sourceId.toStableSourceId() to values)
@@ -1086,7 +1104,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
 
     override suspend fun removePluginSettings(pluginId: String) {
         val stablePluginId = pluginId.toStableSourceId()
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             val currentStore = decodeSourceSettingsStore(preferences[PreferencesKeys.SOURCE_SETTINGS])
             preferences[PreferencesKeys.SOURCE_SETTINGS] = jsonFormatter.encodeToString(
                 currentStore.copy(values = currentStore.values - stablePluginId)
@@ -1100,7 +1118,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
     }
 
     override suspend fun saveArtistSplitConfig(config: ArtistSplitConfig) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.ARTIST_SPLIT_CONFIG] = jsonFormatter.encodeToString(config)
             preferences[PreferencesKeys.LIBRARY_INDEX_VERSION] = 0
         }
@@ -1111,13 +1129,13 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
     }
 
     override suspend fun getLibraryIndexVersion(): Int {
-        return context.settingsDataStore.data.map { preferences ->
+        return dataStore.data.map { preferences ->
             preferences[PreferencesKeys.LIBRARY_INDEX_VERSION] ?: 0
         }.first()
     }
 
     override suspend fun saveLibraryIndexVersion(version: Int) {
-        context.settingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[PreferencesKeys.LIBRARY_INDEX_VERSION] = version
         }
     }
