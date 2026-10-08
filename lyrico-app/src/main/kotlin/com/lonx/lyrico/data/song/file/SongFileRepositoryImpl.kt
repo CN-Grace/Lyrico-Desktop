@@ -199,14 +199,28 @@ class SongFileRepositoryImpl(
 
     /** `a.mp3` → `b.mp3` on a case-insensitive filesystem has to go through a third name. */
     private fun renameThroughTemporary(source: Path, target: Path): Path {
-        val temporaryName = "${target.fileName}.lyrico-rename-tmp"
-        val temporary = fileAccess.move(source, temporaryName)
+        val temporary = fileAccess.move(source, freeTemporaryName(target))
         return try {
             fileAccess.move(temporary, target.fileName.toString())
         } catch (e: Exception) {
             runCatching { fileAccess.move(temporary, source.fileName.toString()) }
             throw e
         }
+    }
+
+    /**
+     * A name that is not taken yet. A fixed temp name would collide with the leftovers of a rename
+     * that was interrupted between its two moves.
+     */
+    private fun freeTemporaryName(target: Path): String {
+        val base = "${target.fileName}.lyrico-rename-tmp"
+        var candidate = base
+        var index = 1
+        while (fileAccess.exists(target.resolveSibling(candidate))) {
+            candidate = "$base-$index"
+            index++
+        }
+        return candidate
     }
 
     private fun songPathOrNull(song: SongEntity): Path? =

@@ -1,10 +1,10 @@
 package com.lonx.lyrico.data.repository
 
-import android.util.Log
-import com.lonx.lyrico.BuildConfig
+import com.lonx.lyrico.BuildInfo
 import com.lonx.lyrico.data.dto.GitHubReleaseDTO
 import com.lonx.lyrico.data.dto.ReleaseInfo
 import com.lonx.lyrico.data.model.UpdateCheckResult
+import com.lonx.lyrico.utils.logging.PlatformLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -29,7 +29,7 @@ class UpdateRepositoryImpl(
         repo: String
     ): UpdateCheckResult = withContext(Dispatchers.IO) {
 
-        Log.d(TAG, "开始检查更新")
+        PlatformLog.d(TAG, "开始检查更新")
 
         val requestUrl = "https://api.github.com/repos/$owner/$repo/releases/latest"
 
@@ -43,7 +43,7 @@ class UpdateRepositoryImpl(
             okHttpClient.newCall(request).execute().use { response ->
 
                 if (!response.isSuccessful) {
-                    throw IOException("HTTP ${response.code}")
+                    throw ApiResponseException(response.code, response.message)
                 }
 
                 val release = json.decodeFromStream<GitHubReleaseDTO>(
@@ -54,14 +54,14 @@ class UpdateRepositoryImpl(
                 val releaseNotes = release.body.orEmpty()
                 val releaseUrl = release.html_url
 
-                Log.d(
+                PlatformLog.d(
                     TAG,
-                    "最新版本: $latestVersionName 当前版本: ${BuildConfig.VERSION_NAME}"
+                    "最新版本: $latestVersionName 当前版本: ${BuildInfo.VERSION_NAME}"
                 )
 
                 val hasUpdate = isNewerVersion(
                     latestVersionName,
-                    BuildConfig.VERSION_NAME
+                    BuildInfo.VERSION_NAME
                 )
 
                 if (hasUpdate) {
@@ -78,18 +78,34 @@ class UpdateRepositoryImpl(
             }
 
         } catch (e: SocketTimeoutException) {
-            Log.e(TAG, "连接超时", e)
+            PlatformLog.e(TAG, "连接超时", e)
             UpdateCheckResult.TimeoutError
 
-        } catch (e: IOException) {
-            Log.e(TAG, "更新检查网络错误", e)
-            UpdateCheckResult.NetworkError(e)
+        } catch (e: ApiResponseException) {
+            // GitHub 的 4xx/5xx 是「接口拒绝」，不是「网络不通」：Android 版把它扔进 IOException 分支，
+            // 于是 UpdateCheckResult.ApiError 这个状态永远不可能出现，UpdateManager 里那句
+            // 「接口错误」文案也就成了死代码。桌面端把状态与语义对齐。
+            PlatformLog.e(TAG, "更新检查接口错误 HTTP ${e.code}", e)
+            UpdateCheckResult.ApiError(code = e.code, message = e.message.orEmpty())
 
         } catch (e: SerializationException) {
-            Log.e(TAG, "JSON 解析错误", e)
-            UpdateCheckResult.NetworkError(IOException("数据解析失败"))
+            PlatformLog.e(TAG, "JSON 解析错误", e)
+            UpdateCheckResult.ParsingError
+
+        } catch (e: IOException) {
+            PlatformLog.e(TAG, "更新检查网络错误", e)
+            UpdateCheckResult.NetworkError(e)
         }
     }
+
+    /**
+     * A non-2xx answer from the GitHub API. Carries the status so the caller can report it as an API
+     * error instead of a network one, and is caught before the general `IOException` branch.
+     */
+    private class ApiResponseException(
+        val code: Int,
+        message: String?
+    ) : IOException("HTTP $code ${message.orEmpty()}".trim())
 
     /**
      * 版本比较
@@ -108,7 +124,7 @@ class UpdateRepositoryImpl(
         val lParts = normalize(latest)
         val cParts = normalize(current)
 
-        Log.d(TAG, "比较版本: $lParts vs $cParts")
+        PlatformLog.d(TAG, "比较版本: $lParts vs $cParts")
 
         val max = maxOf(lParts.size, cParts.size)
 

@@ -234,6 +234,9 @@ class SongFileRepositoryTest {
     @Test
     fun `a rename that only changes the case really changes it on disk`() = runBlocking<Unit> {
         val song = addSong("bladeenc.mp3")
+        // A leftover from an interrupted rename must not be overwritten, and must not break this one.
+        val leftover = musicDir.resolve("BLADEENC.MP3.lyrico-rename-tmp")
+        Files.writeString(leftover, "leftover")
 
         val renamed = assertIs<RenameSongFileResult.Success>(files.renameSong(song, "BLADEENC.MP3")).song
 
@@ -241,9 +244,10 @@ class SongFileRepositoryTest {
         // a legal rename, not a conflict with itself, and the stored spelling has to follow.
         assertEquals("BLADEENC.MP3", renamed.fileName, "the database must hold the spelling on disk")
         assertEquals(
-            listOf("BLADEENC.MP3"),
-            Files.newDirectoryStream(musicDir).use { stream -> stream.map { it.fileName.toString() }.toList() },
+            setOf("BLADEENC.MP3", "BLADEENC.MP3.lyrico-rename-tmp"),
+            Files.newDirectoryStream(musicDir).use { stream -> stream.map { it.fileName.toString() }.toSet() },
         )
+        assertEquals("leftover", Files.readString(leftover), "the temp name had to be avoided, not reused")
     }
 
     @Test

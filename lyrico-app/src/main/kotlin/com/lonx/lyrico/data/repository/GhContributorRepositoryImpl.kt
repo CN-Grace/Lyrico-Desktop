@@ -1,7 +1,7 @@
 package com.lonx.lyrico.data.repository
 
-import android.util.Log
 import com.lonx.lyrico.data.dto.ContributorInfo
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.dto.GitHubContributorDTO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -64,7 +64,7 @@ class GhContributorRepositoryImpl(
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "fetch contributors error", e)
+            PlatformLog.e(TAG, "fetch contributors error", e)
             when (e) {
                 is SocketTimeoutException -> Result.failure(SocketTimeoutException("连接超时"))
                 is IOException -> Result.failure(IOException("网络错误"))
