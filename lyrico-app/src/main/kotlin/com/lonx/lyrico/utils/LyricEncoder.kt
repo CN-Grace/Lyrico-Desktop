@@ -1,6 +1,6 @@
 package com.lonx.lyrico.utils
 
-import android.annotation.SuppressLint
+import java.util.Locale
 import com.github.houbb.opencc4j.util.ZhConverterUtil
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.lyrics.DefaultLyricLineOrder
@@ -528,7 +528,6 @@ object LyricEncoder {
      * @param offset 偏移量（毫秒），正数表示时间延后，负数表示时间提前
      * @return 调整时间戳后的歌词字符串
      */
-    @SuppressLint("DefaultLocale")
     fun shiftLyricsOffset(lyricsText: String, offset: Long): String {
         if (offset == 0L || lyricsText.isBlank()) return lyricsText
 
@@ -555,7 +554,7 @@ object LyricEncoder {
             val newMs = newTotalMs % 1000
 
             // 保持原有的括号类型，并将时间标准化为 3位毫秒
-            String.format("%s%02d:%02d.%03d%s", prefix, newMin, newSec, newMs, suffix)
+            String.format(Locale.ROOT, "%s%02d:%02d.%03d%s", prefix, newMin, newSec, newMs, suffix)
         }
 
         // 处理 TTML 格式的时间戳 (begin="HH:mm:ss.SSS" / end="HH:mm:ss.SSS")
@@ -577,7 +576,7 @@ object LyricEncoder {
             val newSec = (newTotalMs % 60000) / 1000
             val newMs = newTotalMs % 1000
 
-            String.format("%s%02d:%02d:%02d.%03d%s", prefix, newHr, newMin, newSec, newMs, suffix)
+            String.format(Locale.ROOT, "%s%02d:%02d:%02d.%03d%s", prefix, newHr, newMin, newSec, newMs, suffix)
         }
 
         return resultText

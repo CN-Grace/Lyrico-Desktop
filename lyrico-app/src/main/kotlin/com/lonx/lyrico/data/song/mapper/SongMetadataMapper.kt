@@ -2,6 +2,7 @@ package com.lonx.lyrico.data.song.mapper
 
 import com.lonx.audiotag.model.AudioTagData
 import com.lonx.lyrico.data.model.SongFile
+import com.lonx.lyrico.data.model.SongSource
 import com.lonx.lyrico.data.model.entity.SongEntity
 import com.lonx.lyrico.utils.LyricsSearchTextExtractor
 
@@ -47,14 +48,14 @@ class SongMetadataMapper(
         tag: AudioTagData,
         folderId: Long,
         existingId: Long = 0L,
-        source: String = "MEDIA_STORE",
+        source: String = SongSource.LOCAL,
         indexLyrics: Boolean = false
     ): SongEntity {
         return SongEntity(
             id = existingId,
             mediaId = file.mediaId,
             source = source,
-            uri = file.uri.toString(),
+            uri = file.path.toString(),
             filePath = file.filePath,
             fileName = file.fileName,
             title = tag.title,

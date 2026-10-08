@@ -1,6 +1,6 @@
 package com.lonx.lyrico.data.song.library
 
-import androidx.room.withTransaction
+import com.lonx.lyrico.data.utils.inTransaction
 import com.lonx.lyrico.data.LyricoDatabase
 import com.lonx.lyrico.data.model.dao.SongDao
 import com.lonx.lyrico.data.model.entity.SongEntity
@@ -54,7 +54,7 @@ class SongLibraryRepositoryImpl(
     override suspend fun upsertSongs(songs: List<SongEntity>) {
         withContext(Dispatchers.IO) {
             if (songs.isNotEmpty()) {
-                database.withTransaction {
+                database.inTransaction {
                     songDao.upsertAll(songs)
                     LyricFtsIndexer.replaceSongs(songDao, songs)
                 }
@@ -64,7 +64,7 @@ class SongLibraryRepositoryImpl(
 
     override suspend fun updateSong(song: SongEntity) {
         withContext(Dispatchers.IO) {
-            database.withTransaction {
+            database.inTransaction {
                 songDao.update(song)
                 LyricFtsIndexer.replaceSong(songDao, song)
             }
@@ -74,7 +74,7 @@ class SongLibraryRepositoryImpl(
     override suspend fun updateSongs(songs: List<SongEntity>) {
         withContext(Dispatchers.IO) {
             if (songs.isNotEmpty()) {
-                database.withTransaction {
+                database.inTransaction {
                     songDao.upsertAll(songs)
                     LyricFtsIndexer.replaceSongs(songDao, songs)
                 }
@@ -85,7 +85,7 @@ class SongLibraryRepositoryImpl(
     override suspend fun deleteSongsByUris(uris: List<String>) {
         withContext(Dispatchers.IO) {
             if (uris.isNotEmpty()) {
-                database.withTransaction {
+                database.inTransaction {
                     songDao.deleteByUris(uris)
                     songDao.deleteLyricFtsByUris(uris)
                 }
@@ -95,7 +95,7 @@ class SongLibraryRepositoryImpl(
 
     override suspend fun clearAll() {
         withContext(Dispatchers.IO) {
-            database.withTransaction {
+            database.inTransaction {
                 songDao.clear()
                 songDao.clearLyricFts()
             }

@@ -1,6 +1,6 @@
 package com.lonx.lyrico.utils
 
-import android.annotation.SuppressLint
+import java.util.Locale
 
 /**
  * 歌词格式化工具类
@@ -16,21 +16,22 @@ object LyricFormatter {
 
     /**
      * LRC 格式时间戳 (格式: mm:ss.SSS)
+     *
+     * 时间戳会写进歌词文件本身，所以格式必须与运行机器的区域设置无关：
+     * 用默认区域碰到阿拉伯数字/土耳其语环境会写出非 ASCII 数字，破坏 LRC 结构。
      */
-    @SuppressLint("DefaultLocale")
     fun formatTimestamp(millis: Long): String {
         val safeMillis = millis.coerceAtLeast(0L)
         val totalSeconds = safeMillis / 1000
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
         val ms = safeMillis % 1000
-        return String.format("%02d:%02d.%03d", minutes, seconds, ms)
+        return String.format(Locale.ROOT, "%02d:%02d.%03d", minutes, seconds, ms)
     }
 
     /**
      * TTML 专属时间戳 (格式: HH:mm:ss.SSS)
      */
-    @SuppressLint("DefaultLocale")
     fun formatTtmlTimestamp(millis: Long): String {
         val safeMillis = millis.coerceAtLeast(0L)
         val totalSeconds = safeMillis / 1000
@@ -38,7 +39,7 @@ object LyricFormatter {
         val minutes = (totalSeconds % 3600) / 60
         val seconds = totalSeconds % 60
         val ms = safeMillis % 1000
-        return String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, ms)
+        return String.format(Locale.ROOT, "%02d:%02d:%02d.%03d", hours, minutes, seconds, ms)
     }
 
     /**

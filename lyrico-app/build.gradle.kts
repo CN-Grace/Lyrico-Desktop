@@ -137,6 +137,11 @@ dependencies {
     // `PictureSource.UrlSource`, and the plugin-search runtime will reuse the same client.
     implementation(libs.okhttp)
 
+    // Chinese text handling: song sort keys are derived from pinyin, and the conversion modes
+    // (simplified <-> traditional) run through OpenCC both when scanning and when encoding lyrics.
+    implementation(libs.opencc4j)
+    implementation(libs.pinyin)
+
     // Desktop UI tests render the real composables off-screen (no window needed) and assert on the
     // semantics tree — this is the harness the 24 screens of phase 4 will be ported against.
     testImplementation(kotlin("test"))

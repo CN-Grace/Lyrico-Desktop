@@ -1,6 +1,6 @@
 package com.lonx.lyrico.utils
 
-import android.util.Log
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
 import com.lonx.lyrico.data.model.lyrics.LyricsResult
 import com.lonx.lyrico.utils.lyrics.document.LyricsDocumentPipeline
@@ -94,7 +94,7 @@ object LyricDecoder {
                 with(LyricsDocumentPipeline) { document.toLyricsResult() }
             }
         }.onFailure { e ->
-            Log.w(
+            PlatformLog.w(
                 TAG,
                 "Failed to decode lyrics as $format " +
                     "(length=${lyricsText.length}, preview=${lyricsText.take(80).replace('\n', ' ')}): ${e.message}"

@@ -1,6 +1,6 @@
 package com.lonx.lyrico.data.repository
 
-import androidx.room.withTransaction
+import com.lonx.lyrico.data.utils.inTransaction
 import com.lonx.lyrico.data.LyricoDatabase
 import com.lonx.lyrico.data.model.artist.ArtistSplitConfig
 import com.lonx.lyrico.data.model.artist.normalizedArtistKey
@@ -70,7 +70,7 @@ class LibraryIndexRepositoryImpl(
     override suspend fun rebuildAllIndexes() {
         val artistConfig = settingsRepository.artistSplitConfigFlow.first()
 
-        database.withTransaction {
+        database.inTransaction {
             indexDao.clearArtistRefs()
             indexDao.clearArtists()
             indexDao.clearAlbumRefs()
@@ -88,7 +88,7 @@ class LibraryIndexRepositoryImpl(
     override suspend fun rebuildArtistIndex() {
         val artistConfig = settingsRepository.artistSplitConfigFlow.first()
 
-        database.withTransaction {
+        database.inTransaction {
             indexDao.clearArtistRefs()
             indexDao.clearArtists()
 
@@ -103,7 +103,7 @@ class LibraryIndexRepositoryImpl(
     }
 
     override suspend fun rebuildAlbumIndex() {
-        database.withTransaction {
+        database.inTransaction {
             indexDao.clearAlbumRefs()
             indexDao.clearAlbums()
 
@@ -120,7 +120,7 @@ class LibraryIndexRepositoryImpl(
     override suspend fun reindexSong(song: SongEntity) {
         val artistConfig = settingsRepository.artistSplitConfigFlow.first()
 
-        database.withTransaction {
+        database.inTransaction {
             reindexSongInTransaction(song, artistConfig)
             refreshAndPruneIndexesInTransaction()
         }
@@ -130,7 +130,7 @@ class LibraryIndexRepositoryImpl(
         if (songs.isEmpty()) return
         val artistConfig = settingsRepository.artistSplitConfigFlow.first()
 
-        database.withTransaction {
+        database.inTransaction {
             songs.forEach { song ->
                 reindexSongInTransaction(song, artistConfig)
             }
@@ -153,7 +153,7 @@ class LibraryIndexRepositoryImpl(
     }
 
     override suspend fun removeSongIndex(songId: Long) {
-        database.withTransaction {
+        database.inTransaction {
             indexDao.deleteArtistRefsBySongId(songId)
             indexDao.deleteAlbumRefsBySongId(songId)
             refreshAndPruneIndexesInTransaction()
@@ -161,7 +161,7 @@ class LibraryIndexRepositoryImpl(
     }
 
     override suspend fun refreshAndPruneIndexes() {
-        database.withTransaction {
+        database.inTransaction {
             refreshAndPruneIndexesInTransaction()
         }
     }

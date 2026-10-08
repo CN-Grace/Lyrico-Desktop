@@ -1,6 +1,7 @@
 package com.lonx.lyrico.data.utils
 
-import com.github.promeg.pinyinhelper.Pinyin
+import com.github.houbb.pinyin.constant.enums.PinyinStyleEnum
+import com.github.houbb.pinyin.util.PinyinHelper
 
 object SortKeyUtils {
 
@@ -29,9 +30,11 @@ object SortKeyUtils {
             return SortKeys(groupKey, "1_$sortKey")
         }
 
-        // 拼音
+        // 拼音。Android 用的 tinypinyin 只以 AAR 形式发布在 jcenter 上，Maven Central 没有，
+        // 桌面端改用 houbb 的纯 JVM 拼音库：它自带字符表 + 词组表（认「重庆」这类多音词），
+        // 输出与 tinypinyin 的小写全拼一致，再统一大写。
         val pinyinFull = try {
-            Pinyin.toPinyin(raw, "")
+            PinyinHelper.toPinyin(raw, PinyinStyleEnum.NORMAL, "")
         } catch (e: Exception) {
             ""
         }

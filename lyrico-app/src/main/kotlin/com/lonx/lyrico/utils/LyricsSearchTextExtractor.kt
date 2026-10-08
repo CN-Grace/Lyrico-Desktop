@@ -1,6 +1,6 @@
 package com.lonx.lyrico.utils
 
-import android.util.Log
+import com.lonx.lyrico.utils.logging.PlatformLog
 
 object LyricsSearchTextExtractor {
     private const val TAG = "LyricsSearchTextExtractor"
@@ -13,7 +13,7 @@ object LyricsSearchTextExtractor {
         // 回退到纯文本提取，不允许导致整首音频扫描失败。
         val decodedLines = runCatching { LyricDecoder.decode(raw) }
             .onFailure { e ->
-                Log.w(TAG, "Decode failed, fallback to plain text extraction: ${e.message}")
+                PlatformLog.w(TAG, "Decode failed, fallback to plain text extraction: ${e.message}")
             }
             .getOrNull()
             ?.let { result ->

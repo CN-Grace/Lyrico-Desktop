@@ -1,12 +1,8 @@
 package com.lonx.lyrico.data.song.tag
 
-import com.lonx.lyrico.data.model.entity.AppLogEntity
-import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
-import com.lonx.lyrico.data.repository.AppLogRepository
 import com.lonx.lyrico.data.song.file.AudioFileAccess
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import com.lonx.lyrico.data.support.RecordingAppLogRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.awt.image.BufferedImage
@@ -210,59 +206,6 @@ class AudioTagRepositoryTest {
     private fun onePixelPng(): ByteArray = ByteArrayOutputStream().also { out ->
         ImageIO.write(BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), "png", out)
     }.toByteArray()
-
-    /** Records what the repository logs, so failures can be asserted on rather than printed. */
-    private class RecordingAppLogRepository : AppLogRepository {
-        val exceptions = mutableListOf<RecordedException>()
-
-        override fun observeLatest(limit: Int): Flow<List<AppLogEntity>> = flowOf(emptyList())
-
-        override fun observeByRelatedId(relatedId: String): Flow<List<AppLogEntity>> =
-            flowOf(emptyList())
-
-        override suspend fun getLatest(limit: Int): List<AppLogEntity> = emptyList()
-
-        override suspend fun getByIds(ids: List<Long>): List<AppLogEntity> = emptyList()
-
-        override suspend fun exportText(limit: Int): String = ""
-
-        override suspend fun exportText(ids: List<Long>): String = ""
-
-        override suspend fun log(
-            level: AppLogLevel,
-            type: AppLogType,
-            tag: String,
-            message: String,
-            detail: String?,
-            relatedId: String?,
-        ) = Unit
-
-        override suspend fun logException(
-            type: AppLogType,
-            tag: String,
-            message: String,
-            throwable: Throwable,
-            relatedId: String?,
-        ) {
-            exceptions += RecordedException(type, tag, message, throwable, relatedId)
-        }
-
-        override suspend fun clear() = Unit
-
-        override suspend fun deleteByIds(ids: List<Long>) = Unit
-
-        override suspend fun trim() = Unit
-
-        override suspend fun applyRetentionPolicy() = Unit
-
-        data class RecordedException(
-            val type: AppLogType,
-            val tag: String,
-            val message: String,
-            val throwable: Throwable,
-            val relatedId: String?,
-        )
-    }
 
     private companion object {
         const val FIXTURES_DIR_PROPERTY = "lyrico.audiotag.fixtures.dir"

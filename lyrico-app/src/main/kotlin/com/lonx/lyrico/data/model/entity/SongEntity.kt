@@ -6,6 +6,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.lonx.lyrico.data.model.SongSource
 
 /**
  * 数据库中存储的歌曲实体（Song Entity）
@@ -97,7 +98,7 @@ data class SongEntity(
     val mediaId: Long,
 
     @ColumnInfo(defaultValue = "'MEDIA_STORE'")
-    val source: String = "MEDIA_STORE",
+    val source: String = SongSource.LEGACY_MEDIA_STORE,
 
     val filePath: String,
     val fileName: String,

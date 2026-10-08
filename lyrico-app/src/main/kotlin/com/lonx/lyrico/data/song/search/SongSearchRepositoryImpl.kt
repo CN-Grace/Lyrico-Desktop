@@ -1,7 +1,7 @@
 package com.lonx.lyrico.data.song.search
 
-import androidx.sqlite.db.SimpleSQLiteQuery
-import androidx.room.withTransaction
+import androidx.room.RoomRawQuery
+import com.lonx.lyrico.data.utils.inTransaction
 import com.lonx.lyrico.data.LyricoDatabase
 import com.lonx.lyrico.data.model.dao.AlbumSearchRow
 import com.lonx.lyrico.data.model.dao.ArtistSearchRow
@@ -32,7 +32,7 @@ class SongSearchRepositoryImpl(
     override fun searchLyricsForLocalSearch(query: String): Flow<List<LocalLyricSearchResult>> {
         val ftsQuery = LyricFtsIndexer.buildQuery(query) ?: return kotlinx.coroutines.flow.flowOf(emptyList())
         return songDao.searchLyricFtsForLocalSearch(
-            SimpleSQLiteQuery(
+            RoomRawQuery(
                 """
                 SELECT
                     fts.lineText AS matchedLine,
@@ -94,8 +94,10 @@ class SongSearchRepositoryImpl(
                 ORDER BY s.title ASC, s.fileName ASC, fts.lineIndex ASC
                 LIMIT ?
                 """.trimIndent(),
-                arrayOf<Any>(ftsQuery, LOCAL_LYRIC_SEARCH_LIMIT)
-            )
+            ) { statement ->
+                statement.bindText(1, ftsQuery)
+                statement.bindLong(2, LOCAL_LYRIC_SEARCH_LIMIT)
+            }
         )
             .map { rows ->
                 rows
@@ -116,7 +118,7 @@ class SongSearchRepositoryImpl(
             )
         }
         if (songDao.getLyricFtsRowCount() == 0) {
-            database.withTransaction {
+            database.inTransaction {
                 songDao.clearLyricFts()
                 var lastId = 0L
                 while (true) {
@@ -200,12 +202,16 @@ class SongSearchRepositoryImpl(
         """.trimIndent()
 
         songDao.getDistinctSongFieldValues(
-            SimpleSQLiteQuery(sql, (uris + uris).toTypedArray())
+            RoomRawQuery(sql) { statement ->
+                // First `uris.size` placeholders are the IN list, then one `WHEN ?` per uri; the
+                // fallback position in the ORDER BY is interpolated, not a placeholder.
+                (uris + uris).forEachIndexed { index, uri -> statement.bindText(index + 1, uri) }
+            }
         )
     }
 
     private companion object {
-        const val LOCAL_LYRIC_SEARCH_LIMIT = 500
+        const val LOCAL_LYRIC_SEARCH_LIMIT = 500L
         const val FTS_REBUILD_BATCH_SIZE = 50
     }
 }
