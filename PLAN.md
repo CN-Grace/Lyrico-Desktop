@@ -98,6 +98,30 @@ Lyrico/
 | **P5** | 批量任务（进程内队列替代 WorkManager）、ReplayGain、导出、插件 quickjs 运行时、更新检查、5 语言资源迁移 | 每项功能端到端跑通 |
 | **P6** | jpackage 打包 MSI/portable、图标、文件关联、许可声明 | 干净 Windows 机器上安装后可用 |
 
+### P4 施工顺序（用户裁决：先迁 viewmodel + 状态层，再接 UI）
+
+`scripts/port-frontier.py` 给出的是**证据**而不是猜测：它逐个文件判断「`com.lonx.lyrico` 依赖是否已由 kotlin 树满足」，因为把依赖未满足的文件搬过去只会得到一个与真问题无关的编译错误。当前 java 树 **218 个文件：86 个已在边界上可搬，132 个仍被 java 树文件挡住**（另有 0 个陈旧副本）。用法：
+
+```
+python scripts/port-frontier.py                     # 全树
+python scripts/port-frontier.py --prefix viewmodel/ # 只看某层
+python scripts/port-frontier.py --list-blocks       # 列出每个文件被谁挡住
+```
+
+它顺手修掉了两个**会骗人的**判断口径，值得记下：`fun String?.foo()` 这种带接收者的声明曾被当成「声明了一个叫 `String` 的类型」，于是整个包里任何出现 `String` 一词的文件都被判为被挡；同类问题让 `fun Modifier.blurSource()`、`fun EditableField.title()` 变成幽灵依赖。所以现在只把 `class/interface/object/typealias` 当作「类型引用」判据，函数/属性名不算 —— 一个同名的 `title` 属性通常只是属性，而未解析的**类型**一定是真的编译错误。另外同包引用（不写 import 那种）必须单独扫，否则「可搬」的判断不可信。
+
+**viewmodel 层现状（33 个文件：8 可搬 / 25 被挡）**，关键路径是三个叶子而不是 viewmodel 本身：
+
+| 叶子 | 挡住的文件数 | 桌面化要动什么 |
+| --- | --- | --- |
+| `utils/UiMessage.kt` | 12 | `@StringRes Int` + `Context.getString` → Compose resources 的 `StringResource` + 挂起 `getString`；`asString(context)` 这个非 Composable 入口没有 `Context` 可给，只能改成挂起函数 |
+| `ui/components/ScaffoldPadding.kt` | 31 | `WindowInsets` 是 Android 概念，桌面没有；三栏布局的边距得重新给一遍 |
+| `ui/components/blur/BarBlur.kt` | 14 | `RenderEffect`/`Modifier.blur` 在桌面走 Skia，API 面不同 |
+
+因此批量顺序是：**先搬 3 个纯状态文件（`viewmodel/StringUtils.kt`、`SearchPagination.kt`、`SearchSourceUiModel.kt`，零依赖）→ 再处理 `UiMessage` 等叶子 → viewmodel 会自己一排排解除阻塞**。`viewmodel/SortState.kt` 已在此前的批次里搬过去了。
+
+**一个需要用户留意的改名**：`UiMessage.StringResource` 这个嵌套类，在桌面会**包着一个** `org.jetbrains.compose.resources.StringResource`——同名套同名。建议改名为 `UiMessage.Res` 或 `Localized`，避免以后有人 import 错那个。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **ReplayGain 的 PCM 解码方案**（Android 端 `ReplayGainScanner.kt` 用 `MediaExtractor`+`MediaCodec`，桌面无等价物）：
