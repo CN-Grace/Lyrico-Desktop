@@ -1,21 +1,18 @@
 package com.lonx.lyrico.viewmodel
 
-import android.content.Context
-import android.net.Uri
-import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lonx.lyrico.BuildConfig
-import com.lonx.lyrico.R
-import com.lonx.lyrico.data.model.log.AppLogType
+import com.lonx.lyrico.BuildInfo
 import com.lonx.lyrico.data.model.entity.AppLogEntity
-import com.lonx.lyrico.data.repository.AppLogRepository
-import com.lonx.lyrico.utils.UiMessage
-import com.hjq.device.compat.DeviceMarketName
-import com.hjq.device.compat.DeviceOs
-import com.hjq.device.compat.SystemPropertyCompat
+import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.model.log.LogRetentionOption
+import com.lonx.lyrico.data.repository.AppLogRepository
 import com.lonx.lyrico.data.repository.SettingsRepository
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.export_failed
+import com.lonx.lyrico.resources.export_success
+import com.lonx.lyrico.utils.UiMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,14 +20,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 
 sealed class AppLogEvent {
     data class ShowMessage(val message: UiMessage) : AppLogEvent()
 }
+
 data class AppLogUiState(
     val logRetentionOption: LogRetentionOption = LogRetentionOption.THIRTY_DAYS,
 )
 
+/**
+ * The app-log screen's state holder.
+ *
+ * Desktop divergence (deliberate, one place only): [exportLogs] takes the destination `File` the user
+ * picked rather than an Android `DocumentFile` `Uri`, and reads system facts from `BuildInfo` +
+ * `System.getProperty` instead of `Build.*` / the `com.hjq.device.compat` Xiaomi market-name lookup.
+ * The save-file picker itself is a UI concern, so the view model stays testable by writing a real file.
+ */
 class AppLogViewModel(
     private val appLogRepository: AppLogRepository,
     private val settingsRepository: SettingsRepository
@@ -56,7 +63,7 @@ class AppLogViewModel(
         }
     }
 
-    fun exportLogs(context: Context, uri: Uri, ids: List<Long>? = null) {
+    fun exportLogs(target: File, ids: List<Long>? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val logsText = if (ids == null) {
@@ -65,14 +72,17 @@ class AppLogViewModel(
                     appLogRepository.exportText(ids)
                 }
                 val text = buildString {
-                    appendLine(buildDiagnosticInfo(context))
+                    appendLine(buildDiagnosticInfo())
                     appendLine()
                     append(logsText)
                 }
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    outputStream.write(text.toByteArray(Charsets.UTF_8))
-                }
-                _events.emit(AppLogEvent.ShowMessage(UiMessage.StringResource(R.string.export_success)))
+                target.writeText(text, Charsets.UTF_8)
+                _events.emit(AppLogEvent.ShowMessage(UiMessage.Localized(Res.string.export_success)))
+            } catch (e: CancellationException) {
+                // Android funnelled this into the generic handler below, so cancelling the export also wrote
+                // a "failed to export" log row and popped an error toast. Rethrow instead: a cancelled job
+                // did not fail.
+                throw e
             } catch (e: Exception) {
                 appLogRepository.logException(
                     type = AppLogType.APP,
@@ -82,38 +92,29 @@ class AppLogViewModel(
                 )
                 _events.emit(
                     AppLogEvent.ShowMessage(
-                        UiMessage.StringResource(R.string.export_failed, e.message ?: "Unknown error")
+                        UiMessage.Localized(Res.string.export_failed, e.message ?: "Unknown error")
                     )
                 )
             }
         }
     }
 
-    private fun buildDiagnosticInfo(context: Context): String = buildString {
+    private fun buildDiagnosticInfo(): String = buildString {
         appendLine("Lyrico diagnostic info")
-        appendLine("App version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-        appendLine("Device model: ${buildDeviceModel(context)}")
+        appendLine("App version: ${BuildInfo.VERSION_NAME} (${BuildInfo.VERSION_CODE})")
+        appendLine("Build: ${BuildInfo.BUILD_TYPE} ${BuildInfo.COMMIT}")
         appendLine("System version: ${buildSystemVersion()}")
-        appendLine("Android version: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        appendLine("Architecture: ${System.getProperty("os.arch").orEmpty().ifBlank { "unknown" }}")
     }
-
-    private fun buildDeviceModel(context: Context): String =
-        DeviceMarketName.getMarketName(context).takeIfNotBlank()
-            ?: listOf(Build.MANUFACTURER, Build.MODEL)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
-                .ifBlank { Build.DEVICE }
 
     private fun buildSystemVersion(): String {
-        val osName = DeviceOs.getOsName().takeIfNotBlank()
-        val osVersion = DeviceOs.getOsVersionName().takeIfNotBlank()
-        return listOfNotNull(osName, osVersion)
+        val osName = System.getProperty("os.name").orEmpty().trim()
+        val osVersion = System.getProperty("os.version").orEmpty().trim()
+        return listOf(osName, osVersion)
+            .filter { it.isNotBlank() }
             .joinToString(" ")
-            .ifBlank { "Android ${Build.VERSION.RELEASE}" }
+            .ifBlank { "Unknown" }
     }
-
-    private fun String?.takeIfNotBlank(): String? =
-        this?.trim()?.takeIf { it.isNotBlank() }
 
     fun setLogRetentionOption(option: LogRetentionOption) {
         viewModelScope.launch {

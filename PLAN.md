@@ -100,7 +100,7 @@ Lyrico/
 
 ### P4 施工顺序（用户裁决：先迁 viewmodel + 状态层，再接 UI）
 
-`scripts/port-frontier.py` 给出的是**证据**而不是猜测：它逐个文件判断「`com.lonx.lyrico` 依赖是否已由 kotlin 树满足」，因为把依赖未满足的文件搬过去只会得到一个与真问题无关的编译错误。当前 java 树 **203 个文件：79 个已在边界上可搬，124 个仍被 java 树文件挡住**（另有 0 个陈旧副本）。用法：
+`scripts/port-frontier.py` 给出的是**证据**而不是猜测：它逐个文件判断「`com.lonx.lyrico` 依赖是否已由 kotlin 树满足」，因为把依赖未满足的文件搬过去只会得到一个与真问题无关的编译错误。当前 java 树 **200 个文件：76 个已在边界上可搬，124 个仍被 java 树文件挡住**（另有 0 个陈旧副本）。用法：
 
 ```
 python scripts/port-frontier.py                     # 全树
@@ -110,7 +110,14 @@ python scripts/port-frontier.py --list-blocks       # 列出每个文件被谁�
 
 它顺手修掉了两个**会骗人的**判断口径，值得记下：`fun String?.foo()` 这种带接收者的声明曾被当成「声明了一个叫 `String` 的类型」，于是整个包里任何出现 `String` 一词的文件都被判为被挡；同类问题让 `fun Modifier.blurSource()`、`fun EditableField.title()` 变成幽灵依赖。所以现在只把 `class/interface/object/typealias` 当作「类型引用」判据，函数/属性名不算 —— 一个同名的 `title` 属性通常只是属性，而未解析的**类型**一定是真的编译错误。另外同包引用（不写 import 那种）必须单独扫，否则「可搬」的判断不可信。
 
-**viewmodel 层现状（25 个文件：3 可搬 / 22 被挡）**，关键路径是三个叶子而不是 viewmodel 本身：
+**viewmodel 层现状（22 个文件：0 可搬 / 22 被挡）**：所有**不依赖待桌面化叶子**的 viewmodel 都已搬完，剩下 22 个每个都被具体的叶子挡住，不再有「顺手就能搬」的条目。挡住它们的叶子分四类，也解释了为什么 viewmodel 层不可能靠自己收尾：
+
+1. **`worker/BatchTaskScheduler.kt` 与各 `worker/processor/*`**（挡住 7 个：`BatchTaskDetailViewModel`、`BatchTaskListViewModel`、`BatchReplayGainViewModel`、`BatchExportViewModel`、`BatchEditViewModel`、`BatchMatchViewModel`、`BatchRenameViewModel`）——这是 WorkManager 的桌面替代，属于 P5 的施工项。
+2. **SAF/URI 家族**（`utils/UriUtils.kt`、`utils/SafDocuments.kt`、`utils/SafSiblingFileWriter.kt`，挡住 `FolderManagerViewModel`、`ArtistPosterFoldersViewModel` 等）——Windows 没有 document tree，必然删而不是搬。
+3. **插件层**（`plugin/source/SearchSourceProvider.kt`、`domain/SearchSourceConfigApplier.kt`、`utils/PluginFieldPostProcessor.kt`，挡住 `SearchViewModel`/`LyricsSearchViewModel`/`CoverSearchViewModel`/`SearchSourceConfigViewModel`/`PluginViewModel`）——需要 quickjs 运行时接上，P5。
+4. **单点叶子**：`utils/UpdateManager.kt`（挡住 `SongListViewModel`/`AboutViewModel`，见 §5 分叉）、`utils/ReplayGainScanner.kt`（`AlbumActionsViewModel`，P5）、`utils/CacheManager.kt` + `data/model/cache/CacheCategory.kt`（`SettingsViewModel`）、`data/SharedSelectionManager.kt` + `data/model/entity/getUri`（`SongSelectionViewModel`）。
+
+因此批量顺序是：**先搬纯状态文件 → 再处理 `UiMessage` 等叶子 → viewmodel 会自己一排排解除阻塞**。
 
 | 叶子 | 挡住的文件数 | 桌面化要动什么 |
 | --- | --- | --- |
@@ -138,9 +145,24 @@ python scripts/port-frontier.py --list-blocks       # 列出每个文件被谁�
 2. **计数类排序的 `ASC` 是「多的在前」**。`SONG_COUNT`/`ALBUM_COUNT` 的比较器固定用 `compareByDescending`，`ASC` 分支直接返回它的结果，`DESC` 才 `asReversed()`——所以「计数升序」= 数量由多到少。这不是移植错误（与 Android 逐字一致），照原样钉住；等接 UI 那批再决定箭头语义要不要改，改它就是行为变更，得在 §5 里挂号。
 3. **专辑列表的 `albumArtist` 比较先 `.uppercase()`**，且 `null` 走 `orEmpty()` 排在最前。测试里特意放了小写的 `bill evans` 与 `Miles Davis`：按大小写敏感的默认比较，`M` < `b` 会把顺序倒过来，所以这条测试能区分「有大写化」与「没有」。
 
-**一处刻意的行为修正**：`SaveAudioTagsUseCase` 在 Android 上更新 `songs.lyrics` 却**不刷新歌词 FTS**（`LibraryIndexRepository.reindexSongInTransaction` 名字虽然笼统，实际只重建艺术家/专辑索引），后果是改完歌词后**新歌词搜不到、旧歌词仍能搜到**。桌面其余写路径（`SongLibraryRepositoryImpl.updateSong`、`SongFileRepositoryImpl.renameSong`）都显式调 `LyricFtsIndexer.replaceSong`，所以这一条属于漏网，已在事务里补上并被 `AudioTagUseCasesTest` 钉住。同类还有 `UpdateRepositoryImpl` 把 `ApiError`/`ParsingError` 折叠成 `NetworkError` 的那处（commit `4972444`）。
+**已搬（剩余三个 viewmodel 批次）**：`viewmodel/ArtistSplitSettingsViewModel.kt`、`EditFieldSettingsViewModel.kt`、`AppLogViewModel.kt`。前两个原样搬（依赖早已就位）；第三个做了桌面化重写：
 
-**一处刻意的行为修正**：`SaveAudioTagsUseCase` 在 Android 上更新 `songs.lyrics` 却**不刷新歌词 FTS**（`LibraryIndexRepository.reindexSongInTransaction` 名字虽然笼统，实际只重建艺术家/专辑索引），后果是改完歌词后**新歌词搜不到、旧歌词仍能搜到**。桌面其余写路径（`SongLibraryRepositoryImpl.updateSong`、`SongFileRepositoryImpl.renameSong`）都显式调 `LyricFtsIndexer.replaceSong`，所以这一条属于漏网，已在事务里补上并被 `AudioTagUseCasesTest` 钉住。同类还有 `UpdateRepositoryImpl` 把 `ApiError`/`ParsingError` 折叠成 `NetworkError` 的那处（commit `4972444`）。
+- `exportLogs(context, uri)` → **`exportLogs(target: File, ids)`**。Android 用 SAF 让用户挑目标（`ACTION_CREATE_DOCUMENT` + `Uri`），桌面端把「挑文件」留给 UI 层（`java.awt.FileDialog`/`JFileChooser`），viewmodel 只接收一个 `File` 并按 UTF-8 写入。**这是一处已知的 P4 UI 缺口**：文件保存对话框尚未接上，`exportLogs` 现在只有测试与将来的 UI 调用它。
+- `buildDiagnosticInfo()` 里的 `BuildConfig.VERSION_NAME` → `BuildInfo`（`generateBuildInfo` 任务生成的桌面常量），`Build.VERSION.RELEASE/SDK_INT` → `System.getProperty("os.name"/"os.version"/"os.arch")`（Windows 11 上 `os.name` 仍是 `Windows 10`，所以版本号一并打印——不要以为这是 bug）。
+- `buildDeviceModel()` 整段删掉：`com.hjq.device.compat` 的 `DeviceMarketName`/`DeviceOs`/`SystemPropertyCompat` 是「把厂商内部代号翻成市场名」的 Android 专用库（`ro.product.marketname` 之类的系统属性），桌面端没有对应概念，硬凑一个 `Build.MANUFACTURER` 替代只会给出更差的信息。**这是明确记录的缺口**，诊断信息里不再有「设备型号」这一行。
+- `UiMessage.StringResource` → `UiMessage.Localized`（`Res.string.export_success` / `export_failed`），与 `938b56e` 的改名一致。
+
+本批测试 **47 项**（`AppLogViewModelTest` 7 / `ArtistSplitSettingsViewModelTest` 20 / `EditFieldSettingsViewModelTest` 20），全量 **403 项 0 失败 0 跳过（40 个测试类）**。三个 viewmodel 的测试各钉住一个容易想当然的点：
+
+1. **`ArtistSplitSettingsViewModel` 的重复校验是「跨两类集合」的**：新增分隔符既要跟其它自定义项比，也要跟**当前可见**的内置项比，而「可见」由 `hiddenBuiltinSeparatorIds` 与 `builtinSeparatorOverrides` 两个集合共同决定。测试同时钉住两个方向：`/` 默认开启所以被拒，一旦 `removeBuiltinSeparator("slash")` 就能加；` feat. ` 默认关闭所以能加，一旦 `setBuiltinSeparatorEnabled("feat_dot", true)` 就被拒（输入写成 `feat.` 而内置值是 ` feat. `，所以这条同时证明比较是**两边 trim 后**做的）。`ArtistSplitValidationError.DUPLICATE_BUILTIN` 是**死枚举常量**（没有任何分支会返回它），照原样留下并在测试中体现为「与内置冲突时返回的是 `DUPLICATE`」。
+2. **`ArtistSplitSettingsViewModel.updateConfig` 是「每次调用一个新协程的读-改-写」**，两次修改同时在飞会丢一次（真实用户点击是串行的，所以 Android 上没暴露）。测试里第一次遇到这个坑：连续 `addCustomSeparator` 两次后只看到一项。现在每个修改都等落地再发下一个——这不是为了测试好写，而是记下这个**并发写设置的真实弱点**。
+3. **`EditFieldSettingsViewModel` 的「启用」是三态且带组件门**：`isEffectivelyEnabled` = 字段自身显隐 AND 组件开关（只有 ReplayGain 有组件），所以测试专门关掉 `component:ReplayGain` 并断言 `enabledCount` 少掉整块、而每项自身的 `enabled` **不变**——只改单字段的测试看不出组件开关有没有被漏掉。另外 `showFieldSongs` 的失败分支只有一条可达路径（组件分支对无 `target` 的字段 `requireNotNull`，例如 `lyrics_offset`），测试直接调用该路径，免得这个标志哪天变成死代码后「整库为空」被当成正常结果。同时钉住一个**如实记录的既有语义**：宽容读标签会吞掉「文件打不开」并返回「没有封面」，于是磁盘上已不存在的歌会被列进「没有封面」而不是单独一类——这是照原样保留的行为，不是期望行为。
+
+**三处刻意的行为修正（`SaveAudioTagsUseCase` 的 FTS 刷新在上一批，后两处属本批）：**
+
+1. `SaveAudioTagsUseCase` 在 Android 上更新 `songs.lyrics` 却**不刷新歌词 FTS**（`LibraryIndexRepository.reindexSongInTransaction` 名字虽然笼统，实际只重建艺术家/专辑索引），后果是改完歌词后**新歌词搜不到、旧歌词仍能搜到**。桌面其余写路径（`SongLibraryRepositoryImpl.updateSong`、`SongFileRepositoryImpl.renameSong`）都显式调 `LyricFtsIndexer.replaceSong`，所以这一条属于漏网，已在事务里补上并被 `AudioTagUseCasesTest` 钉住。
+2. `UpdateRepositoryImpl` 把 `ApiError`/`ParsingError` 折叠成 `NetworkError` 的那处（commit `4972444`）：Android 把两种完全不同的失败报成同一种，用户看不出是「网断了」还是「服务器返回了看不懂的 JSON」，桌面端分开保留。
+3. `AppLogViewModel.exportLogs` 在 Android 上把 `CancellationException` 一并吞进 `catch (e: Exception)`，于是「页面关掉了」会被导出成一条「导出失败」的日志与 toast，还会往一个已经没人看的状态里写。桌面端在通用 catch **之前**重新抛出 `CancellationException`（这也是本仓所有协作取消点的统一做法），测试双向钉住：`exportText` 抛出 `CancellationException` 时**既不写日志也不弹 toast**（把上面那个 catch 删掉，这条测试立刻失败——已用变异验证），而「导出到目录」这种必失败目标仍会正常报错。
 
 **`@StringRes Int` 是一个系统性转换，值得单独一批**：`AppLanguage`、`CacheCategory`、`LocalSearchField`、`LogRetentionOption`、`AppLogLevel`、`AppLogType`、`SearchSourceUiModel` 都挂着一个 `labelRes: Int`，调用点统一是 `stringResource(x.labelRes)`。好消息是 Compose resources 的 `stringResource(res: StringResource, vararg args)` 与 Android 的 `stringResource(resId, *args)` **调用形状完全一样**，所以转换只需改「字段类型」与「初始化处」（`R.string.foo` → `Res.string.foo`）以及 import，调用点不用动。
 
@@ -206,7 +228,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P1 复现命令（Gradle 侧，真 Kotlin 绑定）**：`./gradlew :lyrico-audiotag:test`（13 项检查 0 失败，覆盖 7 种格式的标签/封面读写、CJK 路径端到端）。跑之前确保 `build/native/windows-x64/*.dll` 已由 `scripts/build-native.ps1` 产出。
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项与浏览/搜索 viewmodel 40 项后，全量现为 **356 项 0 失败 0 跳过**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项、浏览/搜索 viewmodel 40 项与剩余 viewmodel 47 项后，全量现为 **403 项 0 失败 0 跳过、40 个测试类**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。
