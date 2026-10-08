@@ -1,47 +1,69 @@
 package com.lonx.lyrico.data.model.metadata
 
-import android.os.Parcelable
-import androidx.annotation.StringRes
-import com.lonx.lyrico.R
-import kotlinx.parcelize.Parcelize
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.extra_write_mode_disabled
+import com.lonx.lyrico.resources.extra_write_mode_overwrite
+import com.lonx.lyrico.resources.extra_write_mode_supplement
+import com.lonx.lyrico.resources.label_album
+import com.lonx.lyrico.resources.label_album_artist
+import com.lonx.lyrico.resources.label_artists
+import com.lonx.lyrico.resources.label_comment
+import com.lonx.lyrico.resources.label_composer
+import com.lonx.lyrico.resources.label_copyright
+import com.lonx.lyrico.resources.label_cover
+import com.lonx.lyrico.resources.label_custom
+import com.lonx.lyrico.resources.label_date
+import com.lonx.lyrico.resources.label_disc_number
+import com.lonx.lyrico.resources.label_genre
+import com.lonx.lyrico.resources.label_language
+import com.lonx.lyrico.resources.label_lyricist
+import com.lonx.lyrico.resources.label_lyrics
+import com.lonx.lyrico.resources.label_rating
+import com.lonx.lyrico.resources.label_replaygain_album_gain
+import com.lonx.lyrico.resources.label_replaygain_album_peak
+import com.lonx.lyrico.resources.label_replaygain_reference_loudness
+import com.lonx.lyrico.resources.label_replaygain_track_gain
+import com.lonx.lyrico.resources.label_replaygain_track_peak
+import com.lonx.lyrico.resources.label_title
+import com.lonx.lyrico.resources.label_track_number
 import kotlinx.serialization.Serializable
+import org.jetbrains.compose.resources.StringResource
 
 @Serializable
 enum class MetadataWriteMode(
-    @field:StringRes val labelRes: Int
+    val labelRes: StringResource
 ) {
-    DISABLED(R.string.extra_write_mode_disabled),
-    SUPPLEMENT(R.string.extra_write_mode_supplement),
-    OVERWRITE(R.string.extra_write_mode_overwrite)
+    DISABLED(Res.string.extra_write_mode_disabled),
+    SUPPLEMENT(Res.string.extra_write_mode_supplement),
+    OVERWRITE(Res.string.extra_write_mode_overwrite)
 }
 
-@Parcelize
 @Serializable
 enum class MetadataFieldTarget(
-    @field:StringRes val labelRes: Int
-) : Parcelable {
-    TITLE(R.string.label_title),
-    ARTIST(R.string.label_artists),
-    ALBUM(R.string.label_album),
-    ALBUM_ARTIST(R.string.label_album_artist),
-    GENRE(R.string.label_genre),
-    DATE(R.string.label_date),
-    TRACK_NUMBER(R.string.label_track_number),
-    DISC_NUMBER(R.string.label_disc_number),
-    COMPOSER(R.string.label_composer),
-    LYRICIST(R.string.label_lyricist),
-    COMMENT(R.string.label_comment),
-    LYRICS(R.string.label_lyrics),
-    COVER(R.string.label_cover),
-    LANGUAGE(R.string.label_language),
-    COPYRIGHT(R.string.label_copyright),
-    RATING(R.string.label_rating),
-    REPLAY_GAIN_TRACK_GAIN(R.string.label_replaygain_track_gain),
-    REPLAY_GAIN_TRACK_PEAK(R.string.label_replaygain_track_peak),
-    REPLAY_GAIN_ALBUM_GAIN(R.string.label_replaygain_album_gain),
-    REPLAY_GAIN_ALBUM_PEAK(R.string.label_replaygain_album_peak),
-    REPLAY_GAIN_REFERENCE_LOUDNESS(R.string.label_replaygain_reference_loudness),
-    CUSTOM(R.string.label_custom)
+    val labelRes: StringResource
+)  {
+    TITLE(Res.string.label_title),
+    ARTIST(Res.string.label_artists),
+    ALBUM(Res.string.label_album),
+    ALBUM_ARTIST(Res.string.label_album_artist),
+    GENRE(Res.string.label_genre),
+    DATE(Res.string.label_date),
+    TRACK_NUMBER(Res.string.label_track_number),
+    DISC_NUMBER(Res.string.label_disc_number),
+    COMPOSER(Res.string.label_composer),
+    LYRICIST(Res.string.label_lyricist),
+    COMMENT(Res.string.label_comment),
+    LYRICS(Res.string.label_lyrics),
+    COVER(Res.string.label_cover),
+    LANGUAGE(Res.string.label_language),
+    COPYRIGHT(Res.string.label_copyright),
+    RATING(Res.string.label_rating),
+    REPLAY_GAIN_TRACK_GAIN(Res.string.label_replaygain_track_gain),
+    REPLAY_GAIN_TRACK_PEAK(Res.string.label_replaygain_track_peak),
+    REPLAY_GAIN_ALBUM_GAIN(Res.string.label_replaygain_album_gain),
+    REPLAY_GAIN_ALBUM_PEAK(Res.string.label_replaygain_album_peak),
+    REPLAY_GAIN_REFERENCE_LOUDNESS(Res.string.label_replaygain_reference_loudness),
+    CUSTOM(Res.string.label_custom)
 }
 
 data class MetadataApplyPolicy(

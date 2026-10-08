@@ -8,7 +8,7 @@ import androidx.room.RawQuery
 import androidx.room.SkipQueryVerification
 import androidx.room.Update
 import androidx.room.Upsert
-import androidx.sqlite.db.SupportSQLiteQuery
+import androidx.room.RoomRawQuery
 import com.lonx.lyrico.data.model.entity.FolderEntity
 import com.lonx.lyrico.data.model.entity.SongEntity
 import kotlinx.coroutines.flow.Flow
@@ -349,7 +349,7 @@ interface SongDao {
 
     @RawQuery(observedEntities = [SongEntity::class, FolderEntity::class])
     fun searchLyricFtsForLocalSearch(
-        query: SupportSQLiteQuery
+        query: RoomRawQuery
     ): Flow<List<LocalLyricSearchRow>>
 
     @Query("""
@@ -506,10 +506,10 @@ interface SongDao {
      * 使用 RawQuery，并指定 observedEntities 参数，以监听数据库变化
      */
     @RawQuery(observedEntities = [SongEntity::class, FolderEntity::class])
-    fun getSongs(query: SupportSQLiteQuery): Flow<List<SongEntity>>
+    fun getSongs(query: RoomRawQuery): Flow<List<SongEntity>>
 
     @RawQuery
-    suspend fun getDistinctSongFieldValues(query: SupportSQLiteQuery): List<SongFieldValue>
+    suspend fun getDistinctSongFieldValues(query: RoomRawQuery): List<SongFieldValue>
 
     /**
      * 根据专辑和艺术家获取歌曲列表

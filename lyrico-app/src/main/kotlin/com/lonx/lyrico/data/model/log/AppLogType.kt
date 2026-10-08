@@ -1,16 +1,23 @@
 package com.lonx.lyrico.data.model.log
 
-import androidx.annotation.StringRes
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.app_log_type_app
+import com.lonx.lyrico.resources.app_log_type_batch
+import com.lonx.lyrico.resources.app_log_type_crash
+import com.lonx.lyrico.resources.app_log_type_database
+import com.lonx.lyrico.resources.app_log_type_metadata
+import com.lonx.lyrico.resources.app_log_type_network
+import com.lonx.lyrico.resources.app_log_type_plugin
+import org.jetbrains.compose.resources.StringResource
 
 enum class AppLogType(
-    @field:StringRes val labelRes: Int
+    val labelRes: StringResource
 ) {
-    APP(R.string.app_log_type_app),
-    CRASH(R.string.app_log_type_crash),
-    METADATA(R.string.app_log_type_metadata),
-    BATCH(R.string.app_log_type_batch),
-    DATABASE(R.string.app_log_type_database),
-    NETWORK(R.string.app_log_type_network),
-    PLUGIN(R.string.app_log_type_plugin)
+    APP(Res.string.app_log_type_app),
+    CRASH(Res.string.app_log_type_crash),
+    METADATA(Res.string.app_log_type_metadata),
+    BATCH(Res.string.app_log_type_batch),
+    DATABASE(Res.string.app_log_type_database),
+    NETWORK(Res.string.app_log_type_network),
+    PLUGIN(Res.string.app_log_type_plugin)
 }

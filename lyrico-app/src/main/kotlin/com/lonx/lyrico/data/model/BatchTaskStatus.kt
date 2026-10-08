@@ -1,15 +1,21 @@
 package com.lonx.lyrico.data.model
 
-import androidx.annotation.StringRes
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.batch_task_status_cancelled
+import com.lonx.lyrico.resources.batch_task_status_failed
+import com.lonx.lyrico.resources.batch_task_status_queued
+import com.lonx.lyrico.resources.batch_task_status_running
+import com.lonx.lyrico.resources.batch_task_status_skipped
+import com.lonx.lyrico.resources.batch_task_status_succeeded
+import org.jetbrains.compose.resources.StringResource
 
 enum class BatchTaskStatus(
-    @field:StringRes val labelRes: Int
+    val labelRes: StringResource
 ) {
-    QUEUED(R.string.batch_task_status_queued),
-    RUNNING(R.string.batch_task_status_running),
-    SUCCEEDED(R.string.batch_task_status_succeeded),
-    FAILED(R.string.batch_task_status_failed),
-    SKIPPED(R.string.batch_task_status_skipped),
-    CANCELLED(R.string.batch_task_status_cancelled)
+    QUEUED(Res.string.batch_task_status_queued),
+    RUNNING(Res.string.batch_task_status_running),
+    SUCCEEDED(Res.string.batch_task_status_succeeded),
+    FAILED(Res.string.batch_task_status_failed),
+    SKIPPED(Res.string.batch_task_status_skipped),
+    CANCELLED(Res.string.batch_task_status_cancelled)
 }

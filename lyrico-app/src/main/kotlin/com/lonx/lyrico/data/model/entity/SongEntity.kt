@@ -1,7 +1,6 @@
 package com.lonx.lyrico.data.model.entity
 
-import android.net.Uri
-import androidx.core.net.toUri
+import java.nio.file.Path
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -11,19 +10,20 @@ import androidx.room.PrimaryKey
 /**
  * 数据库中存储的歌曲实体（Song Entity）
  *
- * 设计说明：
- * - uri 是歌曲的唯一资源标识，推荐为 content:// 形式（MediaStore 或 SAF）。
- * - filePath 仅作为兼容字段与展示用途，不应用于文件写入。
- * - mediaId 通常对应 MediaStore.Audio.Media._ID。
+ * 设计说明（桌面端，见 PLAN.md §1.1 与 §7）：
+ * - uri 是歌曲的唯一资源标识，桌面端为 **Windows 绝对路径**（如 `H:\Music\a.flac`）；
+ *   原 Android 的 `content://`（MediaStore / SAF）取值在桌面端不使用。
+ * - filePath 与 uri 在桌面端存同一个绝对路径（保留该列以便沿用原有 SQL 与导入的旧库）。
+ * - mediaId 是 MediaStore 遗留字段，桌面端恒为默认值。
  *
  * 字段说明：
  *
  * @property id 主键 ID（自增）
  *
  * —— 资源定位相关 ——
- * @property uri 歌曲的唯一资源 URI（推荐 content:// 形式，用于实际读写）
- * @property mediaId MediaStore 中的音频 ID（对应 _ID，可用于快速构建 contentUri）
- * @property filePath 文件的绝对路径（仅用于展示或兼容旧数据，不保证可写）
+ * @property uri 歌曲的唯一资源标识：桌面端为文件绝对路径（用于实际读写）
+ * @property mediaId MediaStore 遗留字段（桌面端不使用）
+ * @property filePath 文件的绝对路径（桌面端与 uri 同值）
  * @property fileName 文件名（不含路径）
  * @property fileSize 文件大小（字节）
  * @property folderId 所属文件夹 ID（用于分组展示）
@@ -232,5 +232,10 @@ data class SongEntity(
         return result
     }
 }
-val SongEntity.getUri: Uri
-    get() = uri.toUri()
+/**
+ * 桌面端等价物：文件的绝对路径。
+ *
+ * `uri` 列在桌面端即 Windows 绝对路径（见类注释），调用点从 `song.getUri` 迁移为 `song.path`。
+ */
+val SongEntity.path: Path
+    get() = Path.of(uri)
