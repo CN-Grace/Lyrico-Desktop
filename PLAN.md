@@ -83,6 +83,7 @@ Lyrico/
 | 媒体扫描器（去 SAF，走 `java.nio.file`） | ✅ | `MediaScanner` 全部重写：`SongFileSystem` 可注入接缝（真实 walk 用 `NioSongFileSystem`，失败路径用假文件系统），迭代式目录栈替代递归。`MediaScannerTest`（9 项）：扩展名集合、隐藏项/`$RECYCLE.BIN`/`System Volume Information` 跳过而 `data`/`cache`/`tmp` **不跳**（Windows 上是普通目录名）、根缺失→`missingFolderIds`、根不可读→`failedFolderIds`（子目录不可读只跳过）、同名根去重、**junction 成环终止**（真造 junction，`mklink /J` 不可用时 skip 而非假绿）、`dateAdded` 用创建时间并回落修改时间 |
 | 库扫描仓库（`LibraryScanRepositoryImpl`） | ✅ | `LibraryScanIntegrationTest`（9 项）跑端到端：真实音乐目录（TagLib 自带音频）→ 扫描 → 入库 → 经 `SongQueryBuilder`/`@RawQuery` 列出来 → 改标签**落盘**并在库里同步。覆盖：二次扫描只读变化文件（0 insert/0 update/全部 skip）、改 mtime 只重读那一个、`fullRescan` 全量重读、删文件连同 FTS 行与自定义标签键级联清理、`ignoreShortAudio` 只在开启时跳过、开启歌词索引后歌词进 FTS 且能被搜到、只扫指定根不动其他根、根消失时**默认保歌+报失败**（`removeUnavailableFolders=true` 才删树） |
 | 自定义标签键索引 / 插件表 / GitHub 两个网络仓储（`CustomTagKeyRepository`、`SourcePluginRepository`、`GhContributorRepositoryImpl`、`UpdateRepositoryImpl` + `data/dto` 4 个类） | ✅ | 四个仓储全部 `git mv` 进 `src/main/kotlin`（仅两处 `android.util.Log` → `PlatformLog`、一处 `BuildConfig` → `BuildInfo`）。`CustomTagKeyRepositoryTest`（12 项）跑真实库：键的规范化（trim/大写/超长 64 字符拒绝/换行拒绝/空键拒绝/同列表内重复只存一次）是**库里的形状**而非仅往返、按任意大小写查回、替换字段后旧键消失、跨歌曲计数、`removeSongs(emptyList())` 不改动。`SourcePluginRepositoryImplTest`（15 项）跑真实库：**三种源类型（metadata/lyrics/cover）的开关与排序各自独立**（开 metadata 不动 lyrics/cover，改 metadata 顺序不动 lyrics 顺序）、重名 id 覆写、按 `customName ?: name` 稳定排序、`customName` trim/空白→`null`+`displayName` 回落、manifest 契约就地更新、卸载只删一个。两个网络仓储用 **JDK 自带 `com.sun.net.httpserver.HttpServer` + OkHttp 改写 host 的拦截器**测真实 HTTP 往返（零新依赖，生产代码不知情）：`GhContributorRepositoryImplTest`（7 项）覆盖 Bot 过滤 + 按贡献降序 + 请求路径含 `?per_page=600` + 404/坏 JSON/服务器不存在→`Result.failure`；`UpdateRepositoryImplTest`（12 项）覆盖新版本带说明与链接、同版本/旧版本→`NoUpdateAvailable`、**`v1.10.0` > `1.6.0`（数字逐段比较而非字符串序）**、`-beta`/`+42` 后缀忽略、读超时→`TimeoutError`、服务器不存在→`NetworkError`。**故意偏离 Android**：Android 版把 4xx/5xx 与 JSON 解析失败都扔进 `NetworkError`，导致它自己声明的 `UpdateCheckResult.ApiError`/`ParsingError` 两个状态**永远不可达**（`UpdateManager` 里那两句用户可见文案是死代码）；桌面版把 non-2xx 映射为 `ApiError(code, message)`、`SerializationException` 映射为 `ParsingError`，测试钉住这四个分支 |
+| 批量任务记账（`BatchTaskRepository`/`Impl`） | ✅ | 两个文件无一行 Android 依赖（六个依赖全部已在 kotlin 树），`git mv` 后零修改编译通过。`BatchTaskRepositoryImplTest`（23 项）跑真实库：建任务同时写任务行 + 每首歌一条 item（`itemId = "$taskId-$index"`，计数器全零、`configJson` 透传），空选曲也写任务行，同歌两次建任务不共享 item；任务状态机（`markRunning` 记 `startedAt`、`markSucceeded`/`markCancelled` 清 `errorMessage`、`markFailed` 记原因、`finishedAt` 只写一次）；item 级成功/跳过各带 `resultJson`、失败带原因且**清掉上一次的 result**、`progress` 跨状态保留、重命名后可回写 `filePath`/`fileName`；**进度计数从 item 行算出来**（succeeded+failed+skipped，不统计还在排队/运行中的）且能清空 `currentFile`、对不存在的 taskId 为 no-op；`getPendingItems` 只给 QUEUED+RUNNING；**崩溃恢复**：上次进程死掉留下的 RUNNING/QUEUED 行在下次启动时置 FAILED（`"Task interrupted by system"`，桌面无 WorkManager 可接续），已完成的任务不被污染；`workId` 列在桌面当作自己队列的 job id 存（保留列以维持 schema 与 Android 库一致）；`getRunningTaskByType` 只找排队/运行中最新的一个（同毫秒建的两次任务无定义顺序，测试显式错开）；`deleteTask`/`deleteTasks` 级联删 item，`clearFinishedTasks` 只删终态、运行中的连 item 一起留 |
 
 ## 4. 阶段与门禁
 
@@ -91,7 +92,7 @@ Lyrico/
 | **P0** | 审计 + 本方案 | ✅ 本文 |
 | **P1** | ✅ 三个原生库编 Windows x64 DLL，改掉 `android`/`log` 链接与 GCC 专用旗标，写最小 JVM JNI 冒烟程序 | ✅ `System.load` 成功；7 种格式（FLAC/MP3/M4A/OGG/OPUS/APE/WAV）实测**读出并写回**标签、封面，含 CJK 路径；91 项检查 0 失败 |
 | **P2** | ✅ Gradle 骨架（去 AGP、JVM + CMP），Miuix desktop，`Main.kt` | ✅ Windows 上窗口弹出（`Lyrico 1.6.0 (d14b032)`，1166×773），Miuix 主题正常渲染；应用进程内 `taglib.dll` 实际加载成功（见 P2 复现命令） |
-| **P3** | 数据层：路径模型 / Room JVM / DataStore / 扫描 / 标签读写 | ✅ **已达成**：`LibraryScanIntegrationTest` 在真实目录上跑完「扫描 → 入库 → 列表出歌 → 改标签落盘并在库里同步」。剩余：`BatchTask`（依赖尚未迁入的 worker/批量任务子系统）与 `Playback`（Android `Intent`/`Toast`，桌面端「内置播放器 / 交由系统默认程序 / 用户自选外部播放器」是产品决策，留给 P4/P5） |
+| **P3** | 数据层：路径模型 / Room JVM / DataStore / 扫描 / 标签读写 | ✅ **已达成**：`LibraryScanIntegrationTest` 在真实目录上跑完「扫描 → 入库 → 列表出歌 → 改标签落盘并在库里同步」。仓储层已全部迁入 `src/main/kotlin`，**只剩 `PlaybackRepository`** —— 它不是技术缺口而是待用户裁决的产品决策（见第 5 节） |
 | **P4** | UI 层 + 三栏桌面布局 + 导航 + 文件对话框/右键菜单/拖放/快捷键 | 全流程鼠标可操作，覆盖主要页面 |
 | **P5** | 批量任务（进程内队列替代 WorkManager）、ReplayGain、导出、插件 quickjs 运行时、更新检查、5 语言资源迁移 | 每项功能端到端跑通 |
 | **P6** | jpackage 打包 MSI/portable、图标、文件关联、许可声明 | 干净 Windows 机器上安装后可用 |
@@ -103,6 +104,17 @@ Lyrico/
 - **A. 捆绑 ffmpeg**（sidecar `ffmpeg.exe` 经 stdin/stdout 管道喂 f32le，或 JavaCPP `ffmpeg-platform` 直接调 libav*）：覆盖全部格式（含 APE/AIFF/DSF/Opus），需要额外约 50–150 MB 二进制与 LGPL/GPL 许可声明；与现有 `ebur128` JNI 对接最直接。
 - **B. 自带解码源码**（dr_libs + stb_vorbis + libopus 等）：体积小、无外部许可包袱，但**覆盖不全**（APE/AAC/DSF 缺），需要为缺失格式降级。
 - **C. 解析声道响度仅走 TagLib 已读标签 + 跳过无解码格式**：最省事，但功能不对齐，与「全功能对齐」目标冲突。
+
+**「播放 / 用其它程序打开」在 Windows 上如何落地**（`PlaybackRepository`，P3 仓储层唯一未迁入者）：
+
+Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）、`openWithPackage()`（指定包名）、`openSystemChooser()`（`ACTION_CHOOSER`）、`openDefaultApp()`，失败时 `Toast` 提示，全部依赖 `Context`/`Uri` —— 桌面一个都没有。这不是技术缺口，而是产品定位问题，需要用户裁决：
+
+- **A. 只保留内置播放器**：删掉整个 `PlaybackRepository` 与「用其它程序打开」菜单项。最省事，但用户不能把歌丢给 foobar2000/Occulante 这类专用工具，「在文件夹中显示」也一并没了。
+- **B. 只走系统默认关联程序**（`java.awt.Desktop.getDesktop().open(File)`）：实现最小，行为对齐 Explorer 双击，但**不能指定程序**，且 AWT Desktop 在部分精简/无 shell 环境下会 `UnsupportedOperationException`（需回落）。
+- **C. 内置播放器 + 可配置外部播放器**（在设置里存一个 `exe` 路径，用 `ProcessBuilder(listOf(exe, path))` 启动；未配置时回落到 B）：功能对齐 Android 的「用其它程序打开」，能用 foobar2000；代价是要多一个设置项 + 一条进程启动的错误处理路径（路径失效、程序拒绝参数）。
+- **D. C + 仿 Android 的「选择器」**：额外枚举已安装程序（读 `HKEY_CLASSES_ROOT\Applications` / `Applications\*.exe\shell\open\command`）做成选择列表。功能最齐，但注册表枚举要处理 32/64 位视图与引号解析，投入产出比最低。
+
+我的建议：**P4 先用 C 的最小形态**（内置播放器 + 设置里一个可选的「外部播放器」路径，未配置时 `Desktop.open` 回落），D 留到有人真的需要时再做。另外 Android 的 `Toast` 提示在桌面换成右下角通知条（Miuix `Snackbar` 之类），属 UI 层事务，不阻塞这里。
 
 ## 6. 主要风险
 
@@ -122,7 +134,7 @@ Lyrico/
 - **P1 复现命令（Gradle 侧，真 Kotlin 绑定）**：`./gradlew :lyrico-audiotag:test`（13 项检查 0 失败，覆盖 7 种格式的标签/封面读写、CJK 路径端到端）。跑之前确保 `build/native/windows-x64/*.dll` 已由 `scripts/build-native.ps1` 产出。
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（现 **211 项 0 失败**：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + **自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（现 **234 项 0 失败**：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + **批量任务 23**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。
