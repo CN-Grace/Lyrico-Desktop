@@ -1,8 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.content.ClipData
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.graphics.Color
@@ -35,8 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,19 +40,45 @@ import androidx.compose.ui.unit.dp
 import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.action_copy_log
+import com.lonx.lyrico.resources.action_delete
+import com.lonx.lyrico.resources.action_export_logs
+import com.lonx.lyrico.resources.app_log_delete_message
+import com.lonx.lyrico.resources.app_log_delete_title
+import com.lonx.lyrico.resources.app_log_detail_title
+import com.lonx.lyrico.resources.app_log_empty
+import com.lonx.lyrico.resources.app_log_field_detail
+import com.lonx.lyrico.resources.app_log_field_level
+import com.lonx.lyrico.resources.app_log_field_message
+import com.lonx.lyrico.resources.app_log_field_related
+import com.lonx.lyrico.resources.app_log_field_tag
+import com.lonx.lyrico.resources.app_log_field_time
+import com.lonx.lyrico.resources.app_log_field_type
+import com.lonx.lyrico.resources.app_log_filter_all
+import com.lonx.lyrico.resources.app_log_filter_level
+import com.lonx.lyrico.resources.app_log_filter_type
+import com.lonx.lyrico.resources.app_log_title
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.log_retention_summary
+import com.lonx.lyrico.resources.log_retention_title
+import com.lonx.lyrico.resources.msg_copied_to_clipboard
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.model.log.LogRetentionOption
 import com.lonx.lyrico.data.model.entity.AppLogEntity
+import com.lonx.lyrico.platform.FileSavePicker
+import com.lonx.lyrico.platform.rememberFileSavePicker
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
+import com.lonx.lyrico.ui.navigation.Navigator
 import com.lonx.lyrico.viewmodel.AppLogEvent
 import com.lonx.lyrico.viewmodel.AppLogViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
+import java.awt.datatransfer.StringSelection
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -85,15 +107,21 @@ import java.util.Date
 import java.util.Locale
 
 
+// `ClipEntry` is marked @ExperimentalComposeUiApi in Compose Multiplatform; the marker is on the
+// class, so the opt-in has to cover the whole screen rather than the single call.
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-@Destination<RootGraph>(route = "app_logs")
 fun AppLogScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator,
+    // The OS save dialog is the one piece of this screen a test cannot drive, so it is injected; the
+    // export itself (which files, which ids, what the user sees) stays real code under test.
+    fileSavePicker: FileSavePicker? = null,
 ) {
     val viewModel: AppLogViewModel = koinViewModel()
+    val picker =
+        fileSavePicker ?: rememberFileSavePicker(title = stringResource(Res.string.action_export_logs))
     val logs by viewModel.logs.collectAsState()
     val clipboardManager = LocalClipboard.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -104,8 +132,7 @@ fun AppLogScreen(
     var showDetailSheet by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var pendingDeleteIds by remember { mutableStateOf<List<Long>>(emptyList()) }
-    var pendingExportIds by remember { mutableStateOf<List<Long>?>(null) }
-    val copiedMessage = stringResource(R.string.msg_copied_to_clipboard)
+    val copiedMessage = stringResource(Res.string.msg_copied_to_clipboard)
     val logRetentionOption by viewModel.logRetentionOption.collectAsState()
     val logRetentionItems = LogRetentionOption.entries.map { stringResource(it.labelRes) }
     val selectedLogRetentionIndex = LogRetentionOption.entries.indexOf(logRetentionOption).coerceAtLeast(0)
@@ -134,18 +161,13 @@ fun AppLogScreen(
         selectedLogIds = selectedLogIds.intersect(visibleIds)
     }
 
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("*/*")
-    ) { uri ->
-        uri?.let { viewModel.exportLogs(context, it, pendingExportIds) }
-        pendingExportIds = null
-    }
-
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is AppLogEvent.ShowMessage -> {
-                    event.message.asString(context)?.let { snackbarHostState.showSnackbar(it) }
+                    // `resolve()` (suspend), not `asString()` (composable): this runs inside a
+                    // LaunchedEffect coroutine, which has no composition to resolve resources from.
+                    event.message.resolve()?.let { snackbarHostState.showSnackbar(it) }
                 }
             }
         }
@@ -158,12 +180,12 @@ fun AppLogScreen(
                 SmallTopAppBar(
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
-                    title = stringResource(R.string.app_log_title),
+                    title = stringResource(Res.string.app_log_title),
                     navigationIcon = {
                         IconButton(onClick = { navigator.popBackStack() }) {
                             Icon(
                                 imageVector = MiuixIcons.Back,
-                                contentDescription = stringResource(R.string.action_back)
+                                contentDescription = stringResource(Res.string.action_back)
                             )
                         }
                     },
@@ -171,13 +193,21 @@ fun AppLogScreen(
                         IconButton(
                             enabled = filteredLogs.isNotEmpty(),
                             onClick = {
-                                pendingExportIds = filteredLogs.map { it.id }
-                                exportLauncher.launch("lyrico_log_${System.currentTimeMillis()}.log")
+                                scope.launch {
+                                    // Android kept the pending ids in a `var` because the SAF launcher
+                                    // returned asynchronously; here the coroutine waits for the dialog
+                                    // itself, so the ids stay local and there is no state to stale out.
+                                    val ids = filteredLogs.map { it.id }
+                                    val target = picker.pick(
+                                        "lyrico_log_${System.currentTimeMillis()}.log"
+                                    ) ?: return@launch
+                                    viewModel.exportLogs(target, ids)
+                                }
                             }
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Share,
-                                contentDescription = stringResource(R.string.action_export_logs)
+                                contentDescription = stringResource(Res.string.action_export_logs)
                             )
                         }
                         IconButton(
@@ -189,7 +219,7 @@ fun AppLogScreen(
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Delete,
-                                contentDescription = stringResource(R.string.action_delete),
+                                contentDescription = stringResource(Res.string.action_delete),
                                 tint = MiuixTheme.colorScheme.error
                             )
                         }
@@ -217,8 +247,8 @@ fun AppLogScreen(
             item("filters") {
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     WindowDropdownPreference(
-                        title = stringResource(R.string.app_log_filter_level),
-                        items = listOf(stringResource(R.string.app_log_filter_all)) + levelItems.map {
+                        title = stringResource(Res.string.app_log_filter_level),
+                        items = listOf(stringResource(Res.string.app_log_filter_all)) + levelItems.map {
                             stringResource(
                                 it
                             )
@@ -229,8 +259,8 @@ fun AppLogScreen(
                         }
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.app_log_filter_type),
-                        items = listOf(stringResource(R.string.app_log_filter_all)) + typeItems.map {
+                        title = stringResource(Res.string.app_log_filter_type),
+                        items = listOf(stringResource(Res.string.app_log_filter_all)) + typeItems.map {
                             stringResource(
                                 it
                             )
@@ -241,8 +271,8 @@ fun AppLogScreen(
                         }
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.log_retention_title),
-                        summary = stringResource(R.string.log_retention_summary),
+                        title = stringResource(Res.string.log_retention_title),
+                        summary = stringResource(Res.string.log_retention_summary),
                         items = logRetentionItems,
                         selectedIndex = selectedLogRetentionIndex,
                         onSelectedIndexChange = { index ->
@@ -255,7 +285,7 @@ fun AppLogScreen(
             if (filteredLogs.isEmpty()) {
                 item("empty") {
                     Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                        BasicComponent(title = stringResource(R.string.app_log_empty))
+                        BasicComponent(title = stringResource(Res.string.app_log_empty))
                     }
                 }
             } else {
@@ -282,8 +312,11 @@ fun AppLogScreen(
         },
         onCopy = { log ->
             scope.launch {
-                val clipData = ClipData.newPlainText("copy log", log.formatForCopy())
-                val clipEntry = ClipEntry(clipData)
+                // The multiplatform Clipboard API takes a platform-native entry; on desktop that is an
+                // AWT Transferable, which is also why `formatForCopy` returns the plain text. In a
+                // headless environment Compose resolves `LocalClipboard` to its no-op implementation,
+                // so this stays safe to call from a test.
+                val clipEntry = ClipEntry(StringSelection(log.formatForCopy()))
                 clipboardManager.setClipEntry(clipEntry)
                 snackbarHostState.showSnackbar(copiedMessage)
             }
@@ -293,24 +326,24 @@ fun AppLogScreen(
 
     WindowDialog(
         show = showDeleteConfirmDialog,
-        title = stringResource(R.string.app_log_delete_title),
+        title = stringResource(Res.string.app_log_delete_title),
         onDismissRequest = { showDeleteConfirmDialog = false }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = stringResource(R.string.app_log_delete_message, pendingDeleteIds.size),
+                text = stringResource(Res.string.app_log_delete_message, pendingDeleteIds.size),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = { showDeleteConfirmDialog = false },
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(20.dp))
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = {
                         viewModel.deleteLogs(pendingDeleteIds)
                         selectedLogIds = emptySet()
@@ -429,7 +462,7 @@ private fun AppLogDetailSheet(
     WindowBottomSheet(
         show = show,
         enableNestedScroll = false,
-        title = stringResource(R.string.app_log_detail_title),
+        title = stringResource(Res.string.app_log_detail_title),
         endAction = {
             log?.let {
                 IconButton(
@@ -439,7 +472,7 @@ private fun AppLogDetailSheet(
                 ) {
                     Icon(
                         imageVector = MiuixIcons.Copy,
-                        contentDescription = stringResource(R.string.action_copy_log)
+                        contentDescription = stringResource(Res.string.action_copy_log)
                     )
                 }
             }
@@ -456,24 +489,24 @@ private fun AppLogDetailSheet(
         ) {
             Column {
                 DetailRow(
-                    stringResource(R.string.app_log_field_time),
+                    stringResource(Res.string.app_log_field_time),
                     formatDateTime(log.createdAt)
                 )
                 DetailRow(
-                    stringResource(R.string.app_log_field_level),
+                    stringResource(Res.string.app_log_field_level),
                     stringResource(log.level.labelRes)
                 )
                 DetailRow(
-                    stringResource(R.string.app_log_field_type),
+                    stringResource(Res.string.app_log_field_type),
                     stringResource(log.type.labelRes)
                 )
-                DetailRow(stringResource(R.string.app_log_field_tag), log.tag)
+                DetailRow(stringResource(Res.string.app_log_field_tag), log.tag)
                 log.relatedId?.let {
-                    DetailRow(stringResource(R.string.app_log_field_related), it)
+                    DetailRow(stringResource(Res.string.app_log_field_related), it)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = stringResource(R.string.app_log_field_message),
+                    text = stringResource(Res.string.app_log_field_message),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontWeight = FontWeight.Bold
                 )
@@ -487,7 +520,7 @@ private fun AppLogDetailSheet(
                 log.detail?.takeIf { it.isNotBlank() }?.let { detail ->
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = stringResource(R.string.app_log_field_detail),
+                        text = stringResource(Res.string.app_log_field_detail),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         fontWeight = FontWeight.Bold
                     )

@@ -194,6 +194,77 @@ viewmodel 层只剩被 P5 叶子挡住的部分后，按 advisor 结论**转向 
 - **布局裁决（✅ 已定）**：nav rail vs 底栏改按**宽度**判定（`maxWidth >= 840.dp` 用左侧 rail，窄窗口回落底栏），替换 Android 的 `maxHeight < 520.dp`——那是「横屏手机」规则，在 1180×780 的桌面窗口上会选中底栏（等于手机上屏）。
 - **首个 screen**：`AppLogScreen`（前沿里**零阻塞**，且是完整功能页：日志列表/筛选/导出/保留策略），先做它可以把「Koin + 主题 + 真实数据库 + 文件保存对话框 + 剪贴板」这条链一次跑通；它需要的 `ScaffoldPadding`/`BarBlur` 已就位。随后是 `ArtistSplitSettingsScreen`（同样零阻塞）与曲库首页三栏（需先搬 `SongListViewModel`，`UpdateManager` 已就位）。
 
+### P4 的 UI 轨道（应用外壳 + 导航适配层 + 首个真页面，2026-10-09）
+
+上一批铺完地基后，这一批把「应用真正起来」的三件事接上：**入口外壳**（`Main.kt` 启动序列 + `LyricoDesktopApp`）、**导航适配层**（替代不可用的 Compose Destinations）、**首个真实业务页面**（`AppLogScreen`）。
+
+#### 1. 导航适配层（手写，替代 Compose Destinations）
+
+`ui/navigation/` 四个文件，只覆盖 26 个 screen 实际用到的 API 面：
+
+| 文件 | 内容 |
+| --- | --- |
+| `NavDirection.kt` | `interface NavDirection { val route: String }` + `interface Navigator { navigate/popBackStack/navigateUp }` |
+| `Navigator.kt` | `NavControllerNavigator`（`internal`）+ `@Composable rememberNavigator(controller)` |
+| `Destinations.kt` | 各路由的 `NavDirection` 实现（`AppLogsDestination.ROUTE = "app_logs"`）；`data object`（调用点写光名字）与 `class`（调用点写 `X()`）两种形态**按调用点原样保留**，这样 41 处 `navigator.navigate(XxxDestination(...))` 一行都不用改 |
+| `LyricoNavHost.kt` | `NavHost` + Android 原有的四段左右滑转场（`AnimatedContentTransitionScope<NavBackStackEntry>` API 桌面端逐字可用）。**临时起始路由是 `app_logs`**，曲库首页那批换成 `library_home` |
+
+底层是 `org.jetbrains.androidx.navigation:navigation-compose:2.9.2`（`desktopApiElements-published` 变体）。**没有自造回退栈**：`NavBackStackEntry` 本身就是 `ViewModelStoreOwner`，所以 `koinViewModel()` 每个路由各存一份实例、退栈即清理，与 Android 的语义一致——这条是 26 个 screen 的共同前提，`NavigatorTest` 用真 `NavHost` 把它钉死（见下）。
+
+**lifecycle 家族对齐**：同时声明 `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.9.6` 并**删掉 Google 的 `androidx.lifecycle:lifecycle-viewmodel-compose`**。理由不是偏好而是 classpath 事实：JetBrains 的 `-desktop` 构件是**薄层**（`lifecycle-runtime-compose-desktop:2.9.6` 声明依赖 `androidx.lifecycle:lifecycle-runtime-compose:2.9.4`），两套坐标属于同一家族、解析出同一个实现；若让 Google 的 2.11.0 与 Navigation Compose 的传递版本并存，就会出现同一批 `androidx.lifecycle` 包的两份实现，谁赢取决于 classpath 顺序。stock CMP 1.12 工程正是对齐到 JetBrains 家族。
+
+#### 2. 文件保存接缝（`platform/FileSavePicker.kt`）
+
+`fun interface FileSavePicker { suspend fun pick(defaultFileName: String): File? }` + `rememberFileSavePicker(title)` 的真实实现（AWT `FileDialog(null as Frame?, title, FileDialog.SAVE)`）。**真实实现就是 Windows 原生对话框，不是假货**；做成接缝的原因是它是整条导出链里唯一测试驱动不了的一环，而其余部分（选哪些 id、写到哪个文件、写什么字节、之后弹什么提示）全都要留在被测代码里。
+
+`AppLogScreen` 据此从 Android 的「SAF `launcher.launch()` + `pendingExportIds` 暂存」改成「`scope.launch { picker.pick(...); viewModel.exportLogs(target, ids) }`」——**`pendingExportIds` 这个可变状态被删掉**：Android 需要它是因为 SAF 回调是异步的，桌面端协程自己 await 选文件，id 留在局部变量里就不可能过期。
+
+#### 3. `AppLogScreen` 的桌面化改动（逐条）
+
+`@Destination` / `DestinationsNavigator` → `Navigator`；`koinViewModel` 换包（调用形状不变）；SAF 保存 → 上面的接缝；剪贴板 → `LocalClipboard.setClipEntry(ClipEntry(StringSelection(...)))`（`ClipEntry` 类整体带 `@ExperimentalComposeUiApi`，opt-in 要加在**函数**上而不是单个调用点上）；`event.message.resolve()`（挂起）替代 `asString(context)`，放在 `LaunchedEffect` 里；`BuildConfig` → `BuildInfo`。保真处：私有的 `Set<Long>.toggle(id)` 在 Android 端就是死代码，照原样留着。
+
+#### 4. 测试两层（共 7 项新增）
+
+`NavigatorTest`（2 项）用**真 `NavHost`** 而不是 `LyricoNavHost`，因为一条测试不该因为「某个 screen 恰好还没搬」而红：
+
+- `navigate` 入栈、`popBackStack` 逐层退栈、`navigateUp` 后退（有转场动画，所以断言写「目标页存在」而不是「旧页不存在」）；
+- **起始路由上 `popBackStack()` 返回 `false` 且不抛异常**——`LibraryHomeScreen` 正是读这个 `false` 决定「再返回就是退出应用」；
+- **每个 back stack entry 各有一份 viewmodel**：首访 1 个、入栈新路由 2 个、同路由再入栈 3 个、连退两层后**下面那层的实例没被重建**（仍渲染 `a-serial-0`）、再入栈又是新实例（4 个），并且所有实例的序号互不相同。这组断言如果换成「拿同一个单例」，26 个 screen 会在访问之间互相串状态。
+
+`AppLogScreenTest`（5 项）用**真 Koin + 真 Room（磁盘上的库）+ 真资源**：
+
+- **走 `LyricoNavHost()` 渲一帧**：真路由 + 真 viewmodel + Room 流式出来的行——这一项证明的是「Koin → NavHost → screen → viewmodel → 数据库」整条桌面启动链，而不是单个 composable 能画出来。
+- 导出：注入的 picker 记录建议文件名并返回一个真文件，断言**文件真被写出来**且内容含那一行与诊断头（应用名/版本）；
+- 取消保存：picker 返回 `null`，断言**没有留下任何文件**、列表里的行仍在；
+- 删除：点删除图标 → 等 Miuix 确认窗出现 → 点确认 → 断言行不但从列表消失、**也从数据库里没了**（前半句只能证明「列表过滤掉了」，两句一起才说明删除真的落库）；
+- 返回：断言调了一次 `popBackStack`。
+
+两条 API 形状坑（都是编译/运行期直接报错，值得记下）：`runComposeUiTest`（v2）的 `waitUntil` 签名是 `(conditionDescription: String?, timeoutMillis: Long, condition)`——把超时写成第一个参数会得到 `actual type is 'Int', but 'String?' was expected`；`AppLogRepository.getLatest()` 是**挂起返回 `List`**，不是 `Flow`。第三条是竞态教训：`navigate()` 之后立刻读「新建了几个 viewmodel」会读到旧值（新 entry 在下一帧才 compose），断言必须**先等目标页的语义节点出现**再计数——第一版就是这么红的。
+
+#### 5. 真实窗口取证（两张截图 + 可机读分析）
+
+`./gradlew :lyrico-app:run` 真跑，`scripts/capture-window.ps1 -TitleLike "Lyrico 1.6"` 抓窗口自身矩形：
+
+| 取证 | 文件 |
+| --- | --- |
+| 空状态 | `docs/port-evidence/p4-applog-empty.png`（+ `.analysis.txt`） |
+| 库里真有行时的列表 | `docs/port-evidence/p4-applog-rows.png`（+ `.analysis.txt`） |
+
+肉眼之外的客观校验交给新脚本 `scripts/analyze-window-capture.py`（`--compare` 可两图对照）：像素色数、最多色占比（**一整块单色 = 截到了「首帧还没画」的窗口**）、文字暗像素数、主题主色/暖色像素数，以及 96×28 的 ASCII 密度图。实测两图都是 1166×773、最多色占比 0.65/0.79（不是空板），文字像素 6420 → **13106**、主色蓝 160 → **2110**、暖色 329 → **1269**（等级 chip 的琥珀/红），两态差异 **13618 px（窗口的 1.51%）**——即「同一个窗口在库里有行/没行时画出的东西确实不同」，而不是同一张空图。
+
+**这一批踩到的取证坑**：截图必须等**首帧画完**。第一次抓图时窗口的 HWND 已经存在（`IsWindowVisible` 为真、矩形正确）但还没绘制，`CopyFromScreen` 于是把窗口后面那个终端的内容拍了进来（大片墨绿色），标题却完全匹配。现在 `-SettleMs` 用 5000–6000 ms，且分析脚本会明确判 `SUSPECT`（最多色占比 > 0.9 或文字像素 < 200）。另一条仍有效的经验：`-TitleLike` 别写宽——终端窗口标题里也含 `Lyrico-Desktop`。
+
+关于「鼠标可操作」的**如实边界**：截图证明的是「窗口画出了数据库里的真实行」（颜色/文字像素随库内容变化），点击行为（导出、删除确认、返回）由无头测试派发**真实 Compose 指针事件**证明；两者合起来覆盖了 P4 门禁，但我没有做「脚本模拟点击真实窗口并回读界面」这一步。
+
+#### 6. 本批结果
+
+- 全量 **427 项 0 失败 0 跳过（44 个测试类）**（上一批 423/43）；新增 7 项（`NavigatorTest` 2 / `AppLogScreenTest` 5）。
+- `lyrico-app/.gitignore` 增 `/data/`：开发运行会把便携数据目录解析到工程目录（`AppDirectories.defaultInstallDir()` 用 `user.dir`），它是运行产物、不进仓库。
+- 前沿重测：`python scripts/port-frontier.py` → java 树 **194 个文件 / 0 陈旧副本 / 77 可搬 / 117 被挡**。
+- 复现命令：`./gradlew :lyrico-app:test --rerun-tasks`；单类 `./gradlew :lyrico-app:test --tests "com.lonx.lyrico.screens.AppLogScreenTest"`；窗口 `./gradlew :lyrico-app:run` + `scripts/capture-window.ps1 -SettleMs 6000` + `python scripts/analyze-window-capture.py <png> --write`。
+
+下一批（曲库首页 wave）：`useNavigationRail` 由 `maxHeight < 520.dp` 改为 `maxWidth >= 840.dp`，起始路由换成 `library_home`，并补上 `LibraryHomeDestination` 与 `SongListViewModel` 一侧的页面依赖。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
@@ -244,8 +315,8 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 
 1. ~~**Room KMP 在纯 `kotlin("jvm")` 模块下的 KSP 配置**~~ ✅ 已解决：`ksp(libs.androidx.room.compiler)` + 官方 `androidx.room` Gradle 插件 + `room { schemaDirectory(...) }`，`kotlin("jvm")` 模块下工作正常（11 实体/7 DAO 全部生成）。另注：`kotlinx.serialization` 的 `@Serializable` 还需要 `alias(libs.plugins.kotlin.serialization)`（只有运行库依赖不够，报错是 `Unresolved reference 'serializer'`）。
 2. ~~**原生库 CMake 适配**~~ ✅ 已解决：TagLib 3.x 在 CMake 4.4.2 下可配置；`-flto`/`--pack-dyn-relocs`/`android`+`log` 链接已替换；ebur128 缺 `<sys/queue.h>`（自带 `compat/sys/queue.h`）与 `M_PI`（加 `_USE_MATH_DEFINES`）两处已补。复用 `/MT` 静态 CRT，DLL 无第三方运行时依赖。
-3. ~~**compose-destinations 的 KSP 代码生成**是否支持 CMP Desktop~~ ✅ **已查清（2026-10-09）：不支持，走手写导航适配层**。证据不是印象，而是发布物的 Gradle module metadata：`io.github.raamcosta.compose-destinations:core:2.3.0` 的 `core-2.3.0.pom` 是 `<packaging>aar</packaging>`，`core-2.3.0.module` 只有 `releaseVariantReleaseApiPublication` / `Runtime` / `Source` / `JavaDoc` 四个变体（`org.jetbrains.kotlin.platform.type` 为空），依赖 `androidx.navigation:navigation-compose:2.9.5`；同版本号的 `core-jvm` / `core-desktop` / `core-android` 三个坐标全部 HTTP 404（该 group 只发 Android）。AAR 在纯 JVM 模块下无法参与编译，KSP 就算生成代码也没有可用运行库，所以**这条路是死的**。
-   替代方案的证据同样是 metadata：`org.jetbrains.androidx.navigation:navigation-compose:2.9.2` 的 `desktopApiElements-published` 变体 `platform = jvm`（另有 js/native 变体），即 **Navigation Compose 本身在桌面端可用**。配合上面的薄适配层即可，不需要自己实现回退栈与 ViewModelStore。Android 侧 `LyricoApp.kt` 的 `DestinationsNavHost` + 自定义左右滑转场在桌面端改为 `NavHost` + `slideInHorizontally/slideOutHorizontally`（转场函数本身是 CMP 公共 API，可逐字保留）。
+3. ~~**compose-destinations 的 KSP 代码生成**是否支持 CMP Desktop~~ ✅ **已查清（2026-10-09）：不支持，走手写导航适配层**，且适配层已落地（见 §4「应用外壳 + 导航适配层」）。证据不是印象，而是发布物的 Gradle module metadata：`io.github.raamcosta.compose-destinations:core:2.3.0` 的 `core-2.3.0.pom` 是 `<packaging>aar</packaging>`，`core-2.3.0.module` 只有 `releaseVariantReleaseApiPublication` / `Runtime` / `Source` / `JavaDoc` 四个变体（`org.jetbrains.kotlin.platform.type` 为空），依赖 `androidx.navigation:navigation-compose:2.9.5`；同版本号的 `core-jvm` / `core-desktop` / `core-android` 三个坐标全部 HTTP 404（该 group 只发 Android）。AAR 在纯 JVM 模块下无法参与编译，KSP 就算生成代码也没有可用运行库，所以**这条路是死的**。
+   替代方案的证据同样是 metadata：`org.jetbrains.androidx.navigation:navigation-compose:2.9.2` 的 `desktopApiElements-published` 变体 `platform = jvm`（另有 js/native 变体），即 **Navigation Compose 本身在桌面端可用**。配合上面的薄适配层即可，不需要自己实现回退栈与 ViewModelStore。Android 侧 `LyricoApp.kt` 的 `DestinationsNavHost` + 自定义左右滑转场在桌面端改为 `NavHost` + `slideInHorizontally/slideOutHorizontally`（转场函数本身是 CMP 公共 API，逐字保留）。**已落地验证**：`ui/navigation/{NavDirection,Navigator,Destinations,LyricoNavHost}.kt`，`NavigatorTest` 用真 `NavHost` 钉住「`popBackStack()` 在起始路由返回 `false`」与「每个 back stack entry 各有一份 `koinViewModel()` 实例、退栈后重建」——后者正是当初选 Navigation Compose 而不是自造 `when (current)` 宿主的原因，也是 26 个 screen 的共同前提。
 4. **Miuix desktop 与 Android 版的行为差异**（`BackHandler`、`TopAppBar`、滚动条、窗口拖拽区）——逐屏过。
 5. **`androidx.lifecycle.ViewModel` 30 处在桌面端的生命周期**——✅ **已验证**：Koin 的 `viewModel { }` 在桌面可用（`org.koin.core.module.dsl.viewModel` + `koin-compose-viewmodel`），`DesktopAppModuleTest` 真启动 Koin 并解析 7 个 viewmodel 实例。以下为当初的排查留档（`lifecycle` 一处）**部分已证伪**：`lifecycle-viewmodel-compose` 在多平台构件里存在 `-desktop` 变体，显式声明 `implementation(libs.androidx.lifecycle.viewmodel.compose)` 后 `ViewModel`/`viewModelScope` 在 `kotlin("jvm")` 模块编译并运行正常（它原本只在运行期 classpath 上，所以看起来像「桌面没有 ViewModel」）。剩下未验证的是 Koin 的 `viewModel {}` 注入（`di/AppModule.kt` 要被搬过来才会遇到）。
 6. **非 ASCII 工程路径 + Gradle 参数文件编码**（已踩中并修复，勿回退）：工程位于 `H:\VibeCoding\03-应用\Lyrico-Desktop`。Gradle 用**守护进程默认字符集**（`ArgWriter` → `new PrintWriter(File)`）把 worker JVM 的 classpath 写进临时 `@argfile`，而 `java.exe` 用 **Windows ANSI 代码页（936/GBK）** 解析该文件；`gradle.properties` 里原本的 `-Dfile.encoding=UTF-8` 会把含中文的工程路径写成乱码 → worker 报 `ClassNotFoundException`（每个测试类都找不到，甚至 `GradleWorkerMain`）。修复：`org.gradle.jvmargs` 用 `-Dfile.encoding=GBK`（= 本机 ANSI 代码页）。**换机器时该值必须等于该机 ANSI 代码页**；`run`/`JavaExec` 任务同样走这条路径，所以 P2 之后不要再改回 UTF-8。
@@ -259,7 +330,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P1 复现命令（Gradle 侧，真 Kotlin 绑定）**：`./gradlew :lyrico-audiotag:test`（13 项检查 0 失败，覆盖 7 种格式的标签/封面读写、CJK 路径端到端）。跑之前确保 `build/native/windows-x64/*.dll` 已由 `scripts/build-native.ps1` 产出。
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项、浏览/搜索 viewmodel 40 项、剩余 viewmodel 47 项与 UI 地基 20 项后，全量现为 **423 项 0 失败 0 跳过、43 个测试类**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项、浏览/搜索 viewmodel 40 项、剩余 viewmodel 47 项、UI 地基 20 项与 UI 轨道 7 项后，全量现为 **427 项 0 失败 0 跳过、44 个测试类**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。

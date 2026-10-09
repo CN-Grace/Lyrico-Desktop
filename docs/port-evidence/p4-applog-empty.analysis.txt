@@ -1,0 +1,36 @@
+file: docs\port-evidence\p4-applog-empty.png
+size: 1166x773
+distinct_colours: 1083  most_common_share: 0.650  text_pixels: 6420
+accent_blue_pixels: 160  accent_warm_pixels: 329
+top_colours: (247, 247, 247)=586034, (255, 255, 255)=306150, (0, 0, 0)=1217, (38, 47, 42)=458
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                          ++....                                      +. .. +
+  # ++                                        .#++++#.                                     ++ .. +
+  #                                                                                              +
+  # ++#+                                                                                         +
+  #                                                                                              +
+  # .+#+                                                                                         +
+  #                                                                                              +
+  # +#++###+#.                                                                                   +
+  # ...++...++ .                                                                                 +
+  #                                                                                              +
+  # ##+##+                                                                                       +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

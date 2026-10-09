@@ -147,12 +147,15 @@ dependencies {
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.kotlinx.serialization.json)
 
-    // ViewModels on desktop: this is the multiplatform lifecycle, which publishes a JVM variant
-    // (resolves to androidx.lifecycle:lifecycle-viewmodel-compose-desktop). It was already on the
-    // runtime classpath transitively via Compose, but a transitive dependency is not a compile
-    // classpath one — `androidx.lifecycle.ViewModel`/`viewModelScope` failed to resolve until this
+    // ViewModels on desktop. `androidx.lifecycle` needs to be a *compile* dependency: a
+    // transitive dependency is not a compile classpath one — `androidx.lifecycle.ViewModel`/`viewModelScope` failed to resolve until this
     // was declared, which is exactly the kind of thing that looks like "desktop has no ViewModel".
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // The artifact is the JetBrains multiplatform publishing of the same `androidx.lifecycle`
+    // classes, at the version Navigation Compose (desktop) itself resolves. Declaring Google's
+    // androidx.lifecycle:lifecycle-viewmodel-compose here instead would be a *second* implementation
+    // of the same packages on the classpath (Google's 2.11.0 publishes a -desktop variant too), and
+    // then the winner is decided by classpath order.
+    implementation(libs.jetbrains.lifecycle.viewmodel.compose)
 
     // The Android build got OkHttp from the app's DI graph; the tag layer needs it for
     // `PictureSource.UrlSource`, and the plugin-search runtime will reuse the same client.
@@ -164,6 +167,13 @@ dependencies {
     implementation(libs.koin.core)
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
+
+    // Navigation. The Android app used Compose Destinations (a KSP code generator) on top of
+    // androidx.navigation; Compose Destinations publishes no jvm variant, so the port keeps the
+    // Android-era navigation *library* (Navigation Compose, here in JetBrains' multiplatform build,
+    // which does publish a desktop variant) and replaces only the generated layer with the typed
+    // adapter in ui/navigation/ (see PLAN section 6 risk 3 for the resolution evidence).
+    implementation(libs.navigation.compose)
 
     // Chinese text handling: song sort keys are derived from pinyin, and the conversion modes
     // (simplified <-> traditional) run through OpenCC both when scanning and when encoding lyrics.

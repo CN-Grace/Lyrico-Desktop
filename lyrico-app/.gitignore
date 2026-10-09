@@ -1,2 +1,6 @@
 /build
 /release/
+# Portable data folder the app creates next to its working directory. A development run
+# (`gradlew :lyrico-app:run`) resolves it to the project folder (see AppDirectories), so it must
+# never be committed.
+/data/
