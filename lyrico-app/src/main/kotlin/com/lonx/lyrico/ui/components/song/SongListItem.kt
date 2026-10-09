@@ -1,7 +1,5 @@
 package com.lonx.lyrico.ui.components.song
 
-import android.annotation.SuppressLint
-import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -38,9 +36,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -50,9 +47,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.ic_album_24dp
+import com.lonx.lyrico.resources.search_field_preview
+import com.lonx.lyrico.resources.unknown_artist
 import com.lonx.lyrico.data.model.entity.SongEntity
-import com.lonx.lyrico.data.model.entity.getUri
 import com.lonx.lyrico.ui.components.CoverRequest
 import com.lonx.lyrico.ui.components.rememberTintedPainter
 import com.lonx.lyrico.ui.theme.LyricoColors
@@ -60,7 +59,14 @@ import kotlin.math.abs
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@SuppressLint("DefaultLocale")
+/**
+ * One song row in the library list.
+ *
+ * Ported from Android with the two `LocalView.performHapticFeedback` calls removed: desktop Compose has
+ * no `LocalView` and no vibration motor, so a long press or a completed swipe simply has no feedback to
+ * give. Everything else -- the swipe-to-extend-selection offsets, the selection background, the cover
+ * request -- is unchanged.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongListItem(
@@ -79,7 +85,6 @@ fun SongListItem(
     onToggleSelection: (() -> Unit)? = null,
     onSwipeSelection: (() -> Unit)? = null,
 ) {
-    val view = LocalView.current
     val density = LocalDensity.current
     val swipeThresholdPx = with(density) { 56.dp.toPx() }
     val maxSwipeOffsetPx = swipeThresholdPx * 1.35f
@@ -183,7 +188,6 @@ fun SongListItem(
                             },
                             onDragEnd = {
                                 if (abs(totalDragX) >= swipeThresholdPx) {
-                                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                                     onSwipeSelection()
                                 }
                                 totalDragX = 0f
@@ -213,7 +217,6 @@ fun SongListItem(
                     null
                 } else {
                     {
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         onToggleSelection?.invoke()
                     }
                 }
@@ -251,16 +254,16 @@ fun SongListItem(
                         .background(LyricoColors.coverPlaceholder)
                 ) {
                     AsyncImage(
-                        model = CoverRequest(song.getUri, song.fileLastModified),
+                        model = CoverRequest(song.uri, song.fileLastModified),
                         contentDescription = song.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                         placeholder = rememberTintedPainter(
-                            painter = painterResource(R.drawable.ic_album_24dp),
+                            painter = painterResource(Res.drawable.ic_album_24dp),
                             tint = LyricoColors.coverPlaceholderIcon
                         ),
                         error = rememberTintedPainter(
-                            painter = painterResource(R.drawable.ic_album_24dp),
+                            painter = painterResource(Res.drawable.ic_album_24dp),
                             tint = LyricoColors.coverPlaceholderIcon
                         )
                     )
@@ -305,7 +308,7 @@ fun SongListItem(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = song.artist.takeIf { !it.isNullOrBlank() }
-                                ?: stringResource(R.string.unknown_artist),
+                                ?: stringResource(Res.string.unknown_artist),
                             color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             fontSize = 13.sp,
                             maxLines = 1,
@@ -330,7 +333,7 @@ fun SongListItem(
                         Text(
                             text = highlightedLyricPreview(
                                 text = previewLabel
-                                    ?.let { stringResource(R.string.search_field_preview, it, preview) }
+                                    ?.let { stringResource(Res.string.search_field_preview, it, preview) }
                                     ?: preview,
                                 query = previewMatchQuery.orEmpty(),
                                 highlightColor = MiuixTheme.colorScheme.primary

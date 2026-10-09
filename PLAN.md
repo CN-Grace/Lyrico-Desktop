@@ -303,6 +303,54 @@ Coil **3.6.2** 是 multiplatform 的（`coil-compose-jvm` 真实存在），所�
 
 `CoverImage` 目前还没有调用点（`SongListItem` 还没搬），这是刻意的：先让依赖可编译、可验证，再动列表项。下一批把 `SongListViewModel` / `SongSelectionViewModel` / `SongListItem` / `SongsPage` 接上。
 
+### P4 的 UI 轨道（歌曲列表项与列表状态，2026-10-09）
+
+封面链路之后，这个文件闭包里第二块能独立验证的是**歌曲列表本身**：一行 `SongListItem` 加驱动它的 `SongListViewModel`。页面外壳（`SongsPage` 的顶栏、选择模式、底部导航）留到下一批，所以**这批不出窗口截图**：没有页面就没有可截的界面，而「无头渲染 + 真库状态」正好覆盖了这批真正写的代码。
+
+#### 1. 搬了什么（`git mv` + 小改）
+
+| 文件 | 桌面化改动 |
+| --- | --- |
+| `ui/components/song/SongListItem.kt` | 去掉 `@SuppressLint("DefaultLocale")`（Android lint 注解在桌面不存在）与两处 `LocalView.performHapticFeedback`（桌面 Compose 没有 `LocalView`，也没有振动马达）；`R.drawable.ic_album_24dp` → `Res.drawable.ic_album_24dp`；`song.getUri` → `song.uri`；`painterResource` 换成 `org.jetbrains.compose.resources` 的那个 |
+| `ui/components/song/{SongListSectionHeader,SongListEmptyState,SongListItemActions}.kt`、`ui/components/song/LibraryScanProgressText.kt`、`ui/components/library/LibraryEmptyState.kt` | 只有文案资源的系统性转换（`@StringRes Int` → `StringResource` + `stringResource` 导入，`scripts/migrate-strings-res.py`），共 9 个文案 |
+| `ui/components/Painters.kt`（新） | `rememberTintedPainter`/`TintedPainter`/`RoundedRectanglePainter` 从 Android 的 `PainterUtils.kt` 里分出来。**故意不叫 `PainterUtils.kt`**：同名文件会同时存在于两棵树，正是 `port-frontier.py` 报「陈旧副本」的形状；Android 专有的 `getBitmap`/`saveBitmap`/`getSystemWallpaperColor` 留在 java 树 |
+| `viewmodel/SongListViewModel.kt` | `SongInfo` 去掉 `Parcelable`/`@Parcelize`（它从不是导航参数 —— 26 个目的地的参数全是 `String`/`String?`/`Long`，`SongInfo` 只由 `EditMetadataViewModel` 建出来放在 UI 状态里）；`android.util.Log` → `PlatformLog`；`addSafFolderAndRefresh(path, treeUri)` → `addFolderAndRefresh(path)` |
+| `composeResources/drawable/ic_album_24dp.svg`、`ic_arrow_up_24dp.svg`（新） | Android 的 `<vector>` XML 在桌面 `painterResource` 下**根本不解码**（CMP 只认光栅与 SVG）。新脚本 `scripts/migrate-vector-drawables.py` 把 `viewportWidth/Height` → `viewBox`、`pathData` 逐字搬、`#AARRGGBB` → `#RRGGBB` + 对应 `*-opacity`、`evenOdd` → `fill-rule`，遇到 transform/渐变/颜色引用直接拒绝而不是猜。只转这批用得到的两个，剩下 4 个（星标/关闭/信息）留给用到它们的批次 |
+
+`addFolderAndRefresh` 是这批唯一的行为变更点：Android 必须把 SAF 授权（`treeUri`）持久化在文件夹行旁边，桌面路径按名字就能读，所以文件夹表的 `treeUri` 留 null，picker 只交一个目录。
+
+#### 2. 取证（11 项：无头渲染 5 + 状态层 6；全量 48 类 445 项全绿）
+
+`SongListItemTest`（5 项，无头 `runComposeUiTest`）：
+
+1. 一行里同时出现标题、艺术家、`· 专辑`、`MP3` 徽标、`3:30` 时长与 `320kbps` 码率。时长断言取代了被删掉的 `@SuppressLint("DefaultLocale")`：那句注解的意思是「某些区域设置会格式化出非 ASCII 数字」，删注解等于做了一处行为声明，而这个断言才是那处声明。
+2. 封面槽确实按这首歌发起请求（`AsyncImage` 的 contentDescription 是标题）—— 这条防的是「整库封面静默消失」。
+3. **转换出来的 SVG 占位图标真的解码**：断言 `painterResource(Res.drawable.ic_album_24dp).intrinsicSize == Size(24f, 24f)`。`painterResource` 不抛异常**不等于**图真的画出来了（空 painter 也有类型），尺寸才是「SVG 解码器跑过」的证据。
+4. 没有艺术家时回落到「未知艺术家」文案（文案本身在组合里读出来，避免区域设置相关的断言）。
+5. 点击打开歌曲、长按**只**进入选择模式（长按不再顺手把歌打开）。
+
+`SongListViewModelTest`（6 项）跑真 Room + 真 DataStore + 真 FTS 索引：
+
+1. 排序跟着持久化的设置走：先断言标题升序，`onSortChange(DESC)` 后**行真的换序**，同时 `settings.sortInfo` 已落盘。排序键用真 `SortKeyUpdater` 算 —— 直接插入的行都是默认 `"#"`，那样断言会因为错误的原因通过。
+2. `hasFolders` 是数据库观察而不是构造期快照：空库为 false，插入一个文件夹后翻 true。
+3. 手动刷新把请求交给扫描器。
+4. 加文件夹只交路径（`addedPaths == listOf(...)`）：这是 SAF 接线真的没了的唯一证据。
+5. 更新检查按设置开关：先量一次「开着」时的延迟，再关掉设置调一次，等 20 倍延迟 + 500ms 断言**没**发请求 —— 先测开着的一侧，是为了让「关着」的断言不是单纯睡一觉。
+6. `clearSearch()` 复位关键字类型并保持列表仍是整个库。
+
+**未覆盖并写明**：`SongListViewModel` 的 `searchQuery`/`searchType`/`isSearching` 在 Android 上也是**没有写入方**的 —— `SongsPage` 只调 `clearSearch()`，搜索入口是跳转到 `LocalSearchScreen`，查询归它自己的 viewmodel。`clearSearch` 断言了，但「搜索行为正确」这种话不能写：没有任何调用点能走到那条分支。
+
+#### 3. 两个连带修复（都是既有测试/工具暴露出来的）
+
+- **`SingletonImageLoader` 是进程级的，且第一次 `get` 之后 `setSafe` 会被忽略**。`SongListItemTest` 一渲染 `AsyncImage` 就把单例初始化掉了（测试类顺序不由我们选），于是 C1 那条「装出来的单例 loader 能解出封面」开始红。修法是在它前面补一次 `SingletonImageLoader.reset()`：这条测试要验的是**应用装的那套接线**，不是在跟谁比谁先初始化。
+- **`scripts/capture-window.ps1` 现在会拒绝保存错误的像素**。截图走 `CopyFromScreen`，也就是「屏幕上有什么抓什么」；本轮窗口是**最小化**的（从游离 shell 启动 + 无人值守桌面），第一次抓到的是一张 1.34 MB 的终端画面，而分析器仍给了 OK —— 因为颜色分布看不出「这不是 Lyrico」。脚本现在先 `SW_MINIMIZE`+`SW_RESTORE`+`SW_SHOWNORMAL` 重试 5 次，再用 `GetForegroundWindow() == hwnd` 校验前台，校验不过直接报错不落盘（这一轮就是它挡下来的）。**代价如实记录**：这条改动只在「窗口不肯到前台」的环境里被执行过，有人值守的桌面上没重跑过；它的失败模式是「明明能截却报错」，不是「悄悄存错图」。
+
+#### 4. 前沿
+
+`python scripts/port-frontier.py` → java 树 **180 个文件 / 0 陈旧副本 / 73 可搬 / 107 被挡**（上一批 194 / 0 / 77 / 117）。
+
+下一批（C2b + C3）：选择模式与操作面板（`SongSelectionViewModel` + `SongSelectionSupport.kt`，442 行 Android `Context`/`Intent`/SAF）、`SongSelectionTopAppBar`、`AlphaBetSideBar`，然后是曲库首页外壳（`useNavigationRail` → `maxWidth >= 840.dp`、起始路由 → `library_home`、`SongsPage` 本体）。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
@@ -368,7 +416,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P1 复现命令（Gradle 侧，真 Kotlin 绑定）**：`./gradlew :lyrico-audiotag:test`（13 项检查 0 失败，覆盖 7 种格式的标签/封面读写、CJK 路径端到端）。跑之前确保 `build/native/windows-x64/*.dll` 已由 `scripts/build-native.ps1` 产出。
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项、浏览/搜索 viewmodel 40 项、剩余 viewmodel 47 项、UI 地基 20 项与 UI 轨道 14 项后，全量现为 **434 项 0 失败 0 跳过、46 个测试类**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项、浏览/搜索 viewmodel 40 项、剩余 viewmodel 47 项、UI 地基 20 项、UI 轨道 25 项（封面 7 + 歌曲列表 11 + 壳 7）后，全量现为 **445 项 0 失败 0 跳过、48 个测试类**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。

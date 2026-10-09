@@ -2,6 +2,7 @@ package com.lonx.lyrico.utils.coil
 
 import coil3.ImageLoader
 import coil3.PlatformContext
+import coil3.SingletonImageLoader
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -129,9 +130,14 @@ class CoverPipelineTest {
     fun `the installed singleton loader decodes an embedded cover`() = runBlocking<Unit> {
         val song = copyFixture("silence-44-s.flac")
         writeCover(song, width = 37, height = 23)
+        // `SingletonImageLoader` is process-global and a `setSafe` install is ignored once anything has
+        // resolved the singleton -- and `SongListItemTest` renders an `AsyncImage`, which does exactly
+        // that (test-class order is not ours to choose). Clearing it first makes this the loader under
+        // test rather than whichever one happened to initialise first.
+        SingletonImageLoader.reset()
         installImageLoader(cacheDir())
 
-        val result = coil3.SingletonImageLoader.get(PlatformContext.INSTANCE).execute(request(song))
+        val result = SingletonImageLoader.get(PlatformContext.INSTANCE).execute(request(song))
 
         assertIs<SuccessResult>(result, "the app's own image loader wiring failed: $result")
     }

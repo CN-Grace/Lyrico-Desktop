@@ -38,8 +38,10 @@ public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hWnd, System.Text.StringBuilder text, int count);
 [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowTextLengthW(IntPtr hWnd);
 [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+[DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
 [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmdShow);
 [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attr, out RECT rect, int size);
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
@@ -77,9 +79,40 @@ if (-not $window) {
 }
 
 Write-Host "Found window: '$($window.Title)' (hwnd=$($window.Handle))"
-[void][LyricoWin32.Native]::ShowWindow($window.Handle, 9)   # SW_RESTORE
-[void][LyricoWin32.Native]::SetForegroundWindow($window.Handle)
+
+# A capture is taken with CopyFromScreen, i.e. from *whatever is in front*. If the window is minimized
+# (which happens when the app was launched from a detached shell) or simply behind another window, the
+# file we would save is a screenshot of the wrong thing, and nothing in the pixels says so. So: restore
+# it, take the foreground, and verify that we did before capturing anything.
+function Restore-AndFocus {
+    param([IntPtr]$Handle)
+    if ([LyricoWin32.Native]::IsIconic($Handle)) {
+        [void][LyricoWin32.Native]::ShowWindow($Handle, 6)   # SW_MINIMIZE
+        Start-Sleep -Milliseconds 150
+        [void][LyricoWin32.Native]::ShowWindow($Handle, 9)   # SW_RESTORE
+        Start-Sleep -Milliseconds 150
+    }
+    [void][LyricoWin32.Native]::ShowWindow($Handle, 1)       # SW_SHOWNORMAL
+    [void][LyricoWin32.Native]::SetForegroundWindow($Handle)
+    Start-Sleep -Milliseconds 300
+    return -not [LyricoWin32.Native]::IsIconic($Handle) -and
+        ([LyricoWin32.Native]::GetForegroundWindow() -eq $Handle)
+}
+
+$focused = $false
+for ($attempt = 1; $attempt -le 5 -and -not $focused; $attempt++) {
+    $focused = Restore-AndFocus -Handle $window.Handle
+}
+if (-not $focused) {
+    Write-Error "Window $($window.Handle) would not come to the foreground; a capture now would save whatever is in front instead. Click the window and retry."
+}
 Start-Sleep -Milliseconds $SettleMs
+
+# Settling can take long enough for something else to steal the foreground; capturing then would again
+# save the wrong pixels, so re-check right before the copy.
+if ([LyricoWin32.Native]::GetForegroundWindow() -ne $window.Handle) {
+    Write-Error "Another window took the foreground during the settle wait; the capture would show that window instead of Lyrico."
+}
 
 # Prefer the DWM extended frame bounds (excludes the invisible resize border), fall back to GetWindowRect.
 $rect = New-Object LyricoWin32.Native+RECT

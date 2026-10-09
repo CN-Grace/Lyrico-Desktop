@@ -28,6 +28,10 @@ STRING_RES_DECL_RE = re.compile(
     r"@(?:\w+:)?StringRes\s+(?:val|var)\s+(\w+)\s*:\s*Int"
 )
 STRING_RESOURCE_IMPORT = "import org.jetbrains.compose.resources.StringResource"
+# `stringResource` is `androidx.compose.ui.res` on Android and `org.jetbrains.compose.resources`
+# on desktop. Only the call site's spelling carries over, so the import has to be rewritten too --
+# otherwise every migrated file fails with "Unresolved reference 'stringResource'".
+STRING_RESOURCE_USAGE_IMPORT_RE = re.compile(r"^import androidx\.compose\.ui\.res\.stringResource$", re.M)
 IMPORT_RE = re.compile(r"^(import .*)$", re.M)
 
 
@@ -45,6 +49,9 @@ def rewrite(text: str) -> tuple[str, list[str], list[str]]:
 
     text = RES_RE.sub(sub, text)
     if "Res.string." in text:
+        text = STRING_RESOURCE_USAGE_IMPORT_RE.sub(
+            "import org.jetbrains.compose.resources.stringResource", text
+        )
         text = ANDROID_R_IMPORT_RE.sub("import com.lonx.lyrico.resources.Res", text)
         # Drop names that may already be imported, then insert the new ones in
         # sorted order right after the Res import.

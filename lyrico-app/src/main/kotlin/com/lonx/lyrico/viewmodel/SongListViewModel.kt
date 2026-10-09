@@ -1,7 +1,5 @@
 package com.lonx.lyrico.viewmodel
 
-import android.os.Parcelable
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lonx.audiotag.model.AudioTagData
@@ -13,6 +11,7 @@ import com.lonx.lyrico.data.song.library.SongLibraryRepository
 import com.lonx.lyrico.data.song.search.SongSearchRepository
 import com.lonx.lyrico.utils.LibraryScanManager
 import com.lonx.lyrico.utils.UpdateManager
+import com.lonx.lyrico.utils.logging.PlatformLog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,7 +21,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.parcelize.Parcelize
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -30,11 +28,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 
-@Parcelize
+/**
+ * The song identity the metadata editor works on: the file path plus the tags read from that file.
+ *
+ * Android made this `Parcelable` because it travelled between screens as a Compose Destinations
+ * navigation argument. On desktop it is only ever built by [com.lonx.lyrico.viewmodel.EditMetadataViewModel]
+ * and stored in its UI state -- every real navigation argument is a `String` or a `Long` -- so the
+ * `@Parcelize` annotation and the `Parcelable` it generated are gone rather than ported.
+ */
 data class SongInfo(
     val uriString: String,
     val tagData: AudioTagData?
-): Parcelable
+)
 
 data class SongListUiState(
     val isLoading: Boolean = false,
@@ -107,7 +112,7 @@ class SongListViewModel(
         viewModelScope.launch {
             val checkUpdateEnabled = settingsRepository.checkUpdateEnabled.first()
             if (checkUpdateEnabled) {
-                Log.d(TAG, "检查更新")
+                PlatformLog.d(TAG, "检查更新")
                 updateManager.checkForUpdate()
             }
         }
@@ -119,12 +124,20 @@ class SongListViewModel(
         }
     }
     fun refreshSongs() {
-        Log.d(TAG, "用户手动刷新歌曲列表")
+        PlatformLog.d(TAG, "用户手动刷新歌曲列表")
         libraryScanManager.scanAll()
     }
 
-    fun addSafFolderAndRefresh(path: String, treeUri: String) {
-        libraryScanManager.addFolderAndScan(path, treeUri)
+    /**
+     * Adds a library root and starts scanning it.
+     *
+     * Android took a `treeUri` as well, because the folder had been granted through the Storage
+     * Access Framework and the grant had to be persisted next to the folder row. A desktop path is
+     * readable by name, so the folder table's `treeUri` column stays null and the picker only has to
+     * hand over the directory.
+     */
+    fun addFolderAndRefresh(path: String) {
+        libraryScanManager.addFolderAndScan(path)
     }
 
     override fun onCleared() {
