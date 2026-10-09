@@ -8,6 +8,7 @@ import com.lonx.audiotag.internal.NativeLibraryLoader
 import com.lonx.lyrico.di.desktopAppModule
 import com.lonx.lyrico.platform.AppDirectories
 import com.lonx.lyrico.utils.logging.PlatformLog
+import com.lonx.lyrico.utils.coil.installImageLoader
 import org.koin.core.context.startKoin
 
 private const val LOG_TAG = "Lyrico"
@@ -21,7 +22,8 @@ private const val LOG_TAG = "Lyrico"
  * 2. create its directories,
  * 3. load the native audio-tag libraries,
  * 4. start the DI graph,
- * 5. open the window.
+ * 5. install the cover-art image loader,
+ * 6. open the window.
  *
  * A failure in 1-4 is reported as a dialog-less crash (a non-zero exit with a stack trace) rather than
  * an empty window: there is nothing useful to show a user whose database directory is unusable. Once
@@ -49,6 +51,12 @@ fun main(args: Array<String>) {
     startKoin {
         modules(desktopAppModule(directories))
     }
+
+    // Covers decode through Coil, whose loader is a process-wide singleton on Android too; a missing
+    // or failing cache directory must not take the app down, so the cover cache is only an
+    // optimisation and its setup failure is logged rather than fatal.
+    runCatching { installImageLoader(directories.coverCacheDir) }
+        .onFailure { PlatformLog.e(LOG_TAG, "封面缓存目录初始化失败", it) }
 
     application {
         Window(

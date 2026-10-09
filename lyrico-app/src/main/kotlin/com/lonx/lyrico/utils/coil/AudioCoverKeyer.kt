@@ -7,7 +7,7 @@ import com.lonx.lyrico.ui.components.CoverRequest
 class AudioCoverKeyer: Keyer<CoverRequest> {
     override fun key(data: CoverRequest, options: Options): String {
         // 提取文件路径作为主键，结合时间戳生成唯一缓存键
-        val path = data.uri.path ?: data.uri.toString()
+        val path = data.uri
         return CoverRequest.getCacheKey(
             path = path,
             timestamp = data.lastUpdate,

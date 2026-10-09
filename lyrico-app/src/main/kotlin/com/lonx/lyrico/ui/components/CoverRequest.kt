@@ -1,15 +1,21 @@
 package com.lonx.lyrico.ui.components
 
-import android.net.Uri
 import com.lonx.audiotag.model.AudioPictureType
 
+/**
+ * A file that may hold cover artwork, with the timestamp that invalidates its cached decode.
+ *
+ * Android addressed these files by `content://` URI. Desktop sound files are plain paths, so the
+ * field carries the absolute Windows path instead; it is still called `uri` because the schema's
+ * identity column is `songs.uri` and every call site already spells it that way.
+ */
 data class CoverCandidate(
-    val uri: Uri,
+    val uri: String,
     val lastUpdate: Long
 )
 
 data class CoverRequest(
-    val uri: Uri,
+    val uri: String,
     val lastUpdate: Long,
     val pictureType: AudioPictureType = AudioPictureType.FrontCover,
     val fallbackPictureTypes: List<AudioPictureType> = emptyList(),

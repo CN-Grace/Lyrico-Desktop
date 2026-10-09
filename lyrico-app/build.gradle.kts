@@ -143,6 +143,13 @@ dependencies {
     implementation(libs.miuix.preference.desktop)
     implementation(libs.miuix.blur.desktop)
 
+    // Cover art. The Android app loaded covers through Coil 3 with two custom components: a fetcher
+    // that pulls embedded artwork out of an audio file through TagLib, and a fetcher for the user's
+    // local artist-poster folder. Coil 3 is multiplatform (this artifact publishes a jvm variant), so
+    // the same pipeline moves over unchanged apart from the file access underneath it. Without it the
+    // list/album screens would silently lose every cover instead of failing.
+    implementation(libs.coil.compose)
+
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.kotlinx.serialization.json)
