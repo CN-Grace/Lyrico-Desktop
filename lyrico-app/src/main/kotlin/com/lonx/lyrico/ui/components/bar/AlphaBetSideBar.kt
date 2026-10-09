@@ -1,6 +1,5 @@
 package com.lonx.lyrico.ui.components.bar
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,14 +31,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.ic_arrow_up_24dp
 import com.lonx.lyrico.viewmodel.SortOrder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -61,7 +60,6 @@ fun AlphabetSideBar(
     scrollController: AlphabetSideBarScrollController,
     modifier: Modifier = Modifier
 ) {
-    val view = LocalView.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
@@ -147,7 +145,9 @@ fun AlphabetSideBar(
 
         handleItemSelected(item)
 
-        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        // Android buzzed the track under the finger here (`HapticFeedbackConstants.CLOCK_TICK`).
+        // Desktop Compose has no `LocalView` and Windows has no equivalent "one tick per letter"
+        // feedback, so the call is dropped rather than faked with a beep or a notification.
     }
 
     fun clearSelection() {
@@ -265,7 +265,7 @@ private fun AlphabetSideBarIndicator(
                 when (item) {
                     AlphabetSideBarItem.ScrollTop -> {
                         Icon(
-                            painter = painterResource(R.drawable.ic_arrow_up_24dp),
+                            painter = painterResource(Res.drawable.ic_arrow_up_24dp),
                             modifier = Modifier.size(30.dp),
                             contentDescription = null,
                             tint = MiuixTheme.colorScheme.onPrimary
@@ -356,7 +356,7 @@ private fun AlphabetSideBarCell(
         when (item) {
             AlphabetSideBarItem.ScrollTop -> {
                 Icon(
-                    painter = painterResource(R.drawable.ic_arrow_up_24dp),
+                    painter = painterResource(Res.drawable.ic_arrow_up_24dp),
                     contentDescription = null,
                     tint = if (selected) {
                         MiuixTheme.colorScheme.primary

@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.confirm
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.window.WindowDialog
@@ -26,8 +28,8 @@ fun YesNoDialog(
     onDismissRequest: () -> Unit,
     onDismissFinished: () -> Unit = {},
     onConfirm: () -> Unit,
-    cancelText: String = stringResource(R.string.cancel),
-    confirmText: String = stringResource(R.string.confirm)
+    cancelText: String = stringResource(Res.string.cancel),
+    confirmText: String = stringResource(Res.string.confirm)
 ) {
     WindowDialog(
         show = show,

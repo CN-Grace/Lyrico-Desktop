@@ -1,6 +1,7 @@
 package com.lonx.lyrico.di
 
 import com.lonx.lyrico.data.LyricoDatabase
+import com.lonx.lyrico.data.SharedSelectionManager
 import com.lonx.lyrico.data.editfield.EditFieldConfigRepository
 import com.lonx.lyrico.data.network.NetworkLoggingInterceptor
 import com.lonx.lyrico.data.openLyricoDatabase
@@ -10,6 +11,8 @@ import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.data.repository.BatchTaskRepositoryImpl
 import com.lonx.lyrico.data.repository.CustomTagKeyRepository
 import com.lonx.lyrico.data.repository.GhContributorRepository
+import com.lonx.lyrico.data.repository.FileRevealRepository
+import com.lonx.lyrico.data.repository.FileRevealRepositoryImpl
 import com.lonx.lyrico.data.repository.GhContributorRepositoryImpl
 import com.lonx.lyrico.data.repository.LibraryIndexRepository
 import com.lonx.lyrico.data.repository.LibraryIndexRepositoryImpl
@@ -58,6 +61,7 @@ import com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel
 import com.lonx.lyrico.viewmodel.CharacterMappingViewModel
 import com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel
 import com.lonx.lyrico.viewmodel.LocalSearchViewModel
+import com.lonx.lyrico.viewmodel.SongSelectionViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -158,6 +162,8 @@ fun desktopAppModule(directories: AppDirectories) = module {
     single<UpdateRepository> { UpdateRepositoryImpl(get(), get()) }
     single<GhContributorRepository> { GhContributorRepositoryImpl(get(), get()) }
     single<PlaybackRepository> { PlaybackRepositoryImpl() }
+    single<FileRevealRepository> { FileRevealRepositoryImpl() }
+    single { SharedSelectionManager() }
     single<LibraryIndexRepository> {
         LibraryIndexRepositoryImpl(get(), get(), get(), get())
     }
@@ -201,4 +207,5 @@ fun desktopAppModule(directories: AppDirectories) = module {
     viewModel { CharacterMappingViewModel(get()) }
     viewModel { EditFieldSettingsViewModel(get(), get(), get(), get()) }
     viewModel { (albumId: Long) -> AlbumDetailViewModel(libraryIndexRepository = get(), albumId = albumId) }
+    viewModel { SongSelectionViewModel(get(), get(), get(), get(), get()) }
 }

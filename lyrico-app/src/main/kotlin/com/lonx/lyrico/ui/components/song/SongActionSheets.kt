@@ -1,8 +1,6 @@
 package com.lonx.lyrico.ui.components.song
 
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -11,19 +9,32 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.dialog_delete_file_content
+import com.lonx.lyrico.resources.dialog_delete_file_title
+import com.lonx.lyrico.resources.dialog_rename_title
 import com.lonx.lyrico.data.model.entity.SongEntity
-import com.lonx.lyrico.data.model.entity.getUri
 import com.lonx.lyrico.ui.components.base.YesNoDialog
-import com.lonx.lyrico.ui.components.player.PlayerPickerBottomSheet
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/**
+ * The per-song sheets: the action menu, the info sheet, and the delete/rename confirmations.
+ *
+ * Three Android mechanisms are gone rather than shimmed:
+ *
+ * - **The player picker.** Android built an `ACTION_VIEW` intent per installed player and offered them
+ *   in [com.lonx.lyrico.ui.components.player.PlayerPickerBottomSheet]-shaped chooser. Windows has no
+ *   in-process equivalent (PlaybackRepository documents the decision), so `onPlay` now hands the song
+ *   straight to the caller and the system association decides.
+ * - **Share.** Android sent `ACTION_SEND` with an `EXTRA_STREAM` `Uri` to the system share sheet. There
+ *   is no such sheet here; "share" now means *show the file in Explorer*, which is the closest
+ *   desktop equivalent of handing a file to another program, and the caller owns it (`onShare`).
+ * - `Context`, `Intent`, `Uri` and `toUri()` as a consequence of the two above.
+ */
 @Composable
 fun SongActionSheets(
     selectedSong: SongEntity?,
@@ -40,15 +51,13 @@ fun SongActionSheets(
     onShowDelete: () -> Unit,
     onShowRename: () -> Unit,
     onPlay: (SongEntity) -> Unit,
+    onShare: (SongEntity) -> Unit,
+    onCopy: (String) -> Unit,
     onDelete: (SongEntity) -> Unit,
     onRename: (SongEntity, String) -> Unit
 ) {
-    val context = LocalContext.current
-    var showPlayerPicker by remember { mutableStateOf(false) }
-    var pendingPlayUri by remember { mutableStateOf<Uri?>(null) }
     val song = selectedSong
 
-    val shareTitle = stringResource(R.string.share_chooser_title)
     if (song != null) {
         SongMenuBottomSheet(
             show = showMenuSheet,
@@ -56,41 +65,27 @@ fun SongActionSheets(
             onDismissRequest = onDismissMenu,
             onDismissFinished = onDismissMenuFinished,
             onPlay = {
-                pendingPlayUri = song.getUri
-                showPlayerPicker = true
                 onDismissMenu()
+                onPlay(song)
             },
             showInfo = onShowDetail,
             onDelete = onShowDelete,
             onRename = onShowRename,
-            onShare = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "audio/*"
-                    putExtra(Intent.EXTRA_STREAM, song.uri.toUri())
-                    putExtra(Intent.EXTRA_TITLE, song.title ?: song.fileName)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-
-                context.startActivity(
-                    Intent.createChooser(
-                        intent,
-                        shareTitle
-                    )
-                )
-            }
+            onShare = { onShare(song) }
         )
 
         SongDetailBottomSheet(
             show = showDetailSheet,
             song = song,
-            onDismissRequest = onDismissDetail
+            onDismissRequest = onDismissDetail,
+            onCopy = onCopy
         )
 
         YesNoDialog(
-            title = stringResource(R.string.dialog_delete_file_title),
+            title = stringResource(Res.string.dialog_delete_file_title),
             show = showDeleteDialog,
             summary = stringResource(
-                R.string.dialog_delete_file_content,
+                Res.string.dialog_delete_file_content,
                 song.fileName
             ),
             onConfirm = {
@@ -109,15 +104,6 @@ fun SongActionSheets(
             }
         )
     }
-
-    PlayerPickerBottomSheet(
-        show = showPlayerPicker,
-        uri = pendingPlayUri,
-        onDismissRequest = {
-            showPlayerPicker = false
-            pendingPlayUri = null
-        }
-    )
 }
 
 @Composable
@@ -140,7 +126,7 @@ private fun RenameSongDialog(
     }
 
     YesNoDialog(
-        title = androidx.compose.ui.res.stringResource(R.string.dialog_rename_title),
+        title = stringResource(Res.string.dialog_rename_title),
         show = show,
         onDismissRequest = onDismissRequest,
         onConfirm = {

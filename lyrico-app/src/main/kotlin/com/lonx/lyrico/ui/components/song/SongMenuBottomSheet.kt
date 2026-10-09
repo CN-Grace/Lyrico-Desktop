@@ -8,9 +8,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.menu_action_delete
+import com.lonx.lyrico.resources.menu_action_delete_sub
+import com.lonx.lyrico.resources.menu_action_info
+import com.lonx.lyrico.resources.menu_action_play
+import com.lonx.lyrico.resources.menu_action_play_sub
+import com.lonx.lyrico.resources.menu_action_rename
+import com.lonx.lyrico.resources.menu_action_share
 import com.lonx.lyrico.data.model.entity.SongEntity
 import top.yukonga.miuix.kmp.basic.BasicComponentColors
 import top.yukonga.miuix.kmp.basic.Card
@@ -59,25 +66,25 @@ fun SongMenuBottomSheet(
                 )
             ) {
                 ArrowPreference(
-                    title = stringResource(R.string.menu_action_play),
-                    summary = stringResource(R.string.menu_action_play_sub),
+                    title = stringResource(Res.string.menu_action_play),
+                    summary = stringResource(Res.string.menu_action_play_sub),
                     onClick = { onPlay() }
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.menu_action_info),
+                    title = stringResource(Res.string.menu_action_info),
                     onClick = { showInfo() }
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.menu_action_share),
+                    title = stringResource(Res.string.menu_action_share),
                     onClick = { onShare() }
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.menu_action_rename),
+                    title = stringResource(Res.string.menu_action_rename),
                     onClick = { onRename() }
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.menu_action_delete),
-                    summary = stringResource(R.string.menu_action_delete_sub),
+                    title = stringResource(Res.string.menu_action_delete),
+                    summary = stringResource(Res.string.menu_action_delete_sub),
                     titleColor = BasicComponentColors(
                         MiuixTheme.colorScheme.error,
                         MiuixTheme.colorScheme.disabledOnSecondaryVariant

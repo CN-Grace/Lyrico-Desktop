@@ -349,7 +349,65 @@ Coil **3.6.2** 是 multiplatform 的（`coil-compose-jvm` 真实存在），所�
 
 `python scripts/port-frontier.py` → java 树 **180 个文件 / 0 陈旧副本 / 73 可搬 / 107 被挡**（上一批 194 / 0 / 77 / 117）。
 
-下一批（C2b + C3）：选择模式与操作面板（`SongSelectionViewModel` + `SongSelectionSupport.kt`，442 行 Android `Context`/`Intent`/SAF）、`SongSelectionTopAppBar`、`AlphaBetSideBar`，然后是曲库首页外壳（`useNavigationRail` → `maxWidth >= 840.dp`、起始路由 → `library_home`、`SongsPage` 本体）。
+下一批（C3）：曲库首页外壳（`useNavigationRail` → `maxWidth >= 840.dp`、起始路由 → `library_home`、`SongsPage` 本体）。
+
+### P4 的 UI 轨道（选择模式与歌曲操作，2026-10-09）
+
+这批把「长按进入选择模式 → 顶栏 → 单曲操作面板」这条链搬过来：列表项上一批已经能渲染，这批给它接上选择状态、顶栏、菜单/详情/删除/改名四个弹层，以及弹层背后真正干活的两条平台路径（播放、定位文件）。
+
+#### 1. 搬了什么（`git mv` + 小改）
+
+| 文件 | 桌面化改动 |
+| --- | --- |
+| `data/SharedSelectionManager.kt` | **逐字搬**。它已经是纯内存状态（`selectedUris` / `isSelectionMode` / `swipeAnchorUri`），没有任何 Android 类型；不加不减地搬，是因为它的语义已经够绕（`toggle` 不建立锚点、`deselectAll` 不清选择模式、范围选择成功后才把锚点置空），任何“顺手简化”都会改掉 UI 的手感 |
+| `ui/components/song/SongMenuBottomSheet.kt`、`ui/components/base/YesNoDialog.kt` | 只有文案资源的系统性转换（`scripts/migrate-strings-res.py`） |
+| `ui/components/song/SongDetailBottomSheet.kt` | `android.widget.Toast` → **`onCopy: (String) -> Unit`**（弹层不再自己写剪贴板，`ClipboardManager`+`Context` 一起删）；`Formatter.formatFileSize(context, size)` → `FileSizeFormatter.format(size)`；`BuildConfig.DEBUG` → `BuildInfo.DEBUG` |
+| `ui/components/song/SongActionSheets.kt` | 删掉 `PlayerPickerBottomSheet`（桌面只有系统默认关联，见 §5 已定策略），签名末尾改成 `onPlay` / `onShare` / `onCopy` / `onDelete` / `onRename` 五个回调 |
+| `ui/components/bar/AlphaBetSideBar.kt` | 去掉两处 `LocalView.performHapticFeedback`（桌面没有 `LocalView`），签名不变 |
+| `viewmodel/SongSelectionViewModel.kt` | **重写**：Android 的 play/share 各自拼一个 `Intent`（`ACTION_VIEW` / `ACTION_SEND` + `Uri` + `Context`）并靠 `ActivityNotFoundException` 判断“没人接”，桌面改成注入 `PlaybackRepository` / `FileRevealRepository`，两个仓储都返回结果类型，viewmodel 只负责把结果翻成文案 |
+| `utils/FileSizeFormatter.kt`（新） | AOSP `Formatter.formatFileSize` 的等价物（详情弹层的文件大小行）。**先查证再写**：`formatFileSize(context, sizeBytes)` 实际是 `FLAG_SI_UNITS`（1000 进制），步进条件是 `while (result > 900)`，格式是 `mult == 1 \|\| result >= 100` 走 `"%.0f"`、其余走 `"%.2f"` |
+| `platform/FileRevealer.kt`（新） | `interface FileRevealer { fun reveal(file: File) }` + `ExplorerFileRevealer(launcher: (List<String>) -> Unit = { ProcessBuilder(it).start() })`，命令行是 `explorer.exe` + **单个逗号拼接的** `/select,<绝对路径>` 令牌 |
+| `data/repository/FileRevealRepository.kt`（新） | `RevealResult` = `Revealed` / `NothingToReveal` / `FilesUnavailable` / `Failed`；定位第一个真实存在的普通文件 |
+| `ui/components/bar/SongSelectionTopAppBar.kt`（新） | Android 的顶部栏和 `SongSelectionSupport.kt` 揉在一个文件里，桌面端**故意用新文件名**：同名文件会同时存在于两棵树，正是 `port-frontier.py` 报“陈旧副本”的形状 |
+
+#### 2. 三处行为分歧（都是裁决过的，不是遗漏）
+
+1. **「分享」在桌面上等于「在资源管理器中定位文件」**（用户裁决）。Android 是 `ACTION_SEND` 多选分享；Windows 上“分享到哪儿”没有系统级默认接收方，能落地又对等的动作是在 Explorer 里定位。批量分享取**第一个存在**的文件（已写进 `FileRevealRepository` 的 KDoc）。viewmodel 里方法名仍叫 `share`：接口名不该跟着实现方式改名。
+2. **批量 FAB（`SongBatchSelectionActions`，12 个动作）不在本批**（用户裁决“暂不放 FAB，只留单曲操作”）。它依赖批量任务调度器、ReplayGain 运行时与插件运行时，整体推到 P5。**代价如实记录**：C3 的歌曲页会缺这个入口，是用户可见的功能缺口。
+3. **失败文案保真**：Android 里 `ActivityNotFoundException` 同时覆盖“文件没了”和“没人能打开”，两者共用一句 `no_player_found`；桌面端 `FileUnavailable` 与 `Unsupported` 都折叠成这一句，`unknown_error` 只留给真异常（异常消息作为参数带上）。`FileRevealRepository` 的 `FilesUnavailable` 同样走 `no_player_found`。
+
+#### 3. 取证（8 类 69 项；全量 56 类 514 项全绿）
+
+| 测试类 | 项数 | 钉住的东西 |
+| --- | --- | --- |
+| `SharedSelectionManagerTest` | 15 | 选择状态的每一处反直觉语义（`toggle` 不建锚点、`deselectAll` 仍留在选择模式、范围选择后锚点置空、`replaceUris` 对空映射是 no-op） |
+| `SongSelectionViewModelTest` | 14 | 真 Room + 真文件 + 真 `SongFileRepositoryImpl`，只为 `PlaybackRepository` / `FileRevealRepository` 注入假实现：播放转发、批量删除（选中的没了、没选中的还在）、重命名后**旧 uri 必须查不到**、失败的 shell 调用带原因上报 |
+| `SongActionSheetsTest` | 10 | 每一行菜单点击**落到哪个回调**（四个回调参数类型相同，接错线不会被类型系统发现）；删除确认真的删；改名对话框预填名字、确认时把扩展名接回去、空白名与原名都不提交 |
+| `FileSizeFormatterTest` | 8 | `Locale.US` 下的逐字节期望值（含 `950` → `0.95 kB`、`95_000` → `95.00 kB` 两处反直觉值）、AOSP 自己用例的 `12_582_912` → `12.58 MB`、爬到 PB、`1e18` 停在 `1000 PB`、`Locale.GERMANY` 用逗号、负数保留 `-` |
+| `FileRevealRepositoryTest` | 7 | 真临时文件 + 记录型 revealer：存在 / 空 / 已删 / 目录 / 首个存在者优先 / shell 抛错 / 含 `..` 的路径先规范化 |
+| `SongSelectionTopAppBarTest` | 6 | 全选/取消全选文案随状态翻转、计数文案、`< 360.dp` 时藏起全选按钮、空选择 |
+| `SongDetailBottomSheetTest` | 6 | 元数据行都在、**`onCopy` 收到的是裸值**（不是 `label: value`，否则粘出去不能用）、空白值不占一行（同一渲染里另有一行做对照）、没有回调就不画复制图标 |
+| `ExplorerFileRevealerTest` | 3 | 命令行**逐字**等于 `listOf("explorer.exe", "/select,${file.absolutePath}")`、相对路径先绝对化、launcher 抛错就向外抛 |
+
+#### 4. 三个实测出来的坑（写下来是因为都会再踩）
+
+1. **`MutableSharedFlow` 在没有 replay、没有缓冲时，挂起的 `emit` 不会交给“后来才订阅”的收集者**。原来的测试是“先发消息、再订阅”，三条消息类断言全红；探针实测（`PROBE-A subscribers=0 (emit already suspended)` → `late subscriber got=null`）确认这不是竞态而是真实语义。改成**先订阅再动作**（就是真实屏幕 `LaunchedEffect { events.collect }` 的形状），并用 `onSubscription { ready.complete(Unit) }` + `ready.await()` 握手——实测该回调触发时 `subscriptionCount` 已经是 1，也就是**注册之后**才回调，所以握手是真的。这样“成功不发消息”这种否定断言才有意义：收集器确实活着。
+2. **重命名是先动文件、后改库**，所以“等文件出现”会赢在事务提交之前，读到旧行而误判失败。改成等**库**（`getSongByUri(新路径)?.fileName`）。用一次性探针单独跑仓储拿到 `Success`，才确认代码没问题、是测试在错误的地方等。
+3. **AOSP `roundBytes` 的步进是 `while (result > 900)`**：`950_000` 字节不是 `950 kB` 而是 `0.95 MB`（900 kB 是最后一个 kB 值，再大就进 MB）。第一版测试把期望值写成 `950 kB`，是测试错、代码对；现在 `900_000` / `901_000` / `950_000` / `999_000`（→ `1.00 MB`）四个值一起钉住这条边界。
+
+#### 5. 无头渲染 Miuix 弹层是**先证明再依赖**的
+
+这批的测试全部依赖「Miuix 的 `WindowBottomSheet`（`SongMenuBottomSheet` 基于它）与 `YesNoDialog` 能在 `runComposeUiTest` 无头环境里渲染，并且能被 `onNodeWithText` 查到」。这件事用一次性探针测试证实后删掉探针，才把断言写进正式测试 —— 否则“测试通过”可能只是弹层根本没渲染（弹层不渲染时找不到节点会抛错，但写错断言的人更容易以为是自己找错了）。
+
+#### 6. 这批同样不出窗口截图
+
+理由与上一批相同：还没有页面。真正的歌曲列表窗口证据要等 C3 把 `SongsPage` 接上。
+
+#### 7. 前沿
+
+`python scripts/port-frontier.py` → java 树 **173 个文件 / 0 陈旧副本 / 70 可搬 / 103 被挡**（上一批 180 / 0 / 73 / 107）。
+
+下一批（C3）：曲库首页外壳（`useNavigationRail` → `maxWidth >= 840.dp`、起始路由 → `library_home`、`SongsPage` 本体）。`SongsPage` 用的 `my.nanihadesuka.compose.InternalLazyColumnScrollbar`（`libraryScrollbarOverlay`）是 Android 专有的第三方控件，需要桌面替代方案 —— 这件事在搬 `SongsPage` 之前必须先解决。
 
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
@@ -416,7 +474,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P1 复现命令（Gradle 侧，真 Kotlin 绑定）**：`./gradlew :lyrico-audiotag:test`（13 项检查 0 失败，覆盖 7 种格式的标签/封面读写、CJK 路径端到端）。跑之前确保 `build/native/windows-x64/*.dll` 已由 `scripts/build-native.ps1` 产出。
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；加上 P4 状态层 38 项、浏览/搜索 viewmodel 40 项、剩余 viewmodel 47 项、UI 地基 20 项、UI 轨道 25 项（封面 7 + 歌曲列表 11 + 壳 7）后，全量现为 **445 项 0 失败 0 跳过、48 个测试类**，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；P4 各批（状态层、浏览/搜索 viewmodel、剩余 viewmodel、UI 地基、UI 轨道、选择与操作面板）之后，全量现为 **514 项 0 失败 0 跳过、56 个测试类**，按包可核对：data 203 · viewmodel 130 · utils 108 · ui 30 · domain 20 · platform 13 · di 5 · screens 5；其中 UI 轨道 25 项 = 封面 7 + 歌曲列表 11 + 壳 7，选择与操作面板 69 项，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。

@@ -1,8 +1,5 @@
 package com.lonx.lyrico.ui.components.song
 
-import android.content.ClipData
-import android.text.format.Formatter
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,25 +11,35 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.lonx.lyrico.BuildConfig
-import com.lonx.lyrico.R
+import com.lonx.lyrico.BuildInfo
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.ic_album_24dp
+import com.lonx.lyrico.resources.cd_cover
+import com.lonx.lyrico.resources.label_album
+import com.lonx.lyrico.resources.label_bitrate
+import com.lonx.lyrico.resources.label_channels
+import com.lonx.lyrico.resources.label_date_added
+import com.lonx.lyrico.resources.label_date_modified
+import com.lonx.lyrico.resources.label_duration
+import com.lonx.lyrico.resources.label_file_path
+import com.lonx.lyrico.resources.label_file_size
+import com.lonx.lyrico.resources.label_genre
+import com.lonx.lyrico.resources.label_sample_rate
+import com.lonx.lyrico.resources.label_track_number
+import com.lonx.lyrico.resources.label_year
+import com.lonx.lyrico.resources.unknown_artist
 import com.lonx.lyrico.data.model.entity.SongEntity
-import com.lonx.lyrico.data.model.entity.getUri
 import com.lonx.lyrico.ui.components.CoverRequest
-import kotlinx.coroutines.launch
+import com.lonx.lyrico.utils.FileSizeFormatter
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
@@ -46,15 +53,28 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * The song's metadata as a copyable list.
+ *
+ * Android's version owned the clipboard and showed a `Toast` after every copy. Two things changed
+ * here, both forced by the platform rather than chosen:
+ *
+ * - **The copy is hoisted to the caller.** `android.widget.Toast` does not exist on desktop; the
+ *   confirmation has to be drawn by whatever screen hosts this sheet (the same snackbar pattern
+ *   `AppLogScreen` already uses), and the screen is also where the clipboard lives. Copying here and
+ *   reporting there would mean two owners of one action.
+ * - The sheet no longer needs a `Context` at all, so `LocalContext`, `ClipData`/`ClipEntry` and the
+ *   sheet's own coroutine scope are gone with the toast.
+ *
+ * `onCopy` receives the raw value, not the rendered `label: value` pair.
+ */
 @Composable
 fun SongDetailBottomSheet(
     show: Boolean,
     song: SongEntity,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onCopy: (String) -> Unit
 ) {
-    val context = LocalContext.current
-    val clipboardManager = LocalClipboard.current
-    val coroutineScope = rememberCoroutineScope()
     val dateFormat = remember {
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     }
@@ -79,14 +99,14 @@ fun SongDetailBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 AsyncImage(
-                    model = CoverRequest(song.getUri, song.fileLastModified),
-                    contentDescription = stringResource(R.string.cd_cover),
+                    model = CoverRequest(song.uri, song.fileLastModified),
+                    contentDescription = stringResource(Res.string.cd_cover),
                     modifier = Modifier
                         .size(100.dp)
                         .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop,
-                    placeholder = painterResource(R.drawable.ic_album_24dp),
-                    error = painterResource(R.drawable.ic_album_24dp)
+                    placeholder = painterResource(Res.drawable.ic_album_24dp),
+                    error = painterResource(Res.drawable.ic_album_24dp)
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -97,7 +117,7 @@ fun SongDetailBottomSheet(
                     )
                     Text(
                         text = song.artist.takeIf { !it.isNullOrBlank() }
-                            ?: stringResource(R.string.unknown_artist),
+                            ?: stringResource(Res.string.unknown_artist),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.primary
                     )
@@ -111,41 +131,29 @@ fun SongDetailBottomSheet(
                     color = MiuixTheme.colorScheme.secondaryContainer,
                 )
             ) {
-                val msg = stringResource(R.string.msg_copied_to_clipboard)
-                val copyToClipboard: (String) -> Unit = { text ->
-                    coroutineScope.launch {
-                        val clipData = ClipData.newPlainText("copy detail", text)
-                        val clipEntry = ClipEntry(clipData)
-                        clipboardManager.setClipEntry(clipEntry)
-                        Toast.makeText(
-                            context,
-                            msg,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
+                val copyToClipboard: (String) -> Unit = onCopy
                 SongDetailItem(
-                    stringResource(R.string.label_album),
+                    stringResource(Res.string.label_album),
                     song.album,
                     onCopy = copyToClipboard
                 )
                 SongDetailItem(
-                    stringResource(R.string.label_year),
+                    stringResource(Res.string.label_year),
                     song.date,
                     onCopy = copyToClipboard
                 )
                 SongDetailItem(
-                    stringResource(R.string.label_genre),
+                    stringResource(Res.string.label_genre),
                     song.genre,
                     onCopy = copyToClipboard
                 )
                 SongDetailItem(
-                    stringResource(R.string.label_track_number),
+                    stringResource(Res.string.label_track_number),
                     song.trackerNumber,
                     onCopy = copyToClipboard
                 )
                 SongDetailItem(
-                    stringResource(R.string.label_duration),
+                    stringResource(Res.string.label_duration),
                     if (song.durationMilliseconds > 0) {
                         val min = song.durationMilliseconds / 60000
                         val sec = (song.durationMilliseconds % 60000) / 1000
@@ -155,24 +163,24 @@ fun SongDetailBottomSheet(
                 )
 
                 SongDetailItem(
-                    stringResource(R.string.label_bitrate),
+                    stringResource(Res.string.label_bitrate),
                     if (song.bitrate > 0) "${song.bitrate} kbps" else null,
                     onCopy = copyToClipboard
                 )
 
                 SongDetailItem(
-                    stringResource(R.string.label_sample_rate),
+                    stringResource(Res.string.label_sample_rate),
                     if (song.sampleRate > 0) "${song.sampleRate} Hz" else null,
                     onCopy = copyToClipboard
                 )
 
                 SongDetailItem(
-                    stringResource(R.string.label_channels),
+                    stringResource(Res.string.label_channels),
                     if (song.channels > 0) "${song.channels}" else null,
                     onCopy = copyToClipboard
                 )
                 SongDetailItem(
-                    stringResource(R.string.label_date_added),
+                    stringResource(Res.string.label_date_added),
                     if (song.fileAdded > 0)
                         dateFormat.format(Date(song.fileAdded))
                     else null,
@@ -180,7 +188,7 @@ fun SongDetailBottomSheet(
                 )
 
                 SongDetailItem(
-                    stringResource(R.string.label_date_modified),
+                    stringResource(Res.string.label_date_modified),
                     if (song.fileLastModified > 0)
                         dateFormat.format(Date(song.fileLastModified))
                     else null,
@@ -188,20 +196,20 @@ fun SongDetailBottomSheet(
                 )
 
                 SongDetailItem(
-                    stringResource(R.string.label_file_path),
+                    stringResource(Res.string.label_file_path),
                     song.filePath,
                     onCopy = copyToClipboard
                 )
 
                 SongDetailItem(
-                    stringResource(R.string.label_file_size),
+                    stringResource(Res.string.label_file_size),
                     if (song.fileSize > 0)
-                        Formatter.formatFileSize(context, song.fileSize)
+                        FileSizeFormatter.format(song.fileSize)
                     else null,
                     onCopy = copyToClipboard
                 )
 
-                if (BuildConfig.DEBUG) {
+                if (BuildInfo.DEBUG) {
                     SongDetailItem(
                         label = "文件URI",
                         value = song.uri,
