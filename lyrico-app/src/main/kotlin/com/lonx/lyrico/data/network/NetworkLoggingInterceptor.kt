@@ -1,9 +1,9 @@
 package com.lonx.lyrico.data.network
 
-import android.util.Log
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.repository.AppLogRepository
+import com.lonx.lyrico.utils.logging.PlatformLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -12,6 +12,13 @@ import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/**
+ * Records failed HTTP calls (non-2xx responses and I/O failures) in the app log.
+ *
+ * Ported from Android unchanged apart from the logger: `android.util.Log` became [PlatformLog],
+ * because the app log row is what the user can actually read afterwards, and the secondary write to
+ * logcat has no desktop equivalent.
+ */
 class NetworkLoggingInterceptor(
     private val appLogRepository: AppLogRepository,
     private val appScope: CoroutineScope
@@ -40,7 +47,7 @@ class NetworkLoggingInterceptor(
                             }
                         )
                     }.onFailure {
-                        Log.w(TAG, "Failed to write network response log", it)
+                        PlatformLog.w(TAG, "Failed to write network response log", it)
                     }
                 }
             }
@@ -56,7 +63,7 @@ class NetworkLoggingInterceptor(
                         throwable = e
                     )
                 }.onFailure {
-                    Log.w(TAG, "Failed to write network exception log", it)
+                    PlatformLog.w(TAG, "Failed to write network exception log", it)
                 }
             }
             throw e

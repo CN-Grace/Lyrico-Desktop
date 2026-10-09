@@ -1,12 +1,15 @@
 package com.lonx.lyrico.utils
 
-import androidx.annotation.StringRes
-import com.lonx.lyrico.App.Companion.OWNER_ID
-import com.lonx.lyrico.App.Companion.REPO_NAME
-import com.lonx.lyrico.R
+import com.lonx.lyrico.BuildInfo
 import com.lonx.lyrico.data.dto.ReleaseInfo
 import com.lonx.lyrico.data.model.UpdateCheckResult
 import com.lonx.lyrico.data.repository.UpdateRepository
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.update_already_latest
+import com.lonx.lyrico.resources.update_api_error
+import com.lonx.lyrico.resources.update_network_error
+import com.lonx.lyrico.resources.update_parse_error
+import com.lonx.lyrico.resources.update_timeout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
 
 
 data class UpdateState(
@@ -23,7 +27,7 @@ data class UpdateState(
     val releaseInfo: ReleaseInfo? = null
 )
 data class UpdateEffect(
-    @field:StringRes val messageRes: Int,
+    val messageRes: StringResource,
     val formatArgs: List<Any> = emptyList()
 )
 
@@ -51,26 +55,26 @@ class UpdateManagerImpl(
         appScope.launch {
             _state.update { it.copy(isChecking = true) }
             when (val result = updateRepository.checkForUpdate(
-                owner = OWNER_ID,
-                repo = REPO_NAME
+                owner = BuildInfo.UPDATE_OWNER,
+                repo = BuildInfo.UPDATE_REPO
             )) {
                 is UpdateCheckResult.NewVersion -> {
                     _state.update { it.copy(releaseInfo = result.info) }
                 }
                 is UpdateCheckResult.NoUpdateAvailable -> {
-                    _effect.emit(UpdateEffect(R.string.update_already_latest))
+                    _effect.emit(UpdateEffect(Res.string.update_already_latest))
                 }
                 is UpdateCheckResult.ApiError -> {
-                    _effect.emit(UpdateEffect(R.string.update_api_error))
+                    _effect.emit(UpdateEffect(Res.string.update_api_error))
                 }
                 is UpdateCheckResult.NetworkError -> {
-                    _effect.emit(UpdateEffect(R.string.update_network_error))
+                    _effect.emit(UpdateEffect(Res.string.update_network_error))
                 }
                 UpdateCheckResult.ParsingError -> {
-                    _effect.emit(UpdateEffect(R.string.update_parse_error))
+                    _effect.emit(UpdateEffect(Res.string.update_parse_error))
                 }
                 UpdateCheckResult.TimeoutError -> {
-                    _effect.emit(UpdateEffect(R.string.update_timeout))
+                    _effect.emit(UpdateEffect(Res.string.update_timeout))
                 }
             }
             _state.update { it.copy(isChecking = false) }

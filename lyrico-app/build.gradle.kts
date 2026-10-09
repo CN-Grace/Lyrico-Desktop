@@ -66,6 +66,13 @@ val generateBuildInfo = tasks.register("generateBuildInfo") {
                 const val COMMIT: String = "${commit.get()}"
                 const val BUILD_TYPE: String = "desktop"
                 const val DEBUG: Boolean = $debugBuild
+
+                // Which GitHub repository the update check asks for releases. This fork builds a
+                // Windows MSI/portable zip, so the Android upstream (Replica0110/Lyrico, whose
+                // release assets are .apk) would offer a download this app cannot install
+                // (PLAN.md section 5 decision).
+                const val UPDATE_OWNER: String = "CN-Grace"
+                const val UPDATE_REPO: String = "Lyrico-Desktop"
             }
 
             """.trimIndent(),
@@ -124,6 +131,13 @@ dependencies {
     // `stringResource(Res.string.foo)` replaces `stringResource(R.string.foo)` at the call sites.
     implementation(compose.components.resources)
 
+    // The ported screens are Miuix-based, but 22 of them also use a few Material 3 pieces that Miuix
+    // does not provide (`TextButton`, `ButtonColors`, `Text`, `CircularProgressIndicator`,
+    // `VerticalDivider`, `ripple()` for `LocalIndication`). Android got these from the app's
+    // material3 dependency; on desktop they come from Compose Multiplatform's material3, which is the
+    // same API for the common subset. Miuix's desktop artifacts do not pull it in transitively.
+    implementation(compose.material3)
+
     implementation(libs.miuix.ui.desktop)
     implementation(libs.miuix.icons.desktop)
     implementation(libs.miuix.preference.desktop)
@@ -143,6 +157,13 @@ dependencies {
     // The Android build got OkHttp from the app's DI graph; the tag layer needs it for
     // `PictureSource.UrlSource`, and the plugin-search runtime will reuse the same client.
     implementation(libs.okhttp)
+
+    // DI: the Android app already used Koin (di/AppModule.kt), and Koin 4.x is multiplatform, so the
+    // desktop graph is the same DSL. `koin-compose-viewmodel` is the drop-in for the Android artifact
+    // the screens import `koinViewModel` from.
+    implementation(libs.koin.core)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
 
     // Chinese text handling: song sort keys are derived from pinyin, and the conversion modes
     // (simplified <-> traditional) run through OpenCC both when scanning and when encoding lyrics.
