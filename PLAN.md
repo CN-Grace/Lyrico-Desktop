@@ -713,7 +713,7 @@ sidecar）留给后面的批次。本批（记作 **C5a**）只做「运行时 +
 **无头真基建测试**（真 DLL、真 zip、真文件系统、真 HTTP、真 Room），因此**不出窗口截图**；5 个搜索 viewmodel 与
 搜索页留到 C5b，那批才需要真窗口取证。
 
-#### 1. 搬了什么（`git mv`，19 个文件离开 java 树：16 主 + 3 测试）
+#### 1. 搬了什么（`git mv` 22 个文件：19 主 + 3 测试；java 主树 162 → 143）
 
 | 层 | 文件 |
 | --- | --- |
@@ -747,7 +747,7 @@ sidecar）留给后面的批次。本批（记作 **C5a**）只做「运行时 +
 8. **DI**：`di/DesktopAppModule.kt` 新增 `// ---- plugins` 段，源层与安装器的构造依赖（`Json`、`AppLogRepository`、
    目录）全部接上，`SourcePluginInstaller` 与 `PluginSearchSourceManager` 都是单例（后者 `AutoCloseable`）。
 
-#### 3. 取证（新增 9 类 137 项；另有 3 类 25 项从 java 树搬入）
+#### 3. 取证（新增 9 类 131 项；另有 3 类 25 项从 java 树搬入）
 
 | 测试类 | 项数 | 验什么 |
 | --- | --- | --- |
@@ -807,7 +807,7 @@ sidecar）留给后面的批次。本批（记作 **C5a**）只做「运行时 +
 #### 6. 前沿
 
 `python scripts/port-frontier.py` → java 树 **143 个文件 / 0 陈旧副本 / 61 可搬 / 82 被挡**（上一批 162 / 0 / 65 / 97）。
-本批的 19 个文件原来都在 java 树里，随本批删除；插件家族只剩 `ui/components/plugin/PluginIcon.kt`（C5b）。
+本批有 19 个文件原来在 java 主树里，随本批删除（另有 3 个测试文件从 java 测试树搬入）；插件家族只剩 `ui/components/plugin/PluginIcon.kt`（C5b）。
 被挡的大头仍是批量任务引擎（`worker/BatchTaskWorker.kt`、各 `worker/processor/*`）与 SAF/URI 家族。
 
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
