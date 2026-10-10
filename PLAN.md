@@ -881,6 +881,8 @@ C5a 结束时，插件「装得上、搜得出、解析得对」全部有真基�
 | `RemoteImageSizeTest` | 5 | 真回环 HTTP 上的 PNG / JPEG / GIF 宽高；非图片体 → `null` 且落日志；404 → `null`；不可达主机 → `null` 而不是抛 |
 | `probe/SavedStateHandleProbeTest` | 4 | 钉住「类型可以原样运输」这个前提（一次性 probe，已保留：它是结果契约的依据） |
 
+表里是 6 类 23 项，而全量账是 7 类 24 项：第 7 类是 `probe/DevPluginSeederTest`（1 项，`-Plyrico.seedDevPlugin=1` 门控，即第 2 个门控跳过）。所以 77 + 7 = 84 类、709 + 24 = 733 项。
+
 搜索页的 4 个用例**不是**直接调 viewmodel：它们用 `LyricoNavHost(startDestination = DevStartDestination(SearchResultsDestination(keyword).route))`
 组合，让**被测的路由串**由出货的 destination 类自己拼并编码；插件则通过出货的 `SourcePluginInstaller` 装进应用自己的 Koin 图
 （只有 OS 拥有的接缝被替换）。
@@ -936,6 +938,65 @@ C5a 结束时，插件「装得上、搜得出、解析得对」全部有真基�
 
 `python scripts/port-frontier.py` → java 树 **124 个文件 / 0 陈旧副本 / 51 可搬 / 73 被挡**（上一批 143 / 0 / 61 / 82）。
 被挡的大头仍是批量任务引擎（`BatchTaskWorker` + 各 `worker/processor/*`，含 ReplayGain）与 `EditMetadataScreen`/`SettingsScreen` 这条链。
+
+### P5 施工批次（批量任务引擎：进程内 runner + 调度器 + 3 个本地处理器，2026-10-10）
+
+Android 用 WorkManager + 前台通知跑批量任务；桌面既没有 WorkManager 也没有通知中心，所以这批（记作 **C6a**）把「谁来跑、跑在哪、中途取消怎么记账、进程被杀留下什么」重新做一遍，并把 3 个**不需要插件、不需要 ffmpeg** 的处理器（`EDIT_TAGS` / `RENAME_FILES` / `CONVERT_LYRICS_FORMAT`）真接到文件上。
+
+范围由用户裁决，拆成四个子批：**C6a** = 引擎 + 3 个本地处理器（本批）；**C6b** = 3 个 match 处理器 + QuickJS 插件夹具；**C6c** = 任务列表/详情界面 + 路由 + 全局进度面；**C6d** = ReplayGain（要 ffmpeg 边车）；**C6e** = 导出处理器（被 `DocumentFile` 挡住）。本批**不出界面**，因此也不出窗口截图：它的证据是「一个从真实 Koin 图取出的任务，真的改了真文件、真数据库」。
+
+#### 1. 搬了什么（`git mv` 13 个文件；java 主树 124 → 108）
+
+| 层 | 文件 |
+| --- | --- |
+| 引擎 | `worker/BatchTaskScheduler`、`worker/processor/BatchTaskProcessor`、`worker/processor/BatchTaskProcessorFactory` |
+| 处理器 | `worker/processor/EditTagsProcessor`、`worker/processor/RenameFilesProcessor`、`worker/processor/LyricsFormatProcessor` |
+| 用例 | `domain/song/usecase/BatchEditSongsUseCase`、`PatchSongTagsUseCase`、`OverwriteSongTagsUseCase` |
+| 工具 | `utils/FileNameSanitizer`、`utils/FormatParser`、`utils/RenameToken`、`utils/TagField` |
+
+另有 2 个**没有 Android 对应物**的主源码文件：`worker/BatchTaskRunner.kt`（替代 `BatchTaskWorker.doWork()`）、`viewmodel/LyricsFormatConfig.kt`（从 `BatchLyricsFormatViewModel` 里抽出的配置类）。**`git rm` 掉 3 个 Android-only 文件**：`worker/BatchTaskWorker.kt`、`worker/BatchTaskNotification.kt`、`worker/BatchTaskCancelReceiver.kt` —— 它们分别绑死 WorkManager 的 `CoroutineWorker`、`NotificationCompat` 前台通知、`BroadcastReceiver`，桌面一个都不能用；替代物名字不同（`BatchTaskRunner`），沿用 C5a 的先例。搬完 `./gradlew :lyrico-app:compileKotlin` 通过（两次，第二次修掉 `TagField`/`RenameFilesProcessor` 的适配）。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **WorkManager → 进程内队列**。`BatchTaskRunner.run(taskId)` 是 `doWork()` 的直译：装载任务与待办 item → 解析并发 → 逐条 `async(Dispatchers.IO)` + `Semaphore.withPermit` → 逐条记账 → 写汇总日志。去掉 `isStopped`（WorkManager 的取消信号）与 WakeLock，改为 `awaitAll()` 之后取一次 `!currentCoroutineContext().isActive`；`BatchTaskScheduler` 用 `ConcurrentHashMap<String, Job>` 保持 KEEP 语义（同一任务在跑时再 enqueue 直接返回），`workId` 列在桌面存**自己队列的 job id**（列保留，schema 不变）。**一处刻意偏离**：Android 先写 `workId` 再判 KEEP（`isStopped` 分支里会把已经启动的任务的 id 覆盖掉），桌面只在真的要启动时才写。
+2. **前台通知 → 界面内进度（本批还没有界面）**。Android 靠通知显示进度、靠通知按钮取消，桌面没有等价物 → 进度只落数据库（task/item 行 + `AppLogRepository` 的 `BATCH` 日志），取消只有 API（`BatchTaskScheduler.cancel`）。**这是本批最大的用户可见缺口**，写进 §5；「要不要一个常驻进度指示器」留给 C6c 裁决。顺带删掉 `getTaskTitle`（9 个任务类型的中文名已由 `BatchTaskType.labelRes` 全覆盖）。
+3. **孤儿任务改为启动维护清**。Android 靠 WorkManager 重排已死进程的任务；桌面在 `Main.kt` 第 5 步启动维护里调 `BatchTaskRepository.markOrphanedTasksFailed()`，把上次进程留下的 RUNNING/QUEUED 行置 FAILED（与既有 `BatchTaskRepositoryImplTest` 的崩溃恢复用例同一契约），失败落日志而不是吞掉 —— 因为静默失败正好会留下它要清的那排假「运行中」。
+4. **处理器在 `markRunning` 之前解析：缺处理器 → 任务直接 FAILED**。Android 先 `markRunning` 再在 `doWork` 里查处理器，查不到就抛，任务行**永远停在 RUNNING**。桌面把查找提前，缺失时 `markFailed("No processor registered for X")` + ERROR 日志 + 立即返回，`startedAt` 保持 null、item 保持 QUEUED（测试钉住）。**故意偏离**，也顺带把「工厂只注册了 3 种类型」变成一条用户能看见的原因，而不是静默排队。
+5. **`PermissionRequired` 分支删除**。`BatchEditSongsUseCase` 里 Android 的「SAF 权限丢了」结果在桌面不可达（直接读绝对路径），连同 `BatchEditResult.PermissionRequired` 一起删；`RenameFilesProcessor` 改为消费 `SongFileRepository` 的 `RenameSongFileResult`（`Success` / `NameConflict` / `Failed`），不再自己拼 SAF 的重命名结果。
+6. **`TagField.description` 由 `@StringRes Int` 改 `StringResource`**（`R.drawable`/`R.string` → 桌面资源扩展属性），`BatchTaskType.labelRes` 同理；用户可见的字段名与任务类型名一个字符没动。
+7. **`LyricsFormatConfig` 抽成独立文件**（仍在 `com.lonx.lyrico.viewmodel` 包）：引擎要反序列化它，不该依赖任何 viewmodel。字段与 `@SerialName("columnEdits")` 逐字保留，所以**已存在的任务行仍能解析**；java 树里那个 viewmodel 只留一行注释（它还在 java 树，尚未搬）。
+8. **DI 与 Android 同形**。3 个处理器各一个 typed single，工厂用 `mapOf(类型 to get<处理器>())` 组装（不是 `single<BatchTaskProcessor>` 绑定）；`BatchTaskRunner` / `BatchTaskScheduler` 各一个 single，调度器跑在应用级 `CoroutineScope` 上。
+
+#### 3. 无头取证（新增 3 类 26 项；全量 87 类 / 759 项 / 757 执行 + 2 门控跳过 / 0 失败 0 错误）
+
+| 测试类 | 项数 | 验什么 |
+| --- | --- | --- |
+| `worker/BatchTaskRunnerTest` | 15 | 引擎自己的记账（处理器是脚本型的，即被测对象的**协作者**）：空任务 → SUCCEEDED 且 `concurrency=0`；3 条成功 → 计数/`currentFile`/处理器结果落进 item 行；跳过+失败混跑 → 任务仍 SUCCEEDED、WARNING 日志、`status=finished_with_errors`、**跳过原因落在 `resultJson` 列**、失败带栈；**没有注册处理器 → 任务 FAILED 且 `startedAt == null`、item 留 QUEUED、ERROR 日志**；未知/空 taskId 不落日志；**并发表**（`configJson == null` → 1，`{}` → 3，`0` → 1，`2` → 2，`99` → 5 夹紧，坏 JSON → 3）用「同时在场数」量出来；3 种类型的 `configJson` 摘要逐字比对（rename / edit-tags / lyrics-format，另几种类型在工厂里还没有处理器）；长配置值 200 字符截断；坏配置串 → 记 `configParseError=` 但任务仍 SUCCEEDED；**取消两条**（任务 CANCELLED、在跑的那条 FAILED、其余留 QUEUED、WARNING 日志计数） |
+| `worker/BatchTaskSchedulerTest` | 5 | 队列语义：跑着时重复 enqueue 不改 `workId`、不重复启动；跑完后再 enqueue 被接受；跑中取消 → CANCELLED，再请求只捞**没启动过**的 item；取消不存在的任务 = no-op；两个任务各自排队互不干扰 |
+| `worker/BatchTaskEngineEndToEndTest` | 6 | **真 Koin 图 + 真 TagLib + 真文件 + 真 Room**：编辑标签（文件读回是新标题、库里那一行同步、**没有多出第二行**）；重命名（磁盘上新名存在/旧名消失、行跟随、`resultJson` 记下原始与新路径）；LRC→TTML（**文件标签里**出现 `itunes:key="L1"` 与 `<text for="L1">翻译行</text>`、行同步）；3 个文件按默认并发 3 同时改名（每首都拿到自己标签推出的名字）；跑之前把文件删掉 → 只有那一条 FAILED、其余成功、任务仍 SUCCEEDED 且 WARNING 日志 `failure=1`；完成日志经真 `AppLogRepository` 可读（INFO / `BATCH` / `total=1` / 配置摘要含改动字段） |
+
+端到端那 6 项**不自己构造处理器**：处理器、runner、调度器、三个用例、扫描器与仓储全部从 `desktopAppModule(directories)` 取；扫描走的是 `LibraryScanRepository.synchronize(...)`（与 `LibraryScanManager` 内部同一调用，但可 await，不必轮询数据库）；音频用 TagLib 自带的 mp3 夹具抄进临时目录再打标；根目录行按桌面语义写成 `addedBySaf = true`。路径断言一律对 `toRealPath()` 的规范路径，因为扫描入库的 `uri` 就是它。
+
+#### 4. 这批实测出来的坑（都会再踩）
+
+1. **取消时「在跑的那一条」落 FAILED，不是 RUNNING**。第一版测试按直觉断言 RUNNING，两条取消用例都红了（`expected:<RUNNING> but was:<FAILED>`）。随后写一次性 probe 打印真实行才定下来：任务 CANCELLED、`processed=1, success=0, skipped=0, failure=1`、那条 item `FAILED`、`errorMessage` 是 kotlinx 的取消串（实测 `StandaloneCoroutine was cancelled`），其余 item 留 QUEUED。**没有为了对齐「Android 大概是这样」而加 `catch (CancellationException) { throw e }` 去把状态改成 RUNNING** —— 那是凭猜测造行为；改为把量到的现实写进测试与本节。
+2. **上一条的连带后果**：`getPendingItems` 只给 QUEUED+RUNNING，所以**取消后再点一次运行不会重试被中断的那条**，它会一直挂在 FAILED 上；真正清掉它的是下一次启动维护（§2.3）。也就是说「取消」在桌面等于「这条按失败记账，且不会被同一个任务再捞起来」。
+3. **Room 的 suspend DAO 在已取消的协程里仍会执行完**：取消之后那笔 `markItemFailed`、`updateProgressFromItems`、汇总日志都真的落了库（probe 直接读出来的）。这条与前两条一起决定了「取消后的任务行长什么样」，也是为什么取消用例能断言计数。
+4. **跳过原因存 `resultJson` 列而不是 `errorMessage`**：第一版断言 `errorMessage` 红了（`expected:<No lyrics> but was:<null>`），查 `markItemSkipped` 是 `updateItemStatus(itemId, SKIPPED, resultJson, null, now)` —— 与既有 `BatchTaskRepositoryImplTest` 一致。日志里则是另一条 `SKIPPED <文件名>: <原因>`。
+5. **`BatchTaskScheduler` 的 `jobs.remove(taskId, job)` 在协程 `finally` 里，晚于最后一笔行写入**：测试里「看到 SUCCEEDED 就立刻再 enqueue」会偶发被 KEEP 挡掉。改法是重试到 `workId` **变化**（那才是被接受的信号），不是只看状态；日志条数也一样要显式等（`logBatch` 写在 `markSucceeded` 之后）。
+6. **脚本型处理器要注册给所有 `BatchTaskType.entries`**：摘要用例会建 RENAME / CONVERT 任务，只注册一种类型会让它们掉进「没有处理器」分支，报一个与用例意图无关的失败。
+
+#### 5. 这批的用户可见缺口（如实记录）
+
+1. **没有界面入口**：任务列表/详情页仍在 java 树，所以本批的能力只能由测试或将来 C6c 的路由触发；普通用户碰不到。
+2. **没有进度展示**：进度只在数据库与 `BATCH` 日志里（无通知、无托盘、无常驻指示器）。跑长任务时用户看不到任何东西。
+3. **退出即丢**：任务跑在应用进程里，直接关窗口会让在跑的任务消失（下次启动被记为 FAILED `Task interrupted by system`）；没有「优雅停机等任务跑完」。
+4. **6 种任务类型还没有处理器**（`MATCH_METADATA`/`MATCH_LYRICS`/`MATCH_COVER`/`SCAN_REPLAY_GAIN`/`EXPORT_LYRICS`/`EXPORT_COVER`）：建了会**立刻 FAILED** 并写明原因（§2.4），不会静默排队。后三个分别等 C6b/C6d/C6e。
+5. **取消只有 API**：没有界面按钮，也没有「取消后把中断的那条重试」的语义（§4.2）。
+
+#### 6. 前沿
+
+`python scripts/port-frontier.py` → java 树 **108 个文件 / 0 陈旧副本 / 49 可搬 / 59 被挡**（上一批 124 / 0 / 51 / 73）。批量任务这条链剩下的都在被挡一侧：3 个 match 处理器（要 QuickJS 夹具）、`BatchExportProcessor`、ReplayGain 两个文件，以及 `BatchTaskListScreen`/`BatchTaskDetailScreen`/`BatchEditScreen`/`BatchRenameScreen` 与那 7 个 bottom sheet。
 
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 

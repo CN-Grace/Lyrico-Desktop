@@ -104,8 +104,7 @@ class BatchEditSongsUseCase(
             total = request.songs.size,
             success = items.count { it.result is SaveAudioTagsResult.Success },
             failed = items.count {
-                it.result is SaveAudioTagsResult.Failed ||
-                    it.result is SaveAudioTagsResult.PermissionRequired
+                it.result is SaveAudioTagsResult.Failed
             },
             skipped = items.count { it.skippedReason != null } +
                 if (request.dryRun) items.count { it.skippedReason == null } else 0,

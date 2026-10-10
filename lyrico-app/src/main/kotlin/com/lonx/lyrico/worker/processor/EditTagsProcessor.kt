@@ -1,6 +1,5 @@
 package com.lonx.lyrico.worker.processor
 
-import android.util.Log
 import com.lonx.audiotag.model.AudioTagData
 import com.lonx.audiotag.model.CustomTagField
 import com.lonx.lyrico.data.model.entity.BatchTaskEntity
@@ -10,6 +9,7 @@ import com.lonx.lyrico.domain.song.usecase.BatchEditSongsUseCase
 import com.lonx.lyrico.domain.song.usecase.BatchTagEditItemRequest
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsResult
 import com.lonx.lyrico.utils.LyricEncoder
+import com.lonx.lyrico.utils.logging.PlatformLog
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.Locale
@@ -79,7 +79,7 @@ class EditTagsProcessor(
                 )
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to edit tags: ${item.songUri}", e)
+            PlatformLog.e(TAG, "Failed to edit tags: ${item.songUri}", e)
             throw Exception("Write failed", e)
         }
 

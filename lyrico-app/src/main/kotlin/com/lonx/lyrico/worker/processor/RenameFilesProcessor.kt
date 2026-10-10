@@ -6,7 +6,7 @@ import com.lonx.lyrico.data.model.entity.BatchTaskItemEntity
 import com.lonx.lyrico.data.song.library.SongLibraryRepository
 import com.lonx.lyrico.data.song.tag.AudioTagRepository
 import com.lonx.lyrico.data.song.tag.AudioTagReadOptions
-import com.lonx.lyrico.domain.song.usecase.RenameSongResult
+import com.lonx.lyrico.data.song.file.RenameSongFileResult
 import com.lonx.lyrico.domain.song.usecase.RenameSongUseCase
 import com.lonx.lyrico.utils.FileNameSanitizer
 import com.lonx.lyrico.utils.FormatParser
@@ -64,7 +64,9 @@ class RenameFilesProcessor(
         }
 
         val result = renameSongUseCase(song, newFileName)
-        if (result !is RenameSongResult.Success) {
+        // On Android a `PermissionRequired` case could sit here too; on Windows a refused rename is a
+        // `Failed` carrying the reason (see `RenameSongFileResult`).
+        if (result !is RenameSongFileResult.Success) {
             throw Exception("Failed to rename file")
         }
 

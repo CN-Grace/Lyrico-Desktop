@@ -5,10 +5,15 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.lonx.audiotag.internal.NativeLibraryLoader
+import com.lonx.lyrico.data.repository.AppLogRepository
+import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.di.desktopAppModule
 import com.lonx.lyrico.platform.AppDirectories
 import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.utils.coil.installImageLoader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 
 private const val LOG_TAG = "Lyrico"
@@ -22,8 +27,9 @@ private const val LOG_TAG = "Lyrico"
  * 2. create its directories,
  * 3. load the native audio-tag libraries,
  * 4. start the DI graph,
- * 5. install the cover-art image loader,
- * 6. open the window.
+ * 5. run start-up maintenance (trim the app log, fail tasks orphaned by a previous run),
+ * 6. install the cover-art image loader,
+ * 7. open the window.
  *
  * A failure in 1-4 is reported as a dialog-less crash (a non-zero exit with a stack trace) rather than
  * an empty window: there is nothing useful to show a user whose database directory is unusable. Once
@@ -51,6 +57,23 @@ fun main(args: Array<String>) {
     startKoin {
         modules(desktopAppModule(directories))
     }
+
+    // Start-up maintenance, as Android's `App` did on a background scope: trim the app log to its
+    // retention policy, and mark batch tasks left RUNNING by a previous process as FAILED. The
+    // second one matters more on the desktop than it did on Android: a running task lives in the
+    // process, so a task that was still RUNNING when the app closed has nobody left to finish it,
+    // and the task list would show it as running forever. Nothing is awaited -- the window opens
+    // while this runs -- but a failure is logged rather than swallowed, because a silent failure
+    // here would leave exactly the stuck rows this is meant to clear.
+    runCatching {
+        val appScope = GlobalContext.get().get<CoroutineScope>()
+        appScope.launch {
+            runCatching {
+                GlobalContext.get().get<AppLogRepository>().trim()
+                GlobalContext.get().get<BatchTaskRepository>().markOrphanedTasksFailed()
+            }.onFailure { PlatformLog.e(LOG_TAG, "启动维护失败", it) }
+        }
+    }.onFailure { PlatformLog.e(LOG_TAG, "启动维护无法调度", it) }
 
     // Covers decode through Coil, whose loader is a process-wide singleton on Android too; a missing
     // or failing cache directory must not take the app down, so the cover cache is only an

@@ -241,17 +241,5 @@ class BatchLyricsFormatViewModel(
     }
 }
 
-@kotlinx.serialization.Serializable
-data class LyricsFormatConfig(
-    val targetFormat: LyricFormat? = null,
-    val concurrency: Int,
-    val formatLineOrder: Boolean = true,
-    val removeTagLines: Boolean = false,
-    val tagLineKeywords: List<String> = LyricsProcessingOptions.DefaultTagLineKeywords,
-    val removeEmptyLines: Boolean = false,
-    val twoColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(2),
-    val threeColumnMapping: LyricsColumnMapping = LyricsColumnMapping.identity(3),
-    @kotlinx.serialization.SerialName("columnEdits")
-    val legacyColumnEdits: Map<String, LyricsColumnEdit> = emptyMap(),
-    val operation: LyricsOperation = LyricsOperation.CONVERT
-)
+// LyricsFormatConfig moved to its own file (LyricsFormatConfig.kt): the batch engine deserializes it
+// and must not depend on this viewmodel. The class is still in this package, so nothing else changes.

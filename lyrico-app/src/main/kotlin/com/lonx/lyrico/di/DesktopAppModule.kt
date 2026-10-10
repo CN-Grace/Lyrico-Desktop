@@ -26,6 +26,7 @@ import com.lonx.lyrico.data.repository.SourcePluginRepositoryImpl
 import com.lonx.lyrico.data.repository.UpdateRepository
 import com.lonx.lyrico.data.repository.UpdateRepositoryImpl
 import com.lonx.lyrico.data.repository.createSettingsDataStore
+import com.lonx.lyrico.data.model.BatchTaskType
 import com.lonx.lyrico.data.song.file.AudioFileAccess
 import com.lonx.lyrico.data.song.file.SongFileRepository
 import com.lonx.lyrico.data.song.file.SongFileRepositoryImpl
@@ -47,7 +48,10 @@ import com.lonx.lyrico.data.song.tag.ImageMimeTypeDetector
 import com.lonx.lyrico.data.song.tag.PictureMutationResolver
 import com.lonx.lyrico.data.song.tag.TagMapBuilder
 import com.lonx.lyrico.domain.SearchSourceConfigApplier
+import com.lonx.lyrico.domain.song.usecase.BatchEditSongsUseCase
 import com.lonx.lyrico.domain.song.usecase.DeleteSongsUseCase
+import com.lonx.lyrico.domain.song.usecase.OverwriteSongTagsUseCase
+import com.lonx.lyrico.domain.song.usecase.PatchSongTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.ReadAudioTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.RenameSongUseCase
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsUseCase
@@ -65,6 +69,12 @@ import com.lonx.lyrico.utils.LibraryScanManager
 import com.lonx.lyrico.utils.LibraryScanManagerImpl
 import com.lonx.lyrico.utils.UpdateManager
 import com.lonx.lyrico.utils.UpdateManagerImpl
+import com.lonx.lyrico.worker.BatchTaskRunner
+import com.lonx.lyrico.worker.BatchTaskScheduler
+import com.lonx.lyrico.worker.processor.BatchTaskProcessorFactory
+import com.lonx.lyrico.worker.processor.EditTagsProcessor
+import com.lonx.lyrico.worker.processor.LyricsFormatProcessor
+import com.lonx.lyrico.worker.processor.RenameFilesProcessor
 import com.lonx.lyrico.viewmodel.AlbumActionsViewModel
 import com.lonx.lyrico.viewmodel.AlbumDetailViewModel
 import com.lonx.lyrico.viewmodel.AlbumLibraryViewModel
@@ -212,9 +222,34 @@ fun desktopAppModule(directories: AppDirectories) = module {
     single { DeleteSongsUseCase(get()) }
     single { RenameSongUseCase(get()) }
     single { SynchronizeLibraryUseCase(get()) }
+    single { PatchSongTagsUseCase(get()) }
+    single { OverwriteSongTagsUseCase(get()) }
+    single { BatchEditSongsUseCase(get(), get()) }
 
     single<LibraryScanManager> { LibraryScanManagerImpl(get(), get(), get(), get()) }
     single<UpdateManager> { UpdateManagerImpl(get(), get()) }
+
+    // ---------------------------------------------------------------- batch tasks
+
+    // The task processors that exist on desktop so far, registered as Android registered them: one
+    // typed single each, then the factory built out of them. The remaining six types
+    // (MATCH_METADATA, MATCH_LYRICS, MATCH_COVER, SCAN_REPLAY_GAIN, EXPORT_LYRICS, EXPORT_COVER)
+    // have no desktop processor yet, so BatchTaskProcessorFactory refuses them with its own message
+    // and the runner records that on the task row instead of leaving it RUNNING.
+    single { LyricsFormatProcessor(get(), get(), get()) }
+    single { RenameFilesProcessor(get(), get(), get()) }
+    single { EditTagsProcessor(get(), get()) }
+    single {
+        BatchTaskProcessorFactory(
+            mapOf(
+                BatchTaskType.CONVERT_LYRICS_FORMAT to get<LyricsFormatProcessor>(),
+                BatchTaskType.RENAME_FILES to get<RenameFilesProcessor>(),
+                BatchTaskType.EDIT_TAGS to get<EditTagsProcessor>()
+            )
+        )
+    }
+    single { BatchTaskRunner(get(), get(), get()) }
+    single { BatchTaskScheduler(get(), get(), get()) }
 
     // ---------------------------------------------------------------- plugins
 
