@@ -1,8 +1,27 @@
 package com.lonx.lyrico.utils
 
+import com.lonx.audiotag.internal.NativeLibraryLoader
 import com.lonx.lyrico.data.model.ReplayGainPeakMode
 import java.nio.ByteBuffer
 
+/**
+ * JNI bridge to the bundled libebur128 (`ebur128.dll`), which implements the ITU-R BS.1770 loudness
+ * measurement behind ReplayGain.
+ *
+ * Ported from Android with two desktop changes:
+ *
+ * - `System.loadLibrary("ebur128")` is replaced by [NativeLibraryLoader], which probes the
+ *   launcher/`lyrico.native.dir`/`build/native/<platform>` locations and reports every probed path
+ *   when it fails. The DLL is on `java.library.path` in neither the development nor the packaged
+ *   layout, so a bare `loadLibrary` call would fail with an opaque `UnsatisfiedLinkError`.
+ * - The Android-only `@Keep`/R8 concerns are gone; JNI resolves these methods by name and signature.
+ *
+ * **Chunks must be handed over in a direct [ByteBuffer].** `ebur128.cpp` reads the samples with
+ * `GetDirectBufferAddress`, which returns `null` for a heap buffer, and `processDirectNative` then
+ * returns early without adding anything — a silent zero-sample measurement rather than an error. The
+ * address it uses is the buffer's *base*, so the samples have to sit at index 0; position and limit
+ * are not honoured.
+ */
 class LibEbuR128(
     val channels: Int,
     sampleRate: Int,
@@ -11,8 +30,12 @@ class LibEbuR128(
 
     companion object {
         init {
-            System.loadLibrary("ebur128")
+            NativeLibraryLoader.load(EBUR128)
         }
+
+        /** Library name; the loader maps it to `ebur128.dll` on Windows. */
+        const val EBUR128: String = "ebur128"
+
         const val FORMAT_SHORT = 1
         const val FORMAT_FLOAT = 2
 
@@ -33,6 +56,14 @@ class LibEbuR128(
         }
     }
 
+    /**
+     * Adds [frameCount] frames from [buffer].
+     *
+     * [buffer] must be direct and hold the samples at index 0 (see the class KDoc). [isFloat] is
+     * `FORMAT_FLOAT`'s switch: `true` for 32-bit float PCM, `false` for 16-bit short PCM. The desktop
+     * decoder only ever produces float PCM, so the short path survives purely as part of the ported
+     * API surface.
+     */
     fun processDirect(buffer: ByteBuffer, isFloat: Boolean, frameCount: Int) {
         if (nativePtr == 0L || frameCount <= 0) return
         val format = if (isFloat) FORMAT_FLOAT else FORMAT_SHORT

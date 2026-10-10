@@ -1,0 +1,36 @@
+file: docs\port-evidence\c6d-album-replay-gain-progress.png
+size: 1166x773
+distinct_colours: 474  most_common_share: 0.643  text_pixels: 8577
+accent_blue_pixels: 3364  accent_warm_pixels: 275
+top_colours: (178, 178, 178)=579101, (255, 255, 255)=155648, (172, 172, 172)=147413, (52, 130, 255)=3180
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        ++                                     ..+ .+                                   +. .+ +
+  #  ++    #+                                    .### ##                                   ++ ++ +
+  # +#+                                                                                          +
+  # ##+                                                                                          +
+  #  #                                                                                           #
+  # ###                                                                                          #
+  # .++                                                                                          #
+  # +##                                                                                          #
+  # ###                                                                                          #
+  # .++                                                                                          #
+  #                                                                                              #
+  #                           +++                                         +++                    #
+  #                           +++                                         +++                    #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #       ###                                  ##+#++                   +.                      .#
+  #       +++                                                                                    #
+  #                      ++++.                                         .++.                      #
+  #                                                                                              #
+  #                      +##+.+                                       ++.+.                      +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

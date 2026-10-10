@@ -1,0 +1,9 @@
+file: docs/port-evidence/c6d-album-replay-gain-progress.png
+engine: zh-Hans-CN
+lines: 6
+  y=7 x=21 :: 《 Lyrico 1 ℃ 囤 H45555 〕
+  y=49 x=577 :: 专 辑 〔 4 ）
+  y=616 x=547 :: 演 示 台
+  y=645 x=103 :: 2 首
+  y=617 x=834 :: 中 止
+  y=719 x=836 :: 0 / 20

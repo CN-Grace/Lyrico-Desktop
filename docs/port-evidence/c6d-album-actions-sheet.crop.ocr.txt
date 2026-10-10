@@ -1,0 +1,8 @@
+file: docs/port-evidence/c6d-album-actions-sheet.crop.png
+engine: zh-Hans-CN
+lines: 5
+  y=86 x=82 :: 演 示 合 隼
+  y=165 x=106 :: 计 算 专 辑 回 放 增 益
+  y=279 x=106 :: 分 享 专 辑
+  y=388 x=106 :: 删 除 专 辑
+  y=434 x=106 :: 删 除 亏 辑 中 的 所 有 文 件

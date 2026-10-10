@@ -53,6 +53,12 @@ class DevLibrarySeederTest {
     private companion object {
         /** A message the failure rows can carry into the capture. */
         const val TAG_WRITE_ERROR = "标签写入失败：权限不足"
+
+        /** The demo album added for the C6d window evidence (see [albums]). */
+        const val DEMO_ALBUM_NAME = "演示合集"
+
+        /** C6d: how many copies of the 3.55 s fixture the demo album gets (see [albums]). */
+        const val DEMO_TRACK_COUNT = 20
     }
 
     private val fixtures = File(
@@ -64,6 +70,20 @@ class DevLibrarySeederTest {
         "周华健 - 朋友" to listOf("bladeenc.mp3" to "朋友", "alaw.wav" to "花心"),
         "李宗盛 - 山丘" to listOf("silence-44-s.flac" to "山丘"),
         "Earth, Wind & Fire - September" to listOf("test.ogg" to "September"),
+        // C6d: album ReplayGain's "calculating" is a transient state, and the three albums above hold
+        // four short files, so a run finishes in about half a second -- too fast to photograph. This
+        // album repeats the same 3.55 s fixture twenty times under twenty different titles, which makes
+        // the measurement a real multi-track programme (the album loudness is still a duration-weighted
+        // mean over genuinely measured tracks) that takes long enough to photograph: measured in the
+        // window, the sheet reported `用时 1.04 秒` for all twenty tracks (52 ms each, which is ffmpeg's
+        // own cost -- see `docs/port-evidence/c6d-album-replay-gain-tags.txt`). That is over the ~0.6 s
+        // it takes to go from clicking the row to the first captured frame with `-SettleMs 0` on both
+        // scripts, which is why the capture lands at 90% instead of on the finished sheet. It is added
+        // in a way that leaves the other evidence reproducible: the batch tasks below take their songs
+        // from `taskSongs`, which excludes this album, so the C6c captures still show the same file
+        // names if the seeder is re-run.
+        "Various Artists - $DEMO_ALBUM_NAME" to
+            (1..DEMO_TRACK_COUNT).map { "bladeenc.mp3" to "演示曲目 %02d".format(it) },
     )
 
     @Test
@@ -117,12 +137,16 @@ class DevLibrarySeederTest {
                 // the capture is the evidence for it; the live/cancel row is covered headlessly instead,
                 // because there is no way to create a task while the window is open.
                 val tasks = koin.get<BatchTaskRepository>()
-                val queued = tasks.createTask(BatchTaskType.MATCH_COVER, songs.take(2), null)
-                val clean = seedTask(tasks, BatchTaskType.EDIT_TAGS, songs.take(3), succeeded = 3)
+                // The demo album is deliberately excluded here: the C6c captures document the file
+                // names these four tasks put on screen, and the album above would otherwise reorder
+                // `songs` and change them on a re-run.
+                val taskSongs = songs.filterNot { it.album == DEMO_ALBUM_NAME }
+                val queued = tasks.createTask(BatchTaskType.MATCH_COVER, taskSongs.take(2), null)
+                val clean = seedTask(tasks, BatchTaskType.EDIT_TAGS, taskSongs.take(3), succeeded = 3)
                 val mixed = seedTask(
                     tasks,
                     BatchTaskType.MATCH_LYRICS,
-                    songs,
+                    taskSongs,
                     succeeded = 2,
                     failed = 1,
                     skipped = 1,
@@ -130,7 +154,7 @@ class DevLibrarySeederTest {
                 val broken = seedTask(
                     tasks,
                     BatchTaskType.RENAME_FILES,
-                    songs.take(1),
+                    taskSongs.take(1),
                     succeeded = 0,
                     failed = 1,
                     failing = true,

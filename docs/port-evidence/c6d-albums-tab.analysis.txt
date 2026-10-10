@@ -1,0 +1,36 @@
+file: docs\port-evidence\c6d-albums-tab.png
+size: 1166x773
+distinct_colours: 497  most_common_share: 0.815  text_pixels: 7302
+accent_blue_pixels: 168  accent_warm_pixels: 148
+top_colours: (255, 255, 255)=734272, (247, 247, 247)=150141, (228, 228, 228)=4523, (25, 25, 25)=2796
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        +.                                     ... .+                                   +. .+ +
+  #  ++    #+                                    .##+ ++                                   ++ ++ +
+  # +++                                                                                          +
+  # #++                                                                                          +
+  #  #                                                                                           #
+  # ##+                                                                                          #
+  # .++                                                                                          #
+  # +#+                                                                                          #
+  # ###                                                                                          #
+  # .++                                                                                          #
+  #                                                                                              #
+  #                           .++                                         .++                    #
+  #                           .++                                         .++                    #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #       #+#                                         +###++.                                   .#
+  #       +++                                         .#+                                        #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

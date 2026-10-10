@@ -1,0 +1,9 @@
+file: docs/port-evidence/c6d-album-replay-gain-done.crop.png
+engine: zh-Hans-CN
+lines: 6
+  y=231 x=595 :: 演 示 合 集
+  y=331 x=75 :: 用 时 1 ． 04 秒
+  y=434 x=73 :: 成 功 ： 20
+  y=234 x=1166 :: 关 闭
+  y=331 x=1178 :: 100 ％
+  y=437 x=1154 :: 20 / 20

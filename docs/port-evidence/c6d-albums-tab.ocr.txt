@@ -1,0 +1,6 @@
+file: docs/port-evidence/c6d-albums-tab.png
+engine: zh-Hans-CN
+lines: 3
+  y=10 x=31 :: Lyrico 1 ℃ 囤 d45555 ）
+  y=49 x=577 :: 专 辑 〔 4 ）
+  y=623 x=636 :: September

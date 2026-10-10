@@ -1,0 +1,9 @@
+file: docs/port-evidence/c6d-album-replay-gain-progress.crop.png
+engine: zh-Hans-CN
+lines: 6
+  y=231 x=595 :: 演 示 合 集
+  y=331 x=74 :: 计 算 中
+  y=434 x=73 :: 成 功 ： 0
+  y=234 x=1168 :: 中 止
+  y=331 x=1194 :: 90 ％
+  y=437 x=1171 :: 0 / 20

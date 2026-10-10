@@ -51,6 +51,7 @@ import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
 import com.lonx.lyrico.ui.components.library.AlbumActionBottomSheet
+import com.lonx.lyrico.ui.components.library.AlbumReplayGainProgressBottomSheet
 import com.lonx.lyrico.ui.components.library.AlbumGridItem
 import com.lonx.lyrico.ui.components.library.LibraryEmptyState
 import com.lonx.lyrico.ui.components.library.LibraryScrollbar
@@ -104,9 +105,10 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  *   `unknown_error`) are the Android ones, resolved through `UiMessage.resolve()`.
  * * **`LocalContext`**, which existed only to build the share `Intent` and to make the `Toast`.
  *
- * The ReplayGain row and its progress sheet are absent, not stubbed: see
- * `ui/components/library/AlbumActionBottomSheet.kt` and `viewmodel/AlbumActionsViewModel.kt` for
- * why, and `PLAN.md` for the P5 entry.
+ * The ReplayGain row is present again: this page collects `AlbumActionsViewModel.uiState` and renders
+ * `AlbumReplayGainProgressBottomSheet` next to the action sheet, which is Android's wiring verbatim.
+ * The progress sheet lives outside the `selectedAlbum` block because the action sheet is dismissed the
+ * moment the user taps the row.
  *
  * [sectionIndexMap] is the one place this page differs from `SongsPage` beyond the container type: a
  * grid needs the index to land on the first row that *contains* the section, so the stored position
@@ -124,6 +126,7 @@ fun AlbumsPage(
     val viewModel: AlbumLibraryViewModel = koinViewModel()
     val albumActionsViewModel: AlbumActionsViewModel = koinViewModel()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val albumActionsUiState by albumActionsViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val albums by viewModel.albums.collectAsStateWithLifecycle()
@@ -331,6 +334,7 @@ fun AlbumsPage(
         AlbumActionBottomSheet(
             show = showAlbumActionSheet,
             albumName = album.name,
+            isCalculatingReplayGain = albumActionsUiState.isCalculatingAlbumReplayGain,
             onDismissRequest = { showAlbumActionSheet = false },
             onDismissFinished = {
                 if (!showAlbumActionSheet && !showDeleteAlbumDialog) {
@@ -344,6 +348,10 @@ fun AlbumsPage(
             onDelete = {
                 showAlbumActionSheet = false
                 showDeleteAlbumDialog = true
+            },
+            onCalculateReplayGain = {
+                showAlbumActionSheet = false
+                albumActionsViewModel.calculateAlbumReplayGain(album.id)
             }
         )
 
@@ -366,6 +374,16 @@ fun AlbumsPage(
             }
         )
     }
+
+    // Outside the `selectedAlbum` block on purpose: the action sheet is dismissed as soon as the
+    // ReplayGain row is tapped (Android did the same), so by the time this sheet is on screen there is
+    // no selected album left -- the title comes from the view model's own state.
+    AlbumReplayGainProgressBottomSheet(
+        uiState = albumActionsUiState,
+        onDismissRequest = albumActionsViewModel::closeAlbumReplayGainProgressDialog,
+        onDismissFinished = albumActionsViewModel::clearAlbumReplayGainProgressDialog,
+        onAbort = albumActionsViewModel::cancelAlbumReplayGain
+    )
 }
 
 private fun buildAlbumSummary(

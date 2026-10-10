@@ -1,0 +1,9 @@
+file: docs/port-evidence/c6d-album-replay-gain-aborted.crop.png
+engine: zh-Hans-CN
+lines: 6
+  y=231 x=595 :: 演 示 合 集
+  y=331 x=75 :: 用 时 0 ． 64 秒
+  y=434 x=73 :: 成 功 ： 0
+  y=234 x=1166 :: 关 闭
+  y=331 x=1213 :: 0 ％
+  y=437 x=1171 :: 0 / 20

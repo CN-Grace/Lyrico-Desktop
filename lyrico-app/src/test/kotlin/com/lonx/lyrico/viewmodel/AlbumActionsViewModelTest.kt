@@ -4,6 +4,7 @@ import com.lonx.lyrico.data.model.SongSource
 import com.lonx.lyrico.data.model.entity.FolderEntity
 import com.lonx.lyrico.data.model.entity.SongEntity
 import com.lonx.lyrico.data.model.entity.path
+import com.lonx.lyrico.data.repository.CustomTagKeyRepository
 import com.lonx.lyrico.data.repository.FileRevealRepository
 import com.lonx.lyrico.data.repository.LibraryIndexRepositoryImpl
 import com.lonx.lyrico.data.repository.RevealResult
@@ -11,13 +12,24 @@ import com.lonx.lyrico.data.repository.SettingsRepositoryImpl
 import com.lonx.lyrico.data.repository.createSettingsDataStore
 import com.lonx.lyrico.data.song.file.AudioFileAccess
 import com.lonx.lyrico.data.song.file.SongFileRepositoryImpl
+import com.lonx.lyrico.data.song.library.SongLibraryRepositoryImpl
+import com.lonx.lyrico.data.song.mapper.SongMetadataMapper
 import com.lonx.lyrico.data.song.mapper.SortKeyUpdater
+import com.lonx.lyrico.data.song.tag.AudioTagMutationResolver
+import com.lonx.lyrico.data.song.tag.AudioTagRepositoryImpl
+import com.lonx.lyrico.data.song.tag.DefaultImageBytesFetcher
+import com.lonx.lyrico.data.song.tag.ImageMimeTypeDetector
+import com.lonx.lyrico.data.song.tag.PictureMutationResolver
+import com.lonx.lyrico.data.song.tag.TagMapBuilder
 import com.lonx.lyrico.data.support.RecordingAppLogRepository
 import com.lonx.lyrico.data.support.TestLibrary
 import com.lonx.lyrico.domain.song.usecase.DeleteSongsUseCase
+import com.lonx.lyrico.domain.song.usecase.PatchSongTagsUseCase
+import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsUseCase
 import com.lonx.lyrico.resources.Res
 import com.lonx.lyrico.resources.album_delete_success
 import com.lonx.lyrico.resources.no_player_found
+import com.lonx.lyrico.utils.ReplayGainScanner
 import com.lonx.lyrico.utils.UiMessage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +44,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.OkHttpClient
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.AfterTest
@@ -64,6 +77,8 @@ class AlbumActionsViewModelTest {
     private lateinit var musicDir: Path
     private lateinit var indexes: LibraryIndexRepositoryImpl
     private lateinit var files: SongFileRepositoryImpl
+    private lateinit var settings: SettingsRepositoryImpl
+    private lateinit var tags: AudioTagRepositoryImpl
     private var folderId: Long = 0L
 
     private val reveal = RecordingFileRevealRepository()
@@ -78,16 +93,28 @@ class AlbumActionsViewModelTest {
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         musicDir = Files.createTempDirectory("lyrico-album-actions")
 
+        settings = SettingsRepositoryImpl(
+            createSettingsDataStore(
+                Files.createTempFile("lyrico-album-actions-settings", ".preferences_pb"),
+                scope,
+            )
+        )
         indexes = LibraryIndexRepositoryImpl(
             database = library.database,
             songDao = library.database.songDao(),
             indexDao = library.database.libraryIndexDao(),
-            settingsRepository = SettingsRepositoryImpl(
-                createSettingsDataStore(
-                    Files.createTempFile("lyrico-album-actions-settings", ".preferences_pb"),
-                    scope,
-                )
+            settingsRepository = settings,
+        )
+        tags = AudioTagRepositoryImpl(
+            fileAccess = AudioFileAccess(),
+            mutationResolver = AudioTagMutationResolver(
+                tagMapBuilder = TagMapBuilder(),
+                pictureResolver = PictureMutationResolver(
+                    imageBytesFetcher = DefaultImageBytesFetcher(AudioFileAccess(), OkHttpClient()),
+                    mimeTypeDetector = ImageMimeTypeDetector(),
+                ),
             ),
+            appLogRepository = RecordingAppLogRepository(),
         )
         files = SongFileRepositoryImpl(
             database = library.database,
@@ -109,9 +136,31 @@ class AlbumActionsViewModelTest {
         musicDir.toFile().deleteRecursively()
     }
 
+    /**
+     * The view model, with the graph the shipped module builds for it.
+     *
+     * Three of these dependencies have nothing to do with the album actions asserted below: the tag
+     * patcher and the ReplayGain scanner are only reachable through `writeAlbumReplayGain` and
+     * `calculateAlbumReplayGain`, whose behaviour is driven end to end (real ffmpeg, real TagLib
+     * writes, real album tags read back off disk) by `AlbumReplayGainViewModelTest`. They are built for
+     * real here anyway rather than stubbed, because a hand-built graph that quietly stops matching the
+     * module's is the kind of drift a passing test cannot see.
+     */
     private fun viewModel() = AlbumActionsViewModel(
         libraryIndexRepository = indexes,
         deleteSongsUseCase = DeleteSongsUseCase(files),
+        patchSongTagsUseCase = PatchSongTagsUseCase(
+            SaveAudioTagsUseCase(
+                database = library.database,
+                songLibraryRepository = SongLibraryRepositoryImpl(library.database),
+                audioTagRepository = tags,
+                customTagKeyRepository = CustomTagKeyRepository(library.database.songCustomTagKeyDao()),
+                libraryIndexRepository = indexes,
+                songMetadataMapper = SongMetadataMapper(SortKeyUpdater()),
+            )
+        ),
+        replayGainScanner = ReplayGainScanner(),
+        settingsRepository = settings,
         fileRevealRepository = reveal,
     )
 

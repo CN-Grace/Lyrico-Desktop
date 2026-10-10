@@ -1,0 +1,11 @@
+file: docs/port-evidence/c6d-album-replay-gain-aborted.png
+engine: zh-Hans-CN
+lines: 8
+  y=7 x=21 :: 《 Lyrico 1 ℃ 囤 H45555 〕
+  y=49 x=577 :: 专 辑 〔 4 ）
+  y=616 x=547 :: 演 示 台
+  y=645 x=103 :: 2 首
+  y=666 x=287 :: 用 时 0 4 秒
+  y=731 x=107 :: 已 取 消 回 放 唱 益 计 算
+  y=617 x=833 :: 关 闭
+  y=719 x=836 :: 0 / 20

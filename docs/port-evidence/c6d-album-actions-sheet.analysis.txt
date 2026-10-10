@@ -1,0 +1,36 @@
+file: docs\port-evidence\c6d-album-actions-sheet.png
+size: 1166x773
+distinct_colours: 484  most_common_share: 0.589  text_pixels: 9319
+accent_blue_pixels: 168  accent_warm_pixels: 647
+top_colours: (178, 178, 178)=530443, (172, 172, 172)=146809, (240, 240, 240)=106916, (255, 255, 255)=101597
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        ++                                     ..+ .+                                   +. .+ +
+  #  ++    #+                                    .### ##                                   ++ ++ +
+  # +#+                                                                                          +
+  # ##+                                                                                          +
+  #  #                                                                                           #
+  # ###                                                                                          #
+  # .++                                                                                          #
+  # +##                                                                                          #
+  # ###                                                                                          #
+  # .++                                                                                          #
+  #                                                                                              #
+  #                           +++                                         +++                    #
+  #                           +++                                         +++                    #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                        ###########.                                                          #
+  #       ###                                                                                   .#
+  #       +++              +++###                                                                #
+  #                                                                                              #
+  #                        .#++++                                                                #
+  #                        +#+##+++#++                                                           +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

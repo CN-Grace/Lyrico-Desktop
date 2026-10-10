@@ -1,0 +1,135 @@
+# ReplayGain 标签落盘核对（与截图无关的第二条独立证据链）
+
+界面截图只能证明「面板上写着 成功：20」；回复增益是否真的写进了文件，要由**另一个**解码器读回来才算数——
+写标签的是 app 进程里的 TagLib，读回来的是 CLI 的 ffmpeg（同一个 sidecar 二进制，但另一条代码路径）。
+
+## 1. 库里那 20 个文件的标签（ffmpeg -i 打印的输入元数据）
+
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/1 演示曲目 01.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/2 演示曲目 02.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/3 演示曲目 03.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/4 演示曲目 04.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/5 演示曲目 05.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/6 演示曲目 06.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/7 演示曲目 07.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/8 演示曲目 08.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/9 演示曲目 09.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/10 演示曲目 10.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/11 演示曲目 11.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/12 演示曲目 12.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/13 演示曲目 13.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/14 演示曲目 14.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/15 演示曲目 15.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/16 演示曲目 16.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/17 演示曲目 17.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/18 演示曲目 18.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/19 演示曲目 19.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/Various Artists - 演示合集/20 演示曲目 20.mp3"
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+    Duration: 00:00:03.57, start: 0.000000, bitrate: 66 kb/s
+
+## 2. 这 20 个文件是不是同一份测量结果（去重）
+
+库里 20 个文件是同一段夹具的 20 份拷贝，所以 20 次测量必须给出同一组标签；只要有一条不一致，
+就说明有一首歌没被真测（比如读的是缓存）或者写串了。
+
+出现 20 次（第 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 首）：
+    REPLAYGAIN_ALBUM_GAIN: -11.29 dB
+    REPLAYGAIN_ALBUM_PEAK: 0.709146
+    REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS
+
+## 3. 标签里的数字是从哪来的（和 CLI 的独立测量对账）
+
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i lyrico-audiotag/src/main/cpp/taglib/tests/data/bladeenc.mp3 -af ebur128=peak=sample -f null -
+    I:          -6.7 LUFS
+    Peak:       -3.0 dBFS
+
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i lyrico-audiotag/src/main/cpp/taglib/tests/data/bladeenc.mp3 -af loudnorm=print_format=summary -f null -
+    Input Integrated:     -6.8 LUFS
+    Input True Peak:      -3.0 dBTP
+
+对账（目标响度取标签里的参考值 -18 LUFS）：
+    专辑增益 = 目标响度 - 实测响度 = -18 - (-6.71) = -11.29 dB，标签写的是 -11.29 dB
+    专辑峰值 = 20*log10(0.709146) = -2.99 dBFS，CLI 的 Peak 行是 -3.0 dBFS
+  实测值 -6.71 是由标签反推的 app 端测量值（CLI 只打印到一位小数）；CLI 的两条不同滤镜打印 -6.7 与 -6.8，
+  是同一个值在不同打印精度/门限下的四舍五入。三个数说明链路是「ffmpeg 解码 → libebur128 测量 →
+  TagLib 写标签」，而不是面板上随便显示的成功数。
+

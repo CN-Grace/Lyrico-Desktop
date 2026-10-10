@@ -1,0 +1,10 @@
+file: docs/port-evidence/c6d-album-actions-sheet.png
+engine: zh-Hans-CN
+lines: 7
+  y=7 x=21 :: 《 Lyrico 1 ℃ 囤 H45555 〕
+  y=645 x=103 :: 2 首
+  y=49 x=577 :: 专 辑 〔 4 ）
+  y=583 x=303 :: 计 算 专 辑 回 放 增 益
+  y=640 x=303 :: 分 厚 专 辑
+  y=694 x=303 :: 删 除 专 辑
+  y=717 x=303 :: 删 除 亏 辑 中 的 所 有 文 件

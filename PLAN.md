@@ -1177,6 +1177,164 @@ C6a/C6b 让批量任务引擎真的跑起来了，但**用户界面一直缺着*
 批量任务链上还在被挡一侧的只剩 `BatchExportProcessor`（C6e）与 `ReplayGainProcessor` + `ReplayGainScanner` + `LibEbuR128`（C6d，ffmpeg 边车）；
 界面侧剩 `BatchEditScreen` / `BatchRenameScreen` / `EditMetadataScreen` 与设置页那一片。
 
+### P5 施工批次（专辑 ReplayGain：ffmpeg 边车 + 响度测量 + 专辑动作面板那一行，2026-10-11）
+
+C4c 搬 `AlbumsPage` 时**故意少画了一行**——「计算专辑回放增益」——理由就写在那一行原来的位置上：`ReplayGainScanner` 还在 java 树，
+而响度测量需要一个外部解码后端（Android 用 `MediaExtractor` + `MediaCodec`，桌面上没有对应物），所以那一行连同它的进度面板一起缺席，
+并在注释里说明这是"记录下来的缺口"。这批（**C6d**）把整条链补齐：ffmpeg 边车（LGPL 构建，`scripts/fetch-ffmpeg.ps1` 取到 `build/ffmpeg/windows-x64/ffmpeg.exe`）、
+`FfmpegAudioDecoder`（把 ffmpeg 的 `pcm_f32le` 流变成回调）、`RiffWaveHeader`（自己读 wav 头拿到真采样率与声道数）、`LibEbuR128`（BS.1770 的 JNI 桥）、
+`ReplayGainScanner`（逐曲 + 整专辑测量）、`ReplayGainProcessor`（批量任务的 `SCAN_REPLAY_GAIN`），最后是**那一行本身**、
+`AlbumActionsViewModel` 里驱动它的状态机，以及它的进度面板 `AlbumReplayGainProgressBottomSheet`。
+
+这批的难点不在"搬"，在**证明测出来的数字是对的**：回放增益是写进文件、由播放器读走的标签，写错了不报错、只是音量不对，事后无法察觉。
+所以取证是两条互相独立的链：(a) 无头侧把桥测出来的 LUFS **和 ffmpeg 自己的 `ebur128` 滤镜对账**，并用算术定量纲
+（满量程正弦 −3 LUFS、振幅减半 −6 LU、单声道复制成双声道 +3 LU）；(b) 真窗口侧跑一遍二十首歌的专辑，再把二十个文件**从磁盘读回来**，
+逐条核 `目标 − 实测 = 标签`。两条链的证据都落在 `docs/port-evidence/`。
+
+#### 1. 搬了什么（`git mv` 3 个文件 + 4 个新文件；java 主树 99 → 95）
+
+| 层 | 文件 | 行数 |
+| --- | --- | --- |
+| 搬入 | `utils/LibEbuR128` | 97 |
+| 搬入 | `utils/ReplayGainScanner` | 361 |
+| 搬入 | `worker/processor/ReplayGainProcessor` | 154 |
+| 新增 | `platform/FfmpegAudioDecoder` | 405 |
+| 新增 | `platform/FfmpegSidecar` | 99 |
+| 新增 | `platform/RiffWaveHeader` | 190 |
+| 新增 | `ui/components/library/AlbumReplayGainProgressBottomSheet` | 163 |
+
+三个 `git mv` 的文件里 `ReplayGainScanner` 与 Android 版的相似度只有 54%（解码那一半整个换掉了），另外两个是 33 / 48 行的改写。
+`di/DesktopAppModule`（20 行）、`screens/library/AlbumsPage`（24 行）、`ui/components/library/AlbumActionBottomSheet`（35 行）、
+`viewmodel/AlbumActionsViewModel`（282 行）是**已有文件**的改动（不搬文件，但属于这批）。非代码部分：`scripts/fetch-ffmpeg.ps1`（127 行，取边车）、
+`docs/third-party/ffmpeg-lgpl.md`（77 行，许可证与构建来源）、`.gitignore` 加一行 `/.kotlin`（Kotlin 2.x 的会话目录，不该进版本库）。
+测试是**新写的**（java 树里没有对应测试），共 **10 类 83 项**，另有 `screens/AlbumsPageTest` 里新增的 1 项。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **解码后端：`MediaExtractor` + `MediaCodec` → 一个 ffmpeg 子进程。** 命令行的每个参数都是契约（`FfmpegAudioDecoder` 的 KDoc 逐条写了理由）：
+   `-map 0:a:0` 是因为带封面的 FLAC 如果直接 `-f wav -`，会把附加图片当视频流 mux 进 WAV 而失败；`-c:a pcm_f32le` 是 `ebur128.dll` 能直接吃的格式；
+   **不加 `-ac` / `-ar`**，因为把单声道复制成双声道会让 BS.1770 响度涨 3.01 LU、重采样会动 K 加权滤波器的能量；**不加 `-v`**，因为 `Duration:` 是 INFO 级，
+   静音日志等于静默关掉进度上报；`-nostdin` 是因为子进程没有控制台可回答交互提示（stdin 也一并关掉）。
+2. **PCM 只能以 direct buffer 交给 JNI，且样本必须落在 index 0。** `ebur128.cpp` 用 `GetDirectBufferAddress` 取地址，堆 buffer 拿到 `null` 之后
+   `processDirectNative` 直接返回——**不报错，只是这一块被丢掉**（`sampleCount` 不涨，整首歌测成静音）；而那个地址是 buffer 的基址，不认 position/limit，
+   所以不能传切片。两条各有一个测试钉住（其中之一就叫 `a heap buffer measures nothing even though the sample count advances`）。
+3. **帧对齐要在 Java 侧自己保证。** 一次 64 KiB 的读取会把立体声 float PCM 的帧切开（65536 不是 6 的倍数），半个帧必须留到下一次读取里拼，
+   不能当成完整帧交出去——`PcmFrameAssembler` 就是干这个的，`FfmpegAudioDecoder` 承诺交出的每个 buffer 都是整帧。
+4. **`Success.mimeType` 的含义变了**：ffmpeg 报的是**输入**编解码器名（`flac` / `mp3` / `vorbis`），不是 Android 风格的 MIME（`audio/flac`）。
+   目前只用于显示，但 EditMetadata 页那张"格式名"表要在搬它的时候按这些名字重写（#36）。
+5. **两个错误分支在桌面没有对应物，删掉而不是假装有**：`UnsupportedCodec(mimeType)`（当时是去问平台"有没有解码器"）与
+   `CodecException.isAlacIssue`（平台 ALAC 解码器的老毛病）——ffmpeg 既不提供那个问题，也没有那个缺陷。删掉之后
+   `replay_gain_error_unsupported_codec` / `replay_gain_error_alac_issue` 两个字符串在资源里**暂时没人用**，留到 #36 重写错误映射时裁决。
+   `UnknownMimeType` 保留但降级为防御性：含义从"平台没报 MIME"变成"ffmpeg 报了音频流但没报编解码器"，正常文件走不到。
+6. **静音地板 `SILENCE_LOUDNESS_LUFS = -70.0`。** libebur128 对静音返回 `-inf`，而 `"%.2f"` 会写出 `"Infinity dB"`——没有播放器能解析。
+   `-70` 正是 BS.1770 的绝对门限，也正是 ffmpeg 自己的 `ebur128` 滤镜对同一个文件打印的值（实测：桥给 `-Infinity`，滤镜给 `-70.0 LUFS`），
+   于是按地板写；JNI 桥本身仍报原值，替换只发生在进入 `ReplayGainAnalysis` 的路上。
+7. **`ReplayGainProcessor` 的失败信息带上原因。** Android 把任何分析失败都报成同一句 `ReplayGain analysis failed`；桌面有一个**用户能修**的失败——
+   边车没装——它的消息里列着探过的目录，吞掉就等于给用户一行"失败"和一个无从下手的谜。`BatchTaskProcessorFactory` 里 `SCAN_REPLAY_GAIN`
+   从"没有处理器"变成 `get<ReplayGainProcessor>()`（同一处注释从三种待补类型改成两种）。
+8. **资源：`R.string` → `Res.string`，两个带格式参数的走 `formattedStringResource`。** `batch_replay_gain_total_time`（`用时 %.2f 秒`）与
+   `batch_replay_gain_success` 若直接用 CMP 1.12 的 `stringResource(res, args)` 重载，`%.2f` 会原样上屏。这条规则 C5a 已经记过，
+   `StringFormattingGuardTest` 守着主源码，这次是第三次应用，不再当"坑"记。
+9. **进度面板的标题取 `uiState.albumName`，不取页面的 `selectedAlbum`。** Android 就是这么写的，原因也留在面板的 KDoc 里：动作面板在用户点下那一行的
+   瞬间就被关掉了，等进度面板上屏时 `selectedAlbum` 已经是 null。所以 `AlbumsPage` 里这两个面板**不在同一个 `selectedAlbum` 块里**，
+   面板也把 `allowDismiss` 绑到 `!isCalculatingAlbumReplayGain` 上（测量中不能划走，按钮从"中止"变"关闭"用的是同一个标志）。
+10. **"运行的身份"用对象比，不用计数器。** `calculateAlbumReplayGain` 每次建一个新的 `run` 对象，`finally` 里只有 `replayGainRun === run`
+    才把 `isCalculating` 置回 false——被新运行顶掉的旧运行不许把新运行的进度标成"已完成"。`cancelAlbumReplayGain()` 则**无条件**发一条
+    `replay_gain_calculate_cancelled`（Android 原样），这一点在测试里必须先消费掉那条消息再断言替代运行的成功（见 §5.6）。
+11. **面板源码里 Android 留了个缩进 bug**：`LinearProgressIndicator` 之后那段 `Column` 比它的父级多缩进一层（`git show 0bdc498:` 里就是这样），
+    桌面版顺手拉平——纯格式、无行为变化，但这正是这个文件 diff 有 306 行的原因之一。
+
+#### 3. 无头取证（新增 10 类 83 项 + `AlbumsPageTest` 新增 1 项；全量 101 类 / 877 项 / 875 执行 + 2 门控跳过 / 0 失败 0 错误）
+
+| 测试类 | 项数 | 验什么 |
+| --- | --- | --- |
+| `platform/FfmpegAudioDecoderTest` | 13 | 真边车 + 真夹具解码：编解码器名与时长、真 PCM 数值（16 bit 满量程 → float 1.0）、帧数与声道序、进度单调、**取消会真的杀掉子进程**（按 `ProcessHandle` 的子进程判）、非 ASCII 路径、截断文件、命令行的每个承诺 |
+| `platform/FfmpegSidecarTest` | 6 | 搜索顺序（启动属性 → 环境变量 → 逐级向上的开发/打包布局）与"一个都找不到时把探过的路径全列出来" |
+| `platform/FfmpegStderrSummaryTest` | 8 | 从 stderr 里取的就是**输入**编解码器（不是它被要求写出的 pcm），也能取时长（含超过一小时的）、长 stderr 只留尾部、三种失败分类各归各类 |
+| `platform/PcmFrameAssemblerTest` | 7 | 跨读取的帧重组：64 KiB 读进来会切开立体声 float 帧、交给 JNI 的必须是 direct buffer、任意读取尺寸都精确重组 |
+| `platform/RiffWaveHeaderParserTest` | 10 | 解析 ffmpeg 写出的 wav 头：奇数字节 chunk 的填充位、extensible float 的 18 字节 `fmt`、拒绝 16 bit pcm（命令行从不要求）、超预算就放弃 |
+| `utils/LibEbuR128Test` | 6 | JNI 桥的绝对值：满量程正弦 −3 LUFS、真峰值能抓到采样间峰值而采样峰值抓不到、静音在桥上是 `-inf`、多状态合并成一个节目、空节目保持地板、**堆 buffer 什么也测不到** |
+| `utils/ReplayGainScannerTest` | 15 | 桥的上层：**与 ffmpeg 自己的 `ebur128` 滤镜对账**、振幅减半 −6 LU、双声道 +3 LU、整专辑当成一个节目、静音曲目仍得到有限增益、标签文本格式、取消是取消而不是失败、边车缺失带上探过的目录 |
+| `worker/processor/ReplayGainProcessorEndToEndTest` | 7 | 批量处理器端到端（真库 + 真文件 + 真写标签）：写入三个标签、第二次运行按参考响度跳过、目标响度变了就重测、没有配置就跳过而不是猜、边车缺失时任务行失败并说明怎么装 |
+| `viewmodel/AlbumReplayGainViewModelTest` | 6 | 专辑状态机（真库 + 真文件）：写入计数与进度、中止不留痕迹、解码器每种拒绝各报各的消息、空专辑、运行中二次点击被忽略、**被顶掉的运行不许标记完成** |
+| `ui/components/library/AlbumReplayGainProgressBottomSheetTest` | 5 | 面板本身：测量中显示专辑名/百分比/已写数 + 按钮是"中止"；停止后显示"用时" + 按钮变"关闭"；未上报进度时也能渲染 |
+| `screens/AlbumsPageTest`（已有类 +1） | 7 | 新增那项是**那一行的端到端**：长按专辑 → 出现「计算专辑回放增益」→ 点它 → 动作面板消失、进度面板上屏 → 真 ffmpeg 跑完 → 报"已写入 2 首"→ **再从磁盘把每首歌的专辑增益读回来**（报告本身不算证据） |
+
+那 83 项里有两项是"对账"性质的，它们是这批的核心：`the measurement agrees with ffmpeg's own ebur128 filter` 把桥的读数与
+`ffmpeg -filter_complex ebur128` 的输出直接比，`the absolute scale is anchored by arithmetic and by ffmpeg` 用 1 kHz 正弦的解析值
+（满量程 −3.01 LUFS）钉住尺度。没有这两条，"测量"只是一串自洽的数字。
+
+#### 4. 真窗口取证（5 张图，各配 `.ocr.txt` / `.analysis.txt`；其中 4 张另配 `.crop.png` / `.crop.ocr.txt`）
+
+这批的真窗口取证要解决一个**时序问题**：`计算中` 是瞬时状态，原来那三个专辑只有四个很短的夹具文件，一次运行半秒不到，写真的脚本根本来不及截图。
+解法不是造假数据，而是**在 seeder 里加一个二十首歌的专辑**：`Various Artists - 演示合集` = 同一份 3.55 s 夹具的二十份拷贝（各带不同标题），
+它是真的二十首歌、真的二十次测量、真的时长加权专辑响度，只是足够长到能拍下来；库体积成本 20 × 28 KB。
+实测这次运行为 **1.04 秒**（面板自己写的"用时 1.04 秒"），从点击到第一张截图约 0.6 秒（两次 PowerShell 调用各约 0.45 s 启动 + Add-Type），
+所以 `计算中` 那一帧落在 **90%** 而不是更早——余量是真实的 0.4 秒左右，如实记在这里，不靠把专辑加到 40 首来"更保险"。
+为了不破坏 C6c 那批截图的可复现性，批量任务的歌曲选择走 `taskSongs = songs.filterNot { it.album == DEMO_ALBUM_NAME }`——**代价是 seeder 现在种 24 首歌**，
+所以 C6c 之前（4 首 / 3 专辑）的截图描述的是更早一次 seeder 的输出，这一点记在 §6。
+
+| 图 | OCR 里能核对到的东西 |
+| --- | --- |
+| `c6d-albums-tab.png` | `专辑（4）`——seeder 新加的那个专辑被算进去了，网格出现第二行（`.analysis.txt` 里白色卡片占 81.5%，`grid_rows_with_detail 28/28`） |
+| `c6d-album-actions-sheet.png` | 动作面板：`演示合集` + 三行 `计算专辑回放增益` / `分享专辑` / `删除专辑`（+`删除专辑中的所有文件`）。**这一行就是这批搬回来的东西**，它上屏本身就否证了 C4c 的"缺口"注释（`accent_warm` 647 像素 = 删除两行的红字） |
+| `c6d-album-replay-gain-progress.png` | **运行中的瞬态**：`计算中`、`90%`、`成功：0`、`0 / 20`、按钮 `中止`、标题 `演示合集`；同一个窗口的页面被 scrim（`(178,178,178)` 占 64.3%）压住，`accent_blue` 3364 像素里有 3180 是进度条 |
+| `c6d-album-replay-gain-done.png` | 结束态：`用时 1.04 秒`、`成功：20`、`20 / 20`、按钮 `关闭`、进度条 100%（`accent_blue` 3913 > 上一张的 3364，与 90% → 100% 一致），**并且同一帧里有 snackbar `已写入 20 首歌的专辑回放增益`**（`text_pixels` 28080，对照运行中的 8577——深色 snackbar 底把墨迹计数拉高了） |
+| `c6d-album-replay-gain-aborted.png` | **中止路径**：点完那一行之后 0.6 秒内再点 `中止`，得到 `用时 0.64 秒`、`成功：0`、`0 / 20`、进度条 **0%**、按钮回到 `关闭`，snackbar 是 `已取消回放增益计算`——0.64 s 落在 1.04 s 的运行里，说明它真的在测量途中被掐断（`accent_blue` 405 = 只剩空的进度条轨道） |
+
+最后一步是**从磁盘读回标签**（这条链与界面无关，是独立证据）：`docs/port-evidence/c6d-album-replay-gain-tags.txt` 分三段——
+(1) 对二十个文件逐个跑 `ffmpeg -i`，每个都打出 `REPLAYGAIN_ALBUM_GAIN: -11.29 dB` / `REPLAYGAIN_ALBUM_PEAK: 0.709146` /
+`REPLAYGAIN_REFERENCE_LOUDNESS: -18 LUFS`；(2) 去重后**只有一组标签**（二十份一样，因为二十份是同一份音频，也证明每个文件真的都被测了）；
+(3) CLI 侧交叉核对：`ebur128` 给 `I: -6.7 LUFS`、`peak: -3.0 dBFS`、`loudnorm` 给 −6.8；算术核对 `-18 − (-6.71) = -11.29 dB` ✓、
+`20·log10(0.709146) = -2.99 dBFS` ✓。文里特意写明这三个标签是**由标签反推** target 与 measured 得到的一致，而不是"应用内嵌库的自证"。
+
+另外记一条这批新增的取证约定：**面板里的小字，全窗口 OCR 读不出来**（`计算中` / `90%` / `用时 …` 在 1166×773 的整窗 OCR 里全都丢了）。
+可行的做法是裁 `(250,500,950,773)` 再 2× LANCZOS 放大后单独 OCR，产物是 `*.crop.png` / `*.crop.ocr.txt`，坐标按 `裁切原点 + 值/2` 反推回捕获坐标。
+两种产物都进版本库：整窗那张证明"面板在窗口里、页面被压暗"，裁切那张读得出数值，谁也不能单独当证据。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **新建到 kotlin 树的文件必须同时删掉 java 树里那一份**，否则 `port-frontier.py` 报 `stale duplicates`。这次差点漏掉：
+   `AlbumReplayGainProgressBottomSheet.kt` 被写成新文件之后，java 树里的 Android 原版还在，是脚本先喊出来的（`git rm` 之后 java 主树 96 → 95）。
+   这条不变量靠脚本兜底比靠人记可靠。
+2. **ebur128 的 JNI 只认 direct buffer，而且只认 index 0。** 症状是"测出来是静音、但 `sampleCount` 不为 0"——因为 `GetDirectBufferAddress` 对堆 buffer
+   返回 `null`，`processDirectNative` 拿到 `null` 就静默返回。这条写成 §2.2 的规则，并由 `LibEbuR128Test` 里那项"堆 buffer 什么也测不到"钉死。
+3. **ffmpeg 的 `-v error` 会连 `Duration:` 一起吞掉**（它打在 INFO 级），于是"静音日志"与"没有进度"是一回事。解码器的命令行因此**不带任何
+   `-v`/`-loglevel`**，只带 `-nostdin -hide_banner`。
+4. **`ffmpeg -i` 那句 `Estimating duration from bitrate` 警告是正常的**：seeder 用的 mp3 没有 Xing/VBR 头，ffmpeg 只能估时长。
+   做证据时不要把它当异常（tags 文件里就那么写着）。
+5. **lavfi 的 `sine` 振幅只有 1/8**，不是满量程。想要精确振幅得用 `aevalsrc` 或**手写 WAV 头**——`AudioFixtures` 里的夹具后者居多，
+   因为"满量程正弦 = −3 LUFS"这条断言对振幅的精度很敏感。
+6. **`cancelAlbumReplayGain()` 无条件发 `replay_gain_calculate_cancelled`**（Android 原样）。所以"中止之后又启动一次、断言第二次成功"的测试
+   必须**先把中止那条消息消费掉**，否则会拿旧消息当新运行的结论。这条在测试的 KDoc 里写了。
+7. **`kotlin.test` 的 `assertTrue(actual, message)` 是 message 在后**（JUnit 系是反的）。写反了不报错，只是断言失败时打印一串布尔值，
+   定位成本很高。
+8. **PowerShell 脚本的参数里不要放 CJK 路径**：`powershell -File script.ps1 -Path 中文/文件` 会把参数按 GBK 解出来，脚本收到乱码路径。
+   取证时一律用相对 ASCII 路径（`build/tmp-probe/...`），并且 `Get-FileHash` 在 PS 5.1 上对某些文件会报错，需要校验就换 .NET API 或 `pwsh` 7。
+9. **`click-window.ps1` 不会在 `-SettleMs` 之后再截图**，所以"点一下 → 稳定后截图"必须是**两次独立调用**（一次 click、一次 capture），
+   两次之间就有约 0.9 s 的机器时间——这正是这批 1.04 s 运行余量的来源（见 §4）。要卡准确时间点只能把两次调用都设成 `-SettleMs 0` 再自己算账。
+10. **Windows 自带 OCR（zh-Hans-CN）会把数字和标点读成汉字**：`1.6.0` → `1 ℃ 囤`、`集` → `隼`、`(0d4b55b)` → `H45555 ）`。
+    这是识别引擎的行为，不是文件编码坏了——提交进版本库的 UTF-8 文本本身是对的（用编辑器看是好的）。所以 OCR 只能当"这一屏大概是什么",
+    精确数值要靠裁切放大后重读，或直接不信 OCR、去看像素分析。
+
+#### 6. 这批的用户可见缺口（如实记录）
+
+1. **批量回放增益还没有入口**：`SCAN_REPLAY_GAIN` 的处理器与工厂都注册好了，但发起这种任务的界面（`BatchEditScreen` 与那 7 个 bottom sheet，
+   包括 `BatchReplayGainSheet`）还在 java 树，属于 #35。所以现在能"按专辑算"，不能"勾一批歌算"。
+2. **新错误文本没有本地化过的映射**：`ReplayGainProcessor` 与 `ReplayGainScanner` 的失败文本现在是英文（`the file has no audio track` 等），
+   而 EditMetadata 页的错误映射还在 java 树（#36）；批量任务页显示的是任务行里的文案，可读但不是 zh-rCN 资源串。
+3. **边车要手动取**：`scripts/fetch-ffmpeg.ps1` 目前是开发者手动跑的一步，安装包里还没带（#7 打包阶段决定怎么随包分发 LGPL 构建）。
+   没有边车时应用**不崩**：专辑那一行会在进度面板里报"探测过的目录"，批量任务行会失败并说明怎么装——这是设计，不是遗留。
+4. **写进去的专辑增益目前没人用**：应用自己不做基于 `REPLAYGAIN_ALBUM_*` 的回放增益调整（Android 也不做，属于播放器/系统的活），
+   所以这批的验证方式是"标签读得回来且算术对"，不是"听起来音量对了"。
+5. **C6c 那批截图的复现说明变了**：seeder 现在种 24 首歌（多了二十首演示曲目），旧说明里的"4 首歌 / 3 个专辑"只适用于更早的输出；
+   批量任务那一行特意用 `taskSongs` 过滤掉演示专辑，所以 C6c 截图里的**文件名**在重跑后仍然逐字相同。
+
+#### 7. 前沿
+
+`python scripts/port-frontier.py` → java 树 **95 个文件 / 0 陈旧副本 / 46 可搬 / 49 被挡**（上一批 99 / 0 / 48 / 55）。
+批量任务链上只剩 `BatchExportProcessor`（C6e）与那 7 个 sheet；界面侧剩 `BatchEditScreen` / `BatchRenameScreen` / `EditMetadataScreen` /
+`ArtistDetailScreen` 与设置页那一片。
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
@@ -1251,7 +1409,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
 - **P4 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（把 4 首真标签的歌填进 `lyrico-app/data`）→ `./gradlew :lyrico-app:run` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6" -OutputPath docs/port-evidence/<名>.png -SettleMs 4000` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ocr-window-capture.ps1 -Path <png> -OutFile <txt>` → `python scripts/analyze-window-capture.py <png> --write`。**别用模糊标题匹配**（终端窗口标题里也含 “Lyrico-Desktop”），别在激活后加 sleep（会被别的窗口抢前台），OCR 结果先落盘再读（PowerShell 管道会糊 CJK）。
-- **要点界面时用 `scripts/click-window.ps1`**（`-X -Y` 是**客户区**坐标，`-SettleMs` 后自取图复核；长按用 `-Button longpress -HoldMs 800`）：截图带 31px 系统标题栏、左右各 1px 边框，所以「截图里 y=240 的东西」要点 `-Y 209`；窗口不在前台时脚本会先花一次点击做激活（Windows 会把那一次吞掉；这一下现在打在**标题栏**上，因为它是真点击），否则第一次点击看着像「点了没反应」。脚本会把框架原点与客户区原点都打出来，不要手算。
+- **要点界面时用 `scripts/click-window.ps1`**（`-X -Y` 是**客户区**坐标，`-SettleMs` 后只等待、**不自截图**；长按用 `-Button longpress -HoldMs 800`）：截图带 31px 系统标题栏、左右各 1px 边框，所以「截图里 y=240 的东西」要点 `-Y 209`；窗口不在前台时脚本会先花一次点击做激活（Windows 会把那一次吞掉；这一下现在打在**标题栏**上，因为它是真点击），否则第一次点击看着像「点了没反应」。脚本会把框架原点与客户区原点都打出来，不要手算。**要「点完稳定后」的图必须另调一次 `capture-window.ps1`**（两次 PowerShell 启动 + `Add-Type` 各约 0.45 s，所以「点击 → 第一帧」最快约 0.6 s；要卡瞬态就两边都用 `-SettleMs 0`，见 C6d 的「计算中」取证）。
 - **`stringResource` 的两个坑（本仓已踩，勿回退）**：
   1. **带参数的 `stringResource` / `getString` 不走 `String.format`**：CMP 的实现是 `replaceWithArgs` + 正则 `%(\d+)\$[ds]`，只认位置参数。本仓 20 条字符串用普通 `%d`/`%s`/`%.2f`，所以主源码里禁止直接写 `stringResource(res, args)` / `getString(res, args)`，一律走 `formattedStringResource` / `formattedString`（`StringFormattingGuardTest` 会把违规的 `file:line` 报出来）。**不要**为了迁就库去改字符串：字符串必须与 Android 逐字一致，而且 `%.2f`/宽度/精度在库的模型里根本表达不出来。
   2. **多行 XML body 的缩进不会被去掉**（`\n` 转义会被正确转成换行）。aapt2 去掉的是「首尾带换行的那段空白」，行内尾空格是故意的（`Task Type: ` 后面拼值）。所以 Compose 资源里的 `<string>` body 一律写成一行；`ComposeStringResourcesTest` 会检查。
@@ -1275,3 +1433,6 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **音频测试夹具不能随便挑**：`lyrico-audiotag/src/main/cpp/taglib/tests/data` 里有很多退化/畸形样本（如 `w000.mp3` 512 字节、`mpeg-sync-flac.flac`），它们能读但写不了标签、也没有时长 —— 在上面写标签会“看似成功但读不回”。能用的真实样本：`bladeenc.mp3`、`silence-44-s.flac`、`test.ogg`、`alaw.wav`（与 `scripts/native-smoke.ps1` 用的是同一批）。
 - **`BuildConfig` 已由生成任务取代**：`:lyrico-app:generateBuildInfo` 产出 `com.lonx.lyrico.BuildInfo`（`VERSION_NAME` / `VERSION_CODE` / `COMMIT` / `BUILD_TYPE` / `DEBUG`），P4 迁 UI 时那 11 处 `BuildConfig.` 直接改这个。
 - **原生库在应用内的查找路径**：`NativeLibraryLoader` 依次看系统属性 `lyrico.native.dir` → 环变量 `LYRICO_NATIVE_DIR` → 相对 `native/`（jpackage 布局）→ 从当前目录向上找 `build/native/<os>-<arch>`（开发布局）。`compose.desktop.application.run` 已注入 `-Dlyrico.native.dir=<repo>/build/native/windows-x64`。
+- **ffmpeg 边车（C6d 起）的查找路径**：`FfmpegSidecar` 依次看系统属性 `lyrico.ffmpeg.dir` → 环境变量 `LYRICO_FFMPEG_DIR` → 从当前目录**逐级向上**找 `build/ffmpeg/<os>-<arch>`（开发布局）→ `ffmpeg/<os>-<arch>`（jpackage 布局）→ `ffmpeg`（被压平的布局）。**故意不查 `PATH`**：否则做测量的二进制版本与许可证会随机器而变。取边车用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-ffmpeg.ps1`（写到 `build/ffmpeg/windows-x64/ffmpeg.exe`，LGPL 构建，只要 `ffmpeg.exe` 不要 `ffprobe`，来源写进 `docs/third-party/ffmpeg-lgpl.md`）。找不到时的行为是「带探过目录的失败」，不是崩溃。
+- **C6d 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（种 24 首歌 / 4 个专辑，其中 `演示合集` 是二十份夹具拷贝，专门用来把「计算中」拉长到能拍）→ `./gradlew :lyrico-app:run` → 截图链：`capture-window.ps1`（歌曲页）→ 点 rail 第二项（客户区 `(40,131)`，rail 三档映射见 C4c）→ `capture-window.ps1`（专辑 grid）→ `click-window.ps1 -X 889 -Y 714 -Button longpress -HoldMs 900`（第二行第二列那张封面 = `演示合集`）→ `capture-window.ps1`（动作面板）→ `click-window.ps1 -X 499 -Y 561 -SettleMs 0`（那一行）→ `capture-window.ps1 -SettleMs 0`（`计算中` / `完成`）；中止那条链是在两者之间再插一次 `click-window.ps1 -X 855 -Y 586 -SettleMs 0`（`中止`）。OCR 与像素分析按前述两条约定（整窗 + 裁切放大）。
+- **底部面板的小字要在裁切放大后 OCR（C6d 起）**：整窗 OCR 读不出面板里的小字（C6d 的 `计算中` / `90%` / `用时 1.04 秒` 全丢）。做法是裁 `(250,500,950,773)` 再 2× LANCZOS 放大，产物 `*.crop.png` / `*.crop.ocr.txt`，坐标按 `裁切原点 + 值/2` 反推回捕获坐标。两种产物都进版本库：整窗那张证明「面板在窗口里、页面被压暗」，裁切那张读得出数值，谁也不能单独当证据。

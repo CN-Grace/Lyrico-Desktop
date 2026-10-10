@@ -19,13 +19,17 @@ import com.lonx.lyrico.data.model.entity.AlbumEntity
 import com.lonx.lyrico.data.model.entity.FolderEntity
 import com.lonx.lyrico.data.repository.LibraryIndexRepository
 import com.lonx.lyrico.data.repository.SettingsRepository
+import com.lonx.lyrico.data.song.tag.AudioTagReadOptions
 import com.lonx.lyrico.data.song.tag.AudioTagRepository
 import com.lonx.lyrico.di.desktopAppModule
 import com.lonx.lyrico.platform.AppDirectories
 import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_close
 import com.lonx.lyrico.resources.album_delete_success
 import com.lonx.lyrico.resources.album_grid_columns_format
 import com.lonx.lyrico.resources.album_list_title
+import com.lonx.lyrico.resources.album_replay_gain_calculating
+import com.lonx.lyrico.resources.album_replay_gain_success
 import com.lonx.lyrico.resources.cd_sort
 import com.lonx.lyrico.resources.confirm
 import com.lonx.lyrico.resources.dialog_delete_album_content
@@ -33,6 +37,7 @@ import com.lonx.lyrico.resources.empty_albums_title
 import com.lonx.lyrico.resources.empty_library_index_summary
 import com.lonx.lyrico.resources.label_album_artist
 import com.lonx.lyrico.resources.label_year
+import com.lonx.lyrico.resources.menu_action_calculate_album_replay_gain
 import com.lonx.lyrico.resources.menu_action_delete_album
 import com.lonx.lyrico.resources.menu_action_delete_album_sub
 import com.lonx.lyrico.resources.menu_action_share_album
@@ -293,8 +298,11 @@ class AlbumsPageTest {
             waitUntil("wait for the album action sheet", 5_000) {
                 nodeCount(text(Res.string.menu_action_delete_album)) > 0
             }
-            // The sheet has to be the albums one: the album's name is its small title, and the two rows
-            // are the ported actions. The ReplayGain row that Android showed first is gone on purpose.
+            // The sheet has to be the albums one: the album's name is its small title, and the rows are
+            // the ported actions. The ReplayGain row Android showed first is here too -- the C4 batch left
+            // it out while the scanner was still unported and C6d put it back; the row has its own test in
+            // `the ReplayGain row measures the album and writes the album tags to every song`.
+            assertTrue(nodeCount(text(Res.string.menu_action_calculate_album_replay_gain)) > 0)
             assertTrue(nodeCount(text(Res.string.menu_action_share_album)) > 0)
             assertTrue(nodeCount(text(Res.string.menu_action_delete_album_sub)) > 0)
 
@@ -385,6 +393,66 @@ class AlbumsPageTest {
             }
             waitUntil("wait for the result snackbar", 5_000) {
                 nodeCount(text(Res.string.album_delete_success, doomed.size, doomed.size)) > 0
+            }
+        }
+
+    @Test
+    fun `the ReplayGain row measures the album and writes the album tags to every song`() =
+        runComposeUiTest {
+            placeFixture("bladeenc.mp3", "Album One", title = "First Song", album = "Album One")
+            placeFixture("silence-44-s.flac", "Album One", title = "Second Song", album = "Album One")
+
+            setContent {
+                LyricoTheme {
+                    AlbumsPageInTestHost()
+                }
+            }
+
+            scanLibrary()
+            waitUntil("wait for the album index to be built", 30_000) {
+                albumsInLibrary().isNotEmpty()
+            }
+            val album = albumsInLibrary().single()
+            val albumSongs = songsOfAlbum(album.id)
+            assertEquals(2, albumSongs.size, "the album has to hold both fixtures")
+            waitUntil("wait for the album card to be composed", 20_000) { nodeCount(album.name) > 0 }
+
+            onNodeWithText(album.name).performTouchInput { longClick() }
+            waitUntil("wait for the album action sheet", 5_000) {
+                nodeCount(text(Res.string.menu_action_calculate_album_replay_gain)) > 0
+            }
+            onNodeWithText(text(Res.string.menu_action_calculate_album_replay_gain)).performClick()
+
+            // Tapping the row hands over to the progress sheet. The action sheet has to be gone -- checking
+            // only that the progress sheet appeared would also pass with both sheets up -- and the sheet
+            // that stays is the one owning the Close button.
+            waitUntil("wait for the action sheet to be dismissed", 5_000) {
+                nodeCount(text(Res.string.menu_action_delete_album)) == 0
+            }
+            waitUntil("wait for the progress sheet to appear", 5_000) {
+                nodeCount(text(Res.string.action_close)) > 0 ||
+                    nodeCount(text(Res.string.album_replay_gain_calculating)) > 0
+            }
+
+            // The real ffmpeg run over real files, and the report it produces.
+            waitUntil("wait for the album measurement to be reported", 60_000) {
+                nodeCount(text(Res.string.album_replay_gain_success, albumSongs.size)) > 0
+            }
+            assertTrue(
+                nodeCount(text(Res.string.action_close)) > 0,
+                "the sheet stays up showing the result until the user closes it",
+            )
+
+            // And the tags really landed on disk: the report is only worth anything if the player can read
+            // the album's gain off every song of the album.
+            albumSongs.forEach { song ->
+                val written = runBlocking {
+                    koin<AudioTagRepository>().read(song.uri, AudioTagReadOptions(strict = true))
+                }
+                assertTrue(
+                    !written.replayGainAlbumGain.isNullOrBlank(),
+                    "${song.fileName} has to carry the album's gain on disk, not only in the report",
+                )
             }
         }
 
