@@ -810,6 +810,133 @@ sidecar）留给后面的批次。本批（记作 **C5a**）只做「运行时 +
 本批有 19 个文件原来在 java 主树里，随本批删除（另有 3 个测试文件从 java 测试树搬入）；插件家族只剩 `ui/components/plugin/PluginIcon.kt`（C5b）。
 被挡的大头仍是批量任务引擎（`worker/BatchTaskWorker.kt`、各 `worker/processor/*`）与 SAF/URI 家族。
 
+### P5 施工批次（搜索与插件界面：5 个 viewmodel + 5 个页面 + 结果回传契约，2026-10-10）
+
+C5a 结束时，插件「装得上、搜得出、解析得对」全部有真基建测试，但**用户在界面上看不到任何插件**。本批（记作 **C5b**）
+补上那一半：5 个搜索 viewmodel + 5 个页面（搜索结果 / 搜歌词 / 搜封面 / 插件管理 / 插件配置）+ 4 个新接缝，注册 5 条路由，
+并给出真窗口取证。
+
+#### 0. 这批的页面**没有已发布入口**，这是设计，不是遗留
+
+这 5 个页面在 Android 上的调用方是 `EditMetadataScreen`（搜歌词 / 搜封面 / 搜索结果的结果接收方）与 `SettingsScreen`
+（插件管理入口），两者都还在 java 树里。所以本批的页面**只能**通过「开发起始路由」`-Dlyrico.start.route=<route>` 到达：
+那个开关不是临时脚手架，而是这批唯一的入口形式，真窗口取证也全靠它（`build.gradle.kts` 把 Gradle 属性 `-Plyrico.start.route`
+转发成 app 进程的 `-Dlyrico.start.route`，因为 Gradle 自己的 `-D` 落在守护进程上、不会到应用）。
+
+#### 1. 搬了什么（`git mv` 19 个文件；java 主树 143 → 124）
+
+| 层 | 文件 |
+| --- | --- |
+| 页面 | `SearchResultsScreen`、`SearchLyricsScreen`、`SearchCoverScreen`、`PluginManagerScreen`、`PluginConfigScreen` |
+| viewmodel | `SearchViewModel`、`LyricsSearchViewModel`、`CoverSearchViewModel`、`SearchSourceConfigViewModel`、`PluginViewModel` |
+| 叶子 | `data/model/search/LyricsSearchResult`、`ui/components/bar/SearchBar`、`ui/components/base/ActionBottomSheet`、`ui/components/base/PillButton`、`ui/components/base/YesNoBottomSheet`、`ui/components/lyrics/LyricRenderConfigBottomSheet`、`ui/components/lyrics/LyricsPreviewPane`、`ui/components/plugin/PluginIcon`、`utils/MusicMatchUtils` |
+
+另有 4 个**没有 Android 对应物**的新文件：`ui/navigation/ResultBackNavigator.kt`（结果回传契约的发送半）、
+`ui/components/MiuixMarkdown.kt`（markdown 渲染桥）、`utils/RemoteImageSize.kt`（封面尺寸探测）、
+`platform/FileOpenPicker.kt`（打开文件对话框接缝）。搬完 `./gradlew :lyrico-app:compileKotlin` 一次通过。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **结果回传契约自己实现**。`ResultBackNavigator<LyricsSearchResult>` 是 Compose Destinations 生成的类型，而它没有 JVM 产物
+   （同 `NavDirection`）。替代实现：值写进**上一个返回栈条目**的 `SavedStateHandle`（键 `resultKey(route) = "<route>:result"`），
+   再 pop 自己。三条实测事实写进了该文件的 KDoc：JVM 的 `SavedStateHandle` 存任意对象（`SavedStateHandleProbeTest` 钉住
+   `LyricsSearchResult` 的 `Set`/`Map`/enum 往返是**同一实例**，所以不做序列化）；上一层的 handle 活得比本层长；接收方必须
+   **观察 `getStateFlow`** 而不是读一次（结果可能早于接收方组合完成）。起始路由没有上一个条目 → 记警告、不抛。
+   **接收半等 `EditMetadataScreen` 批次**，本批只有发送半 + 契约测试。
+2. **路由参数一律 query 参数 + 自定义百分号编码**。`search_results?keyword=`、`search_lyrics?title=&artist=&album=&date=`、
+   `search_cover?keyword=`；`encodeNavRouteArgument` 只放行 unreserved 字符，所以 CJK / 空格 / `&` / `/` / `+` / `%` 全被转义
+   ——真图往返用 `"周华健 朋友 & 朋友/朋友+50%"` 钉住。`plugin_config/{pluginId}` 用**路径**参数（必需）：没有插件 id 这条路由
+   就不该匹配。
+3. **`Toast` → Miuix `SnackbarHost`**。`PluginViewModel` 的事件语义（`message` + 递增 `messageVersion`）逐字保留，页面用 Snackbar 呈现。
+4. **`OpenDocument()`（SAF）→ `FileOpenPicker`**。Android 拿回 content `Uri` 再用 `ContentResolver` 读；桌面在原生对话框里给
+   绝对路径，`importPlugin(archivePath)` 用 `File.inputStream()` 读。归档的合法性仍由安装器校验，所以这个接缝**不决定能不能装**。
+5. **删掉 `LocalConfiguration` + `PluginLocales.update(configuration)`**（两个插件页面各一处）：Android 用它即时刷新插件文案，
+   桌面没有等价物 → 语言变更在下次启动生效。写进缺口。
+6. **`compactMode`（紧凑列表开关）只剩内存**：Android 存 `SharedPreferences`，桌面改成 `rememberSaveable`，**不跨启动保留**。写进缺口。
+7. **剪贴板**：`ClipData.newPlainText(label, text)` → `java.awt.datatransfer.StringSelection(text)`（单参构造）+ `ClipEntry`。
+8. **markdown 渲染换库并加桥**。Android 用只支持 Android 的 `compose-markdown` 的 `MarkdownText`；桌面换成 multiplatform
+   renderer，但它的 `markdownColor()`/`markdownTypography()` 默认读 **Material 3** 主题，而本应用是 Miuix 主题，直接用会把
+   文字画在错误的底色上。所以 `MiuixMarkdown.kt` 把 `MarkdownColors`/`MarkdownTypography` 从 `MiuixTheme` 映射过去（表格写在
+   该文件 KDoc 里）。**两个已知缺口：图片渲染成空白、链接有样式但不可点。**
+9. **封面尺寸探测从 `BitmapFactory` 换成 JDK `ImageIO`/`ImageReader`**：流程是「只读 header 拿宽高」而不是解码整图，
+   5 秒连接/读取超时，跑在 `Dispatchers.IO`；任何异常返回 `null`（徽标不显示），不抛也不报错。
+10. **拖拽排序用 `sh.calvin.reorderable` 3.1.0**（与 Android 同库、同用法：`rememberReorderableLazyListState` + `ReorderableItem`）。
+11. **字符串迁移脚本扩展**：`scripts/migrate-strings-res.py` 增加 `R.drawable.*` → `Res.drawable.*` 与
+    `androidx.compose.ui.res.painterResource` → `org.jetbrains.compose.resources.painterResource`（这批页面第一次用到矢量资源）。
+    本批**没有**新增 `strings.xml` 条目：693 条在 P4 已一次性迁完，这批只是把已有条目接到页面上。
+12. **上一批的守卫测出一个既有 bug**：`StringFormattingGuardTest`（P4 引入）第一次扫到这批页面时红了——**17 处**
+    `stringResource(Res.string.X, args)` / `stringResource(<StringResource 值>, args)` 在 CMP 1.12 上**不做替换**（该库只替换位置参数
+    `%1$s`/`%1$d`，`%s` + 变参是 Android 的行为）。修法是把 callee 换成 `formattedStringResource(...)`：`PluginConfigScreen` 2 处、
+    `PluginManagerScreen` 14 处、`SearchResultsScreen` 1 处。定位靠脚本机械扫描 + 复核，不靠眼睛；这是「有了守卫之后，旧批次的
+    漏网在前一批之后才暴露」的实例，所以修在守卫**已经存在**的这一批里。
+
+#### 3. 无头取证（新增 6 类 23 项；全量 84 类 / 733 项 / 731 执行 + 2 门控跳过 / 0 失败 0 错误）
+
+| 测试类 | 项数 | 验什么 |
+| --- | --- | --- |
+| `PluginManagerScreenTest` | 3 | 列表行来自真 Room 行 + 真 `manifest.json`；经真 picker 接缝导入真 zip（本地 `NavHost` + 记录型 picker）；开关写回启用标记 |
+| `PluginConfigScreenTest` | 3 | 必填项挡住保存、填好后值真的落进设置存储；markdown 字段经桥渲染出内容；未知插件 id 报「无效的搜索源」 |
+| `PluginSearchScreensTest` | 4 | 路由 keyword → QuickJS → 列表（keyword 含 `&`/`%`/空格/CJK）；空结果态；歌词候选点开拿到 LRC 行；封面走真回环 HTTP（37×19 PNG）+ 真尺寸徽标 + 服务端确实收到 `/cover.png` |
+| `ResultBackNavigatorTest` | 4 | 结果投递 + pop；起始路由不抛；5 条路由参数往返（CJK/空格/`&`/`/`/`+`/`%`、空串、null）；`resultKey` 命名空间 |
+| `RemoteImageSizeTest` | 5 | 真回环 HTTP 上的 PNG / JPEG / GIF 宽高；非图片体 → `null` 且落日志；404 → `null`；不可达主机 → `null` 而不是抛 |
+| `probe/SavedStateHandleProbeTest` | 4 | 钉住「类型可以原样运输」这个前提（一次性 probe，已保留：它是结果契约的依据） |
+
+搜索页的 4 个用例**不是**直接调 viewmodel：它们用 `LyricoNavHost(startDestination = DevStartDestination(SearchResultsDestination(keyword).route))`
+组合，让**被测的路由串**由出货的 destination 类自己拼并编码；插件则通过出货的 `SourcePluginInstaller` 装进应用自己的 Koin 图
+（只有 OS 拥有的接缝被替换）。
+
+#### 4. 真窗口取证（6 张图，各配 `.ocr.txt`）
+
+先写 `probe/DevPluginSeederTest`（`-Plyrico.seedDevPlugin=1` 门控，与 `DevLibrarySeederTest` 同一套做法：真安装器 + 真 zip +
+真 Room，脚本用固定列表而不是联网 API，取证不依赖别人的服务器），把演示插件装进应用自己的便携数据目录，并打印三条搜索路由。
+然后 `./gradlew :lyrico-app:run -Plyrico.start.route=<route>` 逐条启动 + `scripts/capture-window.ps1` 截图（点开歌词面板那一步
+用 `scripts/click-window.ps1`）：
+
+| 图 | OCR 里能核对到的东西 |
+| --- | --- |
+| `c5b-plugin-manager.png` | `插件管理` 标题、三个类型 tab、插件行 `演示音源 Demo Source`、`元数据/歌词/封面` 能力摘要、`最低 API 5 · 最低宿主 API 4` |
+| `c5b-plugin-config.png` | `插件类型：元数据源/歌词源/封面源`、字段组 `基础配置`、`API 地址` 与默认值 `https://example.com/api`、`API Key`；**markdown 字段渲染出标题 `接入说明` + 段落 + 两条 `·` 列表项** |
+| `c5b-search-results.png` | 搜索框里是 `朋友 & 朋友`（真路由参数解码）、来源 tab `全部` / `演示音源 Demo Source`、三行 `朋友 & 朋友 · 朋友/花心/山丘`、`加载更多` |
+| `c5b-search-lyrics.png` | 三个候选 `山丘 李宗盛 · 朋友/花心/山丘`（证明初始 keyword = `title + " " + artist` 真的到了脚本） |
+| `c5b-search-lyrics-preview.png` | 点开候选后的歌词面板：标题 `朋友` + 三行 LRC `[00:01.00]朋友一生一起走` / `[00:05.00]那些日子不再有` / `[00:09.00]一句话 一辈子` |
+| `c5b-search-cover.png` | 3 列封面网格、每张带来源标签与标题/艺人/专辑，卡片右上角有尺寸徽标；整图 OCR 读作 `S00 黑` / `5 00 黑 5`，把徽标区域放大 6 倍后读到 `600`（Windows OCR 把 `×` 认成汉字，所以徽标的**精确文本**由无头测试钉（`37×19`）；这里的 `600`/`500` 正是 seeder 写下的两张 PNG 的实际尺寸） |
+
+第一张图里那行 `插件 API 5 · 最低宿主 API 4` 就是 §2.12 修的 17 处之一（`plugin_api_versions_with_value`，两个
+`%1$d`/`%2$d`）：修之前 CMP 1.12 不会替掉这两个占位符，窗口里会原样显示 `%1$d` / `%2$d`。所以这张截图同时是那处修复的
+真窗口证据，而不是“重跑了一遍看不出区别”。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **QuickJS 交给脚本的是活对象，不是 JSON 字符串**。`ScriptSearchSource` 把请求序列化成 JSON 递给桥，而桥在调用前把它
+   **反序列化成对象**；脚本里写 `JSON.parse(request)` 会得到 `SyntaxError: unexpected token: 'object'`。第一版 4 个用例里 3 个
+   超时（超时信息完全不提这件事），靠一个一次性 probe 打印语义树 + `AppLogRepository.getLatest()` 才定位。正确写法：`request.keyword`、
+   `request.config`、`request.song`、`request.page`。
+2. **`runComposeUiTest` 里不能用 `performClick()` 驱动导航/popBackStack**：会得到
+   `IllegalStateException: State must be at least 'CREATED' to be moved to 'DESTROYED'` 与 `Method setCurrentState must be called on the main thread`。
+   改成 `runOnIdle { }`。因此 5 个页面都把 `resultNavigator` 收成**构造参数**，测试传记录型假实现；只有「真图导航」用例才用 `runOnIdle`。
+3. **桌面 `stringResource` 没有 `id` 参数**：`stringResource(id = X)` 必须写成位置参数 `stringResource(X)`；再加 §2.12 的变参问题，
+   规则是「主源码里不允许 `stringResource(res, 变参)`」。
+4. **封面结果要先过滤 `picUrl.isNotBlank()`** 才进网格（无图不成卡片）；`c5b-search-cover.png` 里的尺寸徽标就是这个 filter 的输出。
+5. **开发数据落点**：`AppDirectories.resolve()` 在开发运行下取的是模块目录旁的便携目录（`lyrico-app/data`，已 gitignore），
+   所以 seeder 与应用进程天然共用同一份数据——不需要 `-Dlyrico.data.dir`。
+6. **Windows 上 DataStore 改名偶发失败**：一次全量跑里 `SongsPageTest` 的排序用例失败（
+   `Unable to rename ...settings.preferences_pb.tmp ... multiple instances of DataStore`），单独跑与随后的全量都通过。记为 Windows 文件锁抖动
+   （`stopKoin()` 不会关闭 DataStore），与本批改动无关；再现时先重跑再查。
+
+#### 6. 这批的用户可见缺口（如实记录）
+
+1. 5 个页面**没有已发布入口**（调用方在 java 树），只能用开发起始路由到达，普通用户看不到它们。
+2. 结果回传只有**发送半**：搜索页做出选择后值进了 `SavedStateHandle`，但还没有页面去接（等 `EditMetadataScreen`）。
+3. markdown 里的**图片不渲染**、**链接不可点**（§2.8）。
+4. 插件页文案**不随语言设置即时切换**（下次启动生效）；`compactMode` **不持久化**（§2.5、§2.6）。
+5. 封面尺寸探测失败时**静默不显示徽标**（有测试钉住 `null`），与 Android 的静默降级一致，但用户看不到任何原因。
+6. `LocalSearchScreen` 不在本批范围（用户裁决），仍只有路由没有界面。
+
+#### 7. 前沿
+
+`python scripts/port-frontier.py` → java 树 **124 个文件 / 0 陈旧副本 / 51 可搬 / 73 被挡**（上一批 143 / 0 / 61 / 82）。
+被挡的大头仍是批量任务引擎（`BatchTaskWorker` + 各 `worker/processor/*`，含 ReplayGain）与 `EditMetadataScreen`/`SettingsScreen` 这条链。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：

@@ -1,11 +1,19 @@
 package com.lonx.lyrico.data.model.search
 
-import android.os.Parcelable
 import com.lonx.lyrico.data.model.lyrics.sanitizeStandardFields
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
+/**
+ * One lyrics hit produced by a plugin source.
+ *
+ * Android's copy was `@Parcelize`d so it could travel through the `SavedStateHandle` of the search
+ * screen's previous back-stack entry. That transport is still how the result reaches the metadata
+ * editor here — see `ui/navigation/ResultBackNavigator.kt` — but desktop has no `Bundle` and no
+ * process death to survive, so `Parcelable` and the `kotlinx.parcelize` plugin are gone. Measured
+ * in `SavedStateHandleProbeTest`: the multiplatform `SavedStateHandle` stores and returns this class
+ * as-is, the same instance, with its `Set`/`Map`/enum fields intact. The data shape is otherwise
+ * unchanged.
+ */
 data class LyricsSearchResult(
     val title: String?,
     val artist: String?,
@@ -18,7 +26,7 @@ data class LyricsSearchResult(
     val pluginName: String = "",
     val applyTargets: Set<MetadataFieldTarget> = emptySet(),
     val fields: Map<String, String> = emptyMap()
-) : Parcelable {
+) {
     fun normalizedFields(): Map<String, String> {
         return buildMap {
             putAll(fields.sanitizeStandardFields())

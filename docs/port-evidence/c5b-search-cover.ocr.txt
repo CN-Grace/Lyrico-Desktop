@@ -1,0 +1,21 @@
+file: H:/VibeCoding/03-应用/Lyrico-Desktop/docs/port-evidence/c5b-search-cover.png
+engine: zh-Hans-CN
+lines: 18
+  y=105 x=26 :: 0 全 部
+  y=10 x=31 :: Lyrico 1 ℃ 〔 g 匚 0H550
+  y=58 x=57 :: 朋 友
+  y=317 x=185 :: 朋 友 ． 花 心
+  y=317 x=349 :: 朋 友 ． 山 丘
+  y=106 x=102 :: 演 冫 音 源 Demo Source
+  y=157 x=40 :: 音 源 mrce
+  y=290 x=122 :: S00 黑
+  y=317 x=21 :: 朋 友 ． 朋 友
+  y=335 x=21 :: 唐 华
+  y=350 x=21 :: 朋 瓦
+  y=158 x=188 :: 贾 音 mrce
+  y=335 x=185 :: 唐 华
+  y=290 x=286 :: 5 00 黑 5
+  y=158 x=352 :: 贾 音 mrce
+  y=350 x=350 :: 山 丘
+  y=290 x=450 :: S00 黑
+  y=418 x=549 :: 加 载 更 多

@@ -1,0 +1,16 @@
+file: H:/VibeCoding/03-应用/Lyrico-Desktop/docs/port-evidence/c5b-plugin-config.png
+engine: zh-Hans-CN
+lines: 13
+  y=10 x=31 :: Lyrico 1 ℃ 〔 g 匚 0H550
+  y=103 x=43 :: 件 类 型 ： 元 数 据 源 ／ 菰 i 司 源 / 封 面 源
+  y=125 x=29 :: 过 仁 5 ． 宿 芏 4
+  y=174 x=29 :: 基 配 罟
+  y=220 x=45 :: 庶 P 》 地 址
+  y=237 x=46 :: https://example.com/api
+  y=305 x=45 :: API Key
+  y=364 x=29 :: 接 入 说 明
+  y=395 x=29 :: 接 入 说 明
+  y=431 x=29 :: 在 1 牛 配 圭 填 入 巨 已 的 API Key 即 可 底 ：
+  y=469 x=30 :: · 支 扌 刳 曲 、 词 与 封 面
+  y=492 x=30 :: · 陌 果 带 上 来 源 际 签
+  y=49 x=479 :: 演 一 ] 、 音 氵 原 Demo Source

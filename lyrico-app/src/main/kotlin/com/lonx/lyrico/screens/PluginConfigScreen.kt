@@ -1,6 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
@@ -25,8 +24,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -34,18 +33,33 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.password_hide
+import com.lonx.lyrico.resources.password_show
+import com.lonx.lyrico.resources.plugin_api_versions_with_value
+import com.lonx.lyrico.resources.plugin_config_title
+import com.lonx.lyrico.resources.plugin_type_cover
+import com.lonx.lyrico.resources.plugin_type_lyrics
+import com.lonx.lyrico.resources.plugin_type_metadata
+import com.lonx.lyrico.resources.plugin_type_with_value
+import com.lonx.lyrico.resources.source_config_basic
+import com.lonx.lyrico.resources.source_config_empty
+import com.lonx.lyrico.resources.source_config_invalid_source
+import com.lonx.lyrico.resources.source_config_plugin_disabled_hint
+import com.lonx.lyrico.resources.source_config_required_error
+import com.lonx.lyrico.resources.source_config_save
+import com.lonx.lyrico.resources.source_config_saved
 import com.lonx.lyrico.data.model.plugin.PluginConfigField
 import com.lonx.lyrico.data.model.plugin.PluginConfigFieldType
 import com.lonx.lyrico.data.model.plugin.PluginSourceType
+import com.lonx.lyrico.ui.components.MiuixMarkdownText
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.utils.isSatisfied
 import com.lonx.lyrico.viewmodel.SearchSourceConfigViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import dev.jeziellago.compose.markdowntext.MarkdownText
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.ui.navigation.Navigator
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -54,6 +68,8 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
@@ -70,32 +86,38 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
-@Destination<RootGraph>(route = "plugin_config")
 fun PluginConfigScreen(
     pluginId: String,
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: SearchSourceConfigViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    val requiredMessage = stringResource(R.string.source_config_required_error)
+    val requiredMessage = stringResource(Res.string.source_config_required_error)
+    // Resolved here, in the composition, rather than inside the coroutine below: the saved
+    // confirmation is a resource, and `resolve()` needs a resource environment to format it. This is
+    // where Android's `Toast.makeText(context, R.string..., ...)` got its string, too.
+    val savedMessage = stringResource(Res.string.source_config_saved)
 
-    LaunchedEffect(pluginId, configuration) {
-        com.lonx.lyrico.plugin.i18n.PluginLocales.update(configuration)
+    // `PluginLocales.update(configuration)` used to run here. Android re-read the running
+    // `Configuration` on every configuration change (a language switch); the JVM has no such event, so
+    // the desktop port derives the preference list from the system locale once at startup
+    // (`PluginLocales.initialize()`, called from the DI graph). The gap is documented on
+    // `PluginLocales`: a language change applies on the next launch, not immediately.
+    LaunchedEffect(pluginId) {
         viewModel.load(pluginId)
     }
 
     LaunchedEffect(uiState.saved) {
         if (uiState.saved) {
-            Toast.makeText(context, R.string.source_config_saved, Toast.LENGTH_SHORT).show()
+            snackbarHostState.showSnackbar(savedMessage)
             viewModel.consumeSaved()
         }
     }
 
-    val title = uiState.title.ifBlank { stringResource(R.string.plugin_config_title) }
+    val title = uiState.title.ifBlank { stringResource(Res.string.plugin_config_title) }
 
     val hasConfigContent by remember {
         derivedStateOf {
@@ -113,7 +135,7 @@ fun PluginConfigScreen(
                     IconButton(onClick = { navigator.navigateUp() }) {
                         Icon(
                             imageVector = MiuixIcons.Back,
-                            contentDescription = stringResource(R.string.action_back)
+                            contentDescription = stringResource(Res.string.action_back)
                         )
                     }
                 },
@@ -125,13 +147,14 @@ fun PluginConfigScreen(
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Ok,
-                            contentDescription = stringResource(R.string.source_config_save)
+                            contentDescription = stringResource(Res.string.source_config_save)
                         )
                     }
                 },
                 scrollBehavior = topAppBarScrollBehavior
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -145,7 +168,7 @@ fun PluginConfigScreen(
         ) {
             if (uiState.errorMessage != null) {
                 Text(
-                    text = stringResource(R.string.source_config_invalid_source),
+                    text = stringResource(Res.string.source_config_invalid_source),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
@@ -167,8 +190,8 @@ fun PluginConfigScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     if (uiState.sourceTypes.isNotEmpty()) {
                         Text(
-                            text = stringResource(
-                                R.string.plugin_type_with_value,
+                            text = formattedStringResource(
+                                Res.string.plugin_type_with_value,
                                 uiState.sourceTypes
                                     .map { stringResource(it.labelRes()) }
                                     .joinToString(" / ")
@@ -182,8 +205,8 @@ fun PluginConfigScreen(
                     }
 
                     Text(
-                        text = stringResource(
-                            R.string.plugin_api_versions_with_value,
+                        text = formattedStringResource(
+                            Res.string.plugin_api_versions_with_value,
                             uiState.apiVersion,
                             uiState.minHostApiVersion
                         ),
@@ -195,7 +218,7 @@ fun PluginConfigScreen(
 
             if (!hasConfigContent) {
                 Text(
-                    text = stringResource(R.string.source_config_empty),
+                    text = stringResource(Res.string.source_config_empty),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
@@ -216,7 +239,7 @@ fun PluginConfigScreen(
                     )
                 ) {
                     Text(
-                        text = stringResource(R.string.source_config_plugin_disabled_hint),
+                        text = stringResource(Res.string.source_config_plugin_disabled_hint),
                         modifier = Modifier.padding(16.dp),
                         color = MiuixTheme.colorScheme.onSurfaceVariantActions,
                         fontSize = 14.sp
@@ -260,7 +283,7 @@ private fun PluginConfigFormItems(
 
         SmallTitle(
             text = if (group == DEFAULT_CONFIG_GROUP) {
-                stringResource(R.string.source_config_basic)
+                stringResource(Res.string.source_config_basic)
             } else {
                 groupFields.first().groupTitle ?: group
             }
@@ -386,9 +409,9 @@ private fun PluginConfigFormItem(
                                         MiuixIcons.Show
                                     },
                                     contentDescription = if (passwordVisible) {
-                                        stringResource(R.string.password_hide)
+                                        stringResource(Res.string.password_hide)
                                     } else {
-                                        stringResource(R.string.password_show)
+                                        stringResource(Res.string.password_show)
                                     }
                                 )
                             }
@@ -442,13 +465,9 @@ private fun PluginConfigFormItem(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                    MarkdownText(
-                        modifier = Modifier.fillMaxWidth(),
+                    MiuixMarkdownText(
                         markdown = markdown,
-                        linkColor = MiuixTheme.colorScheme.primary,
-                        style = MiuixTheme.textStyles.body2.copy(
-                            color = MiuixTheme.colorScheme.onSurface
-                        )
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -459,8 +478,8 @@ private fun PluginConfigFormItem(
 
 private const val DEFAULT_CONFIG_GROUP = "__basic__"
 
-private fun PluginSourceType.labelRes(): Int = when (this) {
-    PluginSourceType.METADATA -> R.string.plugin_type_metadata
-    PluginSourceType.LYRICS -> R.string.plugin_type_lyrics
-    PluginSourceType.COVER -> R.string.plugin_type_cover
+private fun PluginSourceType.labelRes(): StringResource = when (this) {
+    PluginSourceType.METADATA -> Res.string.plugin_type_metadata
+    PluginSourceType.LYRICS -> Res.string.plugin_type_lyrics
+    PluginSourceType.COVER -> Res.string.plugin_type_cover
 }

@@ -1,9 +1,10 @@
 package com.lonx.lyrico.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.cover_source_empty
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.model.SearchSourceTabStyle
@@ -232,7 +233,7 @@ class CoverSearchViewModel(
                 coverSearchState.update {
                     it.copy(
                         errors = it.errors + (
-                            NO_SOURCE_ERROR_KEY to UiMessage.StringResource(R.string.cover_source_empty)
+                            NO_SOURCE_ERROR_KEY to UiMessage.Localized(Res.string.cover_source_empty)
                         ),
                         isSearching = false
                     )
@@ -517,7 +518,7 @@ class CoverSearchViewModel(
                 relatedId = relatedId
             )
         }.onFailure { throwable ->
-            Log.w(TAG, "Failed to write cover search log", throwable)
+            PlatformLog.w(TAG, "Failed to write cover search log", throwable)
         }
     }
 
@@ -535,7 +536,7 @@ class CoverSearchViewModel(
                 relatedId = relatedId
             )
         }.onFailure { logThrowable ->
-            Log.w(TAG, "Failed to write cover search exception log", logThrowable)
+            PlatformLog.w(TAG, "Failed to write cover search exception log", logThrowable)
         }
     }
 

@@ -1,0 +1,15 @@
+file: H:/VibeCoding/03-应用/Lyrico-Desktop/docs/port-evidence/c5b-search-lyrics-preview.png
+engine: zh-Hans-CN
+lines: 12
+  y=7 x=21 :: 《 Lyrico 1 ℃ 〔 g 匚 0H550
+  y=56 x=32 :: Q 山 丘 李 宗 盛
+  y=106 x=102 :: 演 冫 音 源 Demo Source
+  y=155 x=25 :: 朋 友
+  y=175 x=25 :: 周 华 · 及
+  y=237 x=26 :: 山 丘 李 宗 盛 · 花 心
+  y=258 x=25 :: 唐 华 · 花 0
+  y=320 x=26 :: 山 丘 李 宗 盛 · 山 丘
+  y=313 x=565 :: 朋 友
+  y=369 x=300 :: [ 開 ℃ 1 ℃ 00 ] 朋 一 生 一 起 走
+  y=388 x=300 :: [ 開 ℃ 5 ℃ 00 ] 那 些 日 子 不 再 有
+  y=407 x=300 :: [ 開 ： 的 ℃ 00 ] 一 旬 话 一 辈 子

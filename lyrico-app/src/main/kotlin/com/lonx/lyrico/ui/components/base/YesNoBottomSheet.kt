@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.stringResource
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.confirm
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -20,8 +22,8 @@ fun YesNoBottomSheet(
     onDismissFinished: () -> Unit = {},
     onCancel: () -> Unit = onDismissRequest,
     onConfirm: () -> Unit,
-    cancelText: String = stringResource(R.string.cancel),
-    confirmText: String = stringResource(R.string.confirm),
+    cancelText: String = stringResource(Res.string.cancel),
+    confirmText: String = stringResource(Res.string.confirm),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ActionBottomSheet(

@@ -1,0 +1,13 @@
+file: H:/VibeCoding/03-应用/Lyrico-Desktop/docs/port-evidence/c5b-search-lyrics.png
+engine: zh-Hans-CN
+lines: 10
+  y=105 x=26 :: 0 全 部
+  y=106 x=102 :: 演 冫 音 源 Demo Source
+  y=154 x=26 :: 山 丘 李 宗 盛 · 朋 友
+  y=175 x=25 :: 唐 华 ·
+  y=237 x=26 :: 山 丘 李 宗 盛 · 花 心
+  y=258 x=25 :: 唐 华 · 花 0
+  y=320 x=26 :: 山 丘 李 宗 盛 · 山 丘
+  y=341 x=25 :: 李 茅 · 山 丘
+  y=357 x=25 :: 2 丁 3
+  y=413 x=549 :: 加 载 更 多

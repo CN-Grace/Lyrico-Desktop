@@ -72,8 +72,13 @@ import com.lonx.lyrico.viewmodel.AppLogViewModel
 import com.lonx.lyrico.viewmodel.ArtistLibraryViewModel
 import com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel
 import com.lonx.lyrico.viewmodel.CharacterMappingViewModel
+import com.lonx.lyrico.viewmodel.CoverSearchViewModel
 import com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel
 import com.lonx.lyrico.viewmodel.LocalSearchViewModel
+import com.lonx.lyrico.viewmodel.LyricsSearchViewModel
+import com.lonx.lyrico.viewmodel.PluginViewModel
+import com.lonx.lyrico.viewmodel.SearchSourceConfigViewModel
+import com.lonx.lyrico.viewmodel.SearchViewModel
 import com.lonx.lyrico.viewmodel.SongListViewModel
 import com.lonx.lyrico.viewmodel.SongSelectionViewModel
 import java.util.concurrent.TimeUnit
@@ -271,4 +276,9 @@ fun desktopAppModule(directories: AppDirectories) = module {
     viewModel { (albumId: Long) -> AlbumDetailViewModel(libraryIndexRepository = get(), albumId = albumId) }
     viewModel { SongListViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { SongSelectionViewModel(get(), get(), get(), get(), get()) }
+    viewModel { SearchViewModel(get(), get(), get(), get()) }
+    viewModel { LyricsSearchViewModel(get(), get(), get()) }
+    viewModel { CoverSearchViewModel(get(), get(), get(), get()) }
+    viewModel { SearchSourceConfigViewModel(get(), get()) }
+    viewModel { PluginViewModel(get(), get(), get(), get(), get(), directories.pluginInstallRoot) }
 }

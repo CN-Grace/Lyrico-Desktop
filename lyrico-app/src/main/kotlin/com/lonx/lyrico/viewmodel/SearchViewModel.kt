@@ -1,12 +1,13 @@
 package com.lonx.lyrico.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.lyrics_empty
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
 import com.lonx.lyrico.data.model.lyrics.LyricRenderConfig
 import com.lonx.lyrico.data.model.plugin.GlobalFieldProcessSettings
@@ -97,6 +98,14 @@ private data class CachedSearchResults(
     val hasMore: Boolean
 )
 
+/**
+ * Backs the remote search page: fans a keyword out over every enabled plugin source, keeps a page
+ * cursor per source, and loads the lyrics of a selected hit.
+ *
+ * Desktop adaptations are the two the rest of the port already settled: `android.util.Log` became
+ * [PlatformLog] on the same line, and the one `R.string` reference is now a Compose-resources
+ * [Res] key wrapped in [UiMessage.Localized]. Nothing else in the class touched the platform.
+ */
 class SearchViewModel(
     private val searchSourceProvider: SearchSourceProvider,
     private val settingsRepository: SettingsRepository,
@@ -661,7 +670,7 @@ class SearchViewModel(
                         lyricsResult = lyricsResult,
                         isLoading = false,
                         error = if (lyricsResult == null) {
-                            UiMessage.StringResource(R.string.lyrics_empty)
+                            UiMessage.Localized(Res.string.lyrics_empty)
                         } else null
                     )
                 }
@@ -726,7 +735,7 @@ class SearchViewModel(
                 relatedId = relatedId
             )
         }.onFailure { throwable ->
-            Log.w(TAG, "Failed to write search log", throwable)
+            PlatformLog.w(TAG, "Failed to write search log", throwable)
         }
     }
 
@@ -744,7 +753,7 @@ class SearchViewModel(
                 relatedId = relatedId
             )
         }.onFailure { logThrowable ->
-            Log.w(TAG, "Failed to write search exception log", logThrowable)
+            PlatformLog.w(TAG, "Failed to write search exception log", logThrowable)
         }
     }
 

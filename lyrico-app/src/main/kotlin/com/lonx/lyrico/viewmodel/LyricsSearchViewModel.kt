@@ -2,7 +2,10 @@ package com.lonx.lyrico.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.cd_no_results
+import com.lonx.lyrico.resources.lyrics_empty
+import com.lonx.lyrico.resources.lyrics_source_empty
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.SearchSourceTabStyle
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
@@ -270,8 +273,8 @@ class LyricsSearchViewModel(
                 state.update {
                     it.copy(
                         errors = mapOf(
-                            NO_SOURCE_ERROR_KEY to UiMessage.StringResource(
-                                R.string.lyrics_source_empty
+                            NO_SOURCE_ERROR_KEY to UiMessage.Localized(
+                                Res.string.lyrics_source_empty
                             )
                         )
                     )
@@ -304,7 +307,7 @@ class LyricsSearchViewModel(
                     state.update {
                         it.copy(
                             candidateErrors = it.candidateErrors + (
-                                candidateKey to UiMessage.StringResource(R.string.lyrics_empty)
+                                candidateKey to UiMessage.Localized(Res.string.lyrics_empty)
                             )
                         )
                     }
@@ -473,7 +476,7 @@ class LyricsSearchViewModel(
                             hasMoreBySource = it.hasMoreBySource + (source.id to page.hasMore),
                             errors = if (page.results.isEmpty()) {
                                 it.errors + (
-                                    source.id to UiMessage.StringResource(R.string.cd_no_results)
+                                    source.id to UiMessage.Localized(Res.string.cd_no_results)
                                 )
                             } else {
                                 it.errors - source.id

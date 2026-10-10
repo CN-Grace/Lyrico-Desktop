@@ -1,0 +1,12 @@
+file: H:/VibeCoding/03-应用/Lyrico-Desktop/docs/port-evidence/c5b-plugin-manager.png
+engine: zh-Hans-CN
+lines: 9
+  y=10 x=31 :: Lyrico 1 ℃ 〔 g 匚 0H550
+  y=151 x=13 :: 每 个 类 型 Tab 独 立 乓 存 虐 牛 状 态 和 享 ： 元 敲 源 同 时 牛 于 望 茫 芏 萦 和 ； 比 元 敲 匹 配
+  y=197 x=77 :: 氵 刁 音 氵 原 Demo Source
+  y=219 x=77 :: 元 据 / 恒 / 苴
+  y=253 x=77 :: 疝 件 API 5 · 低 宿 主 API 4
+  y=309 x=41 :: @ 配 们 名 称
+  y=48 x=543 :: 插 件 管 理
+  y=108 x=575 :: 词 源
+  y=108 x=940 :: 封 面 源

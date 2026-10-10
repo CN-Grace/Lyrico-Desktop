@@ -7,8 +7,10 @@ resolved with `stringResource(id)`. Desktop resources are generated objects:
 `com.lonx.lyrico.resources`. This script does that mechanical rewrite:
 
   * `R.string.foo`            -> `Res.string.foo`
+  * `R.drawable.foo`          -> `Res.drawable.foo`
   * `import com.lonx.lyrico.R` -> `import com.lonx.lyrico.resources.Res`
   * adds `import com.lonx.lyrico.resources.foo` for every name used,
+  * `androidx.compose.ui.res.painterResource` -> `org.jetbrains.compose.resources.painterResource`,
   * reports `@StringRes ... : Int` declarations (they need a type change to
     `StringResource`, which is a semantic edit, not a textual one) and any other
     `R.<type>.<name>` references it does not handle.
@@ -32,6 +34,10 @@ STRING_RESOURCE_IMPORT = "import org.jetbrains.compose.resources.StringResource"
 # on desktop. Only the call site's spelling carries over, so the import has to be rewritten too --
 # otherwise every migrated file fails with "Unresolved reference 'stringResource'".
 STRING_RESOURCE_USAGE_IMPORT_RE = re.compile(r"^import androidx\.compose\.ui\.res\.stringResource$", re.M)
+PAINTER_RESOURCE_USAGE_IMPORT_RE = re.compile(r"^import androidx\.compose\.ui\.res\.painterResource$", re.M)
+# The resource *kinds* whose Android `R` entry maps 1:1 onto a generated Compose resource object.
+# Everything else (`color`, `dimen`, `style`, ...) has no such object and is reported for a human.
+MAPPED_KINDS = {"string", "drawable"}
 IMPORT_RE = re.compile(r"^(import .*)$", re.M)
 
 
@@ -41,16 +47,19 @@ def rewrite(text: str) -> tuple[str, list[str], list[str]]:
 
     def sub(m: re.Match[str]) -> str:
         kind, name = m.group(1), m.group(2)
-        if kind != "string":
+        if kind not in MAPPED_KINDS:
             unhandled.append(f"R.{kind}.{name}")
             return m.group(0)
         names.add(name)
-        return f"Res.string.{name}"
+        return f"Res.{kind}.{name}"
 
     text = RES_RE.sub(sub, text)
-    if "Res.string." in text:
+    if any(f"Res.{kind}." in text for kind in MAPPED_KINDS):
         text = STRING_RESOURCE_USAGE_IMPORT_RE.sub(
             "import org.jetbrains.compose.resources.stringResource", text
+        )
+        text = PAINTER_RESOURCE_USAGE_IMPORT_RE.sub(
+            "import org.jetbrains.compose.resources.painterResource", text
         )
         text = ANDROID_R_IMPORT_RE.sub("import com.lonx.lyrico.resources.Res", text)
         # Drop names that may already be imported, then insert the new ones in

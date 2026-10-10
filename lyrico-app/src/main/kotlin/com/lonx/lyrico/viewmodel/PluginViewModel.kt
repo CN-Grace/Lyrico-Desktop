@@ -1,8 +1,5 @@
 package com.lonx.lyrico.viewmodel
 
-import android.content.Context
-import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lonx.lyrico.data.model.log.AppLogLevel
@@ -16,6 +13,7 @@ import com.lonx.lyrico.plugin.source.PluginSearchSourceManager
 import com.lonx.lyrico.plugin.source.PluginImportSession
 import com.lonx.lyrico.plugin.source.PluginVersionConflict
 import com.lonx.lyrico.plugin.source.SourcePluginInstaller
+import com.lonx.lyrico.utils.logging.PlatformLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -46,12 +44,25 @@ data class PluginUiState(
     val selectedImportRoots: Set<String> = emptySet()
 )
 
+/**
+ * Drives the plugin manager page (list, import preview, enable/disable, reorder, uninstall).
+ *
+ * Desktop adaptations:
+ * * **The import source is a filesystem path.** Android took a `Uri` opened through
+ *   `Context.contentResolver`; here the caller hands over the `.zip` path that the file-open picker
+ *   returned, and the archive is read with a plain `File.inputStream()`.
+ * * **The install root is injected as a [File]** (`<data>/plugins/sources`, see
+ *   `AppDirectories.pluginInstallRoot`) instead of being read off `Context.filesDir`.
+ * * **`android.util.Log` became [PlatformLog]** on the same line, tag and level.
+ */
 class PluginViewModel(
     private val repository: SourcePluginRepository,
     private val settingsRepository: SettingsRepository,
     private val installer: SourcePluginInstaller,
     private val pluginManager: PluginSearchSourceManager,
-    private val appLogRepository: AppLogRepository
+    private val appLogRepository: AppLogRepository,
+    /** Where a newly imported plugin is unpacked; Android read it from `Context.filesDir`. */
+    private val pluginInstallRoot: File
 ) : ViewModel() {
     private val manifestJson = Json { ignoreUnknownKeys = true }
     val plugins: StateFlow<List<SourcePluginEntity>> =
@@ -79,16 +90,14 @@ class PluginViewModel(
         }
     }
 
-    fun importPlugin(context: Context, uri: Uri) {
+    fun importPlugin(archivePath: String) {
         runBusy("Plugin package scanned") {
             _uiState.value.pendingImport?.let { installer.discardImport(it) }
-            val installRoot = File(context.filesDir, "plugins/sources")
-            val input = context.contentResolver.openInputStream(uri)
-                ?: error("Cannot open selected file")
+            val input = File(archivePath).inputStream()
             input.use {
                 val session = installer.prepareImport(
                     input = it,
-                    installRoot = installRoot
+                    installRoot = pluginInstallRoot
                 )
                 if (session.candidates.isEmpty()) {
                     installer.discardImport(session)
@@ -296,7 +305,7 @@ class PluginViewModel(
                 detail = fullDetail ?: detail
             )
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to write plugin log", e)
+            PlatformLog.w(TAG, "Failed to write plugin log", e)
         }
     }
 

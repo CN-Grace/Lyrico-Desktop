@@ -1,7 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.annotation.SuppressLint
-import android.content.ClipData
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,16 +28,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_search
+import com.lonx.lyrico.resources.apply_lyrics_only_action
+import com.lonx.lyrico.resources.cd_no_results
+import com.lonx.lyrico.resources.fetch_lyrics_failed
+import com.lonx.lyrico.resources.lyrics_empty
+import com.lonx.lyrico.resources.lyrics_loading
+import com.lonx.lyrico.resources.lyrics_source_empty
+import com.lonx.lyrico.resources.search_load_more
+import com.lonx.lyrico.resources.search_load_more_failed
+import com.lonx.lyrico.resources.search_loading_more
+import com.lonx.lyrico.resources.search_lyrics_placeholder
+import com.lonx.lyrico.resources.search_settings
+import com.lonx.lyrico.resources.search_type_all
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
 import com.lonx.lyrico.data.model.search.LyricsSearchResult
 import com.lonx.lyrico.ui.components.bar.SearchBar
@@ -54,12 +66,11 @@ import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
 import com.lonx.lyrico.utils.UiMessage
 import com.lonx.lyrico.viewmodel.LyricsSearchCandidateUi
 import com.lonx.lyrico.viewmodel.LyricsSearchViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.result.ResultBackNavigator
+import com.lonx.lyrico.ui.navigation.ResultBackNavigator
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import java.awt.datatransfer.StringSelection
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
@@ -72,10 +83,10 @@ import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@SuppressLint("LocalContextGetResourceValueCall")
-@OptIn(ExperimentalMaterial3Api::class)
+// `ClipEntry` is marked @ExperimentalComposeUiApi in Compose Multiplatform; the marker is on the
+// class, so the opt-in has to cover the whole screen rather than the one copy button.
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-@Destination<RootGraph>(route = "search_lyrics")
 fun SearchLyricsScreen(
     title: String,
     artist: String,
@@ -158,7 +169,7 @@ fun SearchLyricsScreen(
                 SearchBar(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     state = searchFieldState,
-                    placeholder = stringResource(R.string.search_lyrics_placeholder),
+                    placeholder = stringResource(Res.string.search_lyrics_placeholder),
                     onSearch = { keyword ->
                         keyboardController?.hide()
                         viewModel.onKeywordChanged(keyword)
@@ -173,7 +184,7 @@ fun SearchLyricsScreen(
                             }
                         ) {
                             Text(
-                                text = stringResource(R.string.action_search),
+                                text = stringResource(Res.string.action_search),
                                 style = MiuixTheme.textStyles.main,
                                 color = MiuixTheme.colorScheme.primary
                             )
@@ -181,7 +192,7 @@ fun SearchLyricsScreen(
                         IconButton(onClick = { showLyricRenderConfig = true }) {
                             Icon(
                                 imageVector = MiuixIcons.Settings,
-                                contentDescription = stringResource(R.string.search_settings),
+                                contentDescription = stringResource(Res.string.search_settings),
                                 tint = MiuixTheme.colorScheme.primary
                             )
                         }
@@ -205,7 +216,7 @@ fun SearchLyricsScreen(
 
                 uiState.availableSources.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.lyrics_source_empty))
+                        Text(stringResource(Res.string.lyrics_source_empty))
                     }
                     return@Column
                 }
@@ -214,7 +225,7 @@ fun SearchLyricsScreen(
             SourcePillTabRow(
                 tabs = listOf(
                     SourcePillTab(
-                        label = stringResource(R.string.search_type_all),
+                        label = stringResource(Res.string.search_type_all),
                         imageVector = MiuixIcons.Search
                     )
                 ) + uiState.availableSources.map { source ->
@@ -279,7 +290,7 @@ fun SearchLyricsScreen(
 
                     results.isEmpty() -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.cd_no_results))
+                            Text(stringResource(Res.string.cd_no_results))
                         }
                     }
 
@@ -326,13 +337,13 @@ fun SearchLyricsScreen(
             IconButton(onClick = { showLyricRenderConfig = true }) {
                 Icon(
                     imageVector = MiuixIcons.Settings,
-                    contentDescription = stringResource(R.string.search_settings)
+                    contentDescription = stringResource(Res.string.search_settings)
                 )
             }
         },
         endAction = {
             PillButton(
-                text = stringResource(R.string.apply_lyrics_only_action),
+                text = stringResource(Res.string.apply_lyrics_only_action),
                 enabled = selectedCandidate?.formattedLyrics?.isNotBlank() == true,
                 onClick = {
                     selectedCandidate?.let { candidate ->
@@ -363,16 +374,16 @@ fun SearchLyricsScreen(
                 lyricsText = selectedCandidate?.formattedLyrics,
                 isLoading = selectedCandidateKey in uiState.loadingCandidateKeys,
                 error = selectedCandidateKey?.let { uiState.candidateErrors[it] },
-                loadingText = stringResource(R.string.lyrics_loading),
-                failedText = stringResource(R.string.fetch_lyrics_failed),
-                emptyText = stringResource(R.string.lyrics_empty),
+                loadingText = stringResource(Res.string.lyrics_loading),
+                failedText = stringResource(Res.string.fetch_lyrics_failed),
+                emptyText = stringResource(Res.string.lyrics_empty),
                 onCopyLyrics = {
                     selectedCandidate?.formattedLyrics
                         ?.takeIf { it.isNotBlank() }
                         ?.let { lyrics ->
                             scope.launch {
                                 clipboardManager.setClipEntry(
-                                    ClipEntry(ClipData.newPlainText("copy lyrics", lyrics))
+                                    ClipEntry(StringSelection(lyrics))
                                 )
                             }
                         }
@@ -444,7 +455,7 @@ private fun LyricsSearchResultList(
                         CircularProgressIndicator(size = 20.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = stringResource(R.string.search_loading_more),
+                            text = stringResource(Res.string.search_loading_more),
                             fontSize = 14.sp,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
@@ -461,7 +472,7 @@ private fun LyricsSearchResultList(
                         contentAlignment = Alignment.Center
                     ) {
                         TextButton(
-                            text = stringResource(R.string.search_load_more_failed),
+                            text = stringResource(Res.string.search_load_more_failed),
                             onClick = onLoadMore,
                             colors = ButtonDefaults.textButtonColorsPrimary()
                         )
@@ -478,7 +489,7 @@ private fun LyricsSearchResultList(
                         contentAlignment = Alignment.Center
                     ) {
                         TextButton(
-                            text = stringResource(R.string.search_load_more),
+                            text = stringResource(Res.string.search_load_more),
                             onClick = onLoadMore,
                             colors = ButtonDefaults.textButtonColorsPrimary()
                         )

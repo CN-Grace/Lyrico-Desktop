@@ -1,9 +1,6 @@
 package com.lonx.lyrico.screens
 
-import android.content.Context
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import com.lonx.lyrico.utils.formattedStringResource
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -46,15 +43,52 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.rememberCoroutineScope
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.plugin_api_versions_with_value
+import com.lonx.lyrico.resources.plugin_author_with_value
+import com.lonx.lyrico.resources.plugin_config
+import com.lonx.lyrico.resources.plugin_custom_name
+import com.lonx.lyrico.resources.plugin_custom_name_hint
+import com.lonx.lyrico.resources.plugin_empty
+import com.lonx.lyrico.resources.plugin_import_archive
+import com.lonx.lyrico.resources.plugin_import_collapse
+import com.lonx.lyrico.resources.plugin_import_conflict_downgrade
+import com.lonx.lyrico.resources.plugin_import_conflict_new
+import com.lonx.lyrico.resources.plugin_import_conflict_overwrite
+import com.lonx.lyrico.resources.plugin_import_conflict_update
+import com.lonx.lyrico.resources.plugin_import_description
+import com.lonx.lyrico.resources.plugin_import_expand
+import com.lonx.lyrico.resources.plugin_import_failed_title
+import com.lonx.lyrico.resources.plugin_import_found_title
+import com.lonx.lyrico.resources.plugin_import_install
+import com.lonx.lyrico.resources.plugin_import_installable_title
+import com.lonx.lyrico.resources.plugin_import_path
+import com.lonx.lyrico.resources.plugin_import_version
+import com.lonx.lyrico.resources.plugin_manager_title
+import com.lonx.lyrico.resources.plugin_switch_to_compact
+import com.lonx.lyrico.resources.plugin_switch_to_detailed
+import com.lonx.lyrico.resources.plugin_type_cover
+import com.lonx.lyrico.resources.plugin_type_empty
+import com.lonx.lyrico.resources.plugin_type_lyrics
+import com.lonx.lyrico.resources.plugin_type_metadata
+import com.lonx.lyrico.resources.plugin_type_with_value
+import com.lonx.lyrico.resources.plugin_uninstall
+import com.lonx.lyrico.resources.plugin_uninstall_confirm_message
+import com.lonx.lyrico.resources.plugin_update_source_configured
+import com.lonx.lyrico.resources.plugin_version_with_value
+import com.lonx.lyrico.resources.search_source_priority_tip
 import com.lonx.lyrico.data.model.entity.SourcePluginEntity
 import com.lonx.lyrico.data.model.entity.capabilities
 import com.lonx.lyrico.data.model.entity.displaySourceTypes
@@ -64,6 +98,9 @@ import com.lonx.lyrico.data.model.entity.sortOrderFor
 import com.lonx.lyrico.data.model.plugin.PluginSourceType
 import com.lonx.lyrico.data.model.plugin.supportsSourceType
 import com.lonx.lyrico.data.model.plugin.displaySourceTypes
+import com.lonx.lyrico.platform.FileOpenPicker
+import com.lonx.lyrico.platform.rememberFileOpenPicker
+import com.lonx.lyrico.plugin.i18n.PluginLocales
 import com.lonx.lyrico.plugin.source.PluginInstallCandidate
 import com.lonx.lyrico.plugin.source.PluginInstallFailed
 import com.lonx.lyrico.plugin.source.PluginVersionConflict
@@ -74,11 +111,9 @@ import com.lonx.lyrico.ui.components.plugin.PluginIcon
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
 import com.lonx.lyrico.ui.theme.isDarkTheme
 import com.lonx.lyrico.viewmodel.PluginViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.PluginConfigDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.ui.navigation.PluginConfigDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import org.koin.compose.viewmodel.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -93,6 +128,8 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
@@ -110,40 +147,58 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.window.WindowDialog
 import java.io.File
 
 private enum class PluginTypeTab(
     val sourceType: PluginSourceType,
-    val labelRes: Int
+    val labelRes: StringResource
 ) {
-    METADATA(PluginSourceType.METADATA, R.string.plugin_type_metadata),
-    LYRICS(PluginSourceType.LYRICS, R.string.plugin_type_lyrics),
-    COVER(PluginSourceType.COVER, R.string.plugin_type_cover)
+    METADATA(PluginSourceType.METADATA, Res.string.plugin_type_metadata),
+    LYRICS(PluginSourceType.LYRICS, Res.string.plugin_type_lyrics),
+    COVER(PluginSourceType.COVER, Res.string.plugin_type_cover)
 }
 
 @Composable
-@Destination<RootGraph>(route = "plugin_manager")
 fun PluginManagerScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator,
+    // The OS file dialog is the one piece of this screen a test cannot drive, so it is injected; the
+    // import itself (which archive, which entries, what the user sees) stays real code under test.
+    // Same seam as `AppLogScreen`'s save picker.
+    fileOpenPicker: FileOpenPicker? = null,
 ) {
     val viewModel: PluginViewModel = koinViewModel()
     val plugins by viewModel.plugins.collectAsState()
-    val localeConfiguration = androidx.compose.ui.platform.LocalConfiguration.current
-    LaunchedEffect(localeConfiguration) {
-        com.lonx.lyrico.plugin.i18n.PluginLocales.update(localeConfiguration)
-    }
+    // `PluginLocales.update(configuration)` used to run here. Android re-read the running
+    // `Configuration` on every configuration change (a language switch); the JVM has no such event, so
+    // the desktop port derives the preference list from the system locale once at startup
+    // (`PluginLocales.initialize()`, called from the DI graph). The gap is documented on
+    // `PluginLocales`: a language change applies on the next launch, not immediately.
     val uiState by viewModel.uiState.collectAsState()
     val pendingImport = uiState.pendingImport
-    val context: Context = LocalContext.current
+    val pluginArchivePicker = fileOpenPicker ?: rememberFileOpenPicker(
+        title = stringResource(Res.string.plugin_import_description)
+    )
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var selectedTypeTab by rememberSaveable { mutableStateOf(PluginTypeTab.METADATA) }
-    var compactMode by rememberSaveable {
-        mutableStateOf(
-            context.getSharedPreferences(
-                PLUGIN_MANAGER_PREFERENCES,
-                Context.MODE_PRIVATE
-            ).getBoolean(KEY_COMPACT_MODE, false)
-        )
+    // Android persisted the compact-mode flag in a `SharedPreferences` file read on first
+    // composition. There is a desktop settings store (`SettingsRepository`), but routing this one
+    // preference through it would mean a suspend read before the list can be drawn; the flag is a
+    // per-session display toggle, so it is kept in `rememberSaveable` and resets on the next launch.
+    // Recorded as a gap in PLAN.md rather than silently dropped.
+    var compactMode by rememberSaveable { mutableStateOf(false) }
+    // One import entry point for the two places that offer it (the top-bar "+" and the empty state's
+    // button): pick an archive with the injected OS seam, then hand its real path to the installer.
+    val importPluginArchive: () -> Unit = {
+        if (!uiState.isBusy) {
+            scope.launch {
+                pluginArchivePicker.pick()?.let { archive ->
+                    viewModel.importPlugin(archive.absolutePath)
+                }
+            }
+        }
     }
     var currentList by remember(plugins, selectedTypeTab) {
         mutableStateOf(
@@ -167,14 +222,9 @@ fun PluginManagerScreen(
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
     val topAppBarScrollBehavior = MiuixScrollBehavior()
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { viewModel.importPlugin(context, it) }
-    }
     LaunchedEffect(uiState.messageVersion) {
         if (uiState.message.isNotBlank()) {
-            Toast.makeText(context, uiState.message, Toast.LENGTH_SHORT).show()
+            snackbarHostState.showSnackbar(uiState.message)
         }
     }
     var showUninstallDialog by rememberSaveable { mutableStateOf(false) }
@@ -193,12 +243,12 @@ fun PluginManagerScreen(
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = stringResource(id = R.string.plugin_manager_title),
+                title = stringResource(Res.string.plugin_manager_title),
                 navigationIcon = {
                     IconButton(onClick = { navigator.navigateUp() }) {
                         Icon(
                             imageVector = MiuixIcons.Back,
-                            contentDescription = stringResource(R.string.action_back)
+                            contentDescription = stringResource(Res.string.action_back)
                         )
                     }
                 },
@@ -206,10 +256,6 @@ fun PluginManagerScreen(
                     IconButton(
                         onClick = {
                             compactMode = !compactMode
-                            context.getSharedPreferences(
-                                PLUGIN_MANAGER_PREFERENCES,
-                                Context.MODE_PRIVATE
-                            ).edit().putBoolean(KEY_COMPACT_MODE, compactMode).apply()
                         }
                     ) {
                         Icon(
@@ -220,18 +266,16 @@ fun PluginManagerScreen(
                             },
                             contentDescription = stringResource(
                                 if (compactMode) {
-                                    R.string.plugin_switch_to_detailed
+                                    Res.string.plugin_switch_to_detailed
                                 } else {
-                                    R.string.plugin_switch_to_compact
+                                    Res.string.plugin_switch_to_compact
                                 }
                             )
                         )
                     }
 
                     IconButton(
-                        onClick = {
-                            if (!uiState.isBusy) importLauncher.launch(arrayOf("*/*"))
-                        }
+                        onClick = importPluginArchive
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Add,
@@ -242,6 +286,7 @@ fun PluginManagerScreen(
                 scrollBehavior = topAppBarScrollBehavior
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -264,7 +309,7 @@ fun PluginManagerScreen(
             }
 
             Text(
-                text = stringResource(R.string.search_source_priority_tip),
+                text = stringResource(Res.string.search_source_priority_tip),
                 fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                 color = colorScheme.onSurfaceVariantActions,
                 modifier = Modifier.padding(12.dp)
@@ -284,10 +329,10 @@ fun PluginManagerScreen(
                     item("empty") {
                         LibraryEmptyState(
                             title = if (plugins.isEmpty()) {
-                                stringResource(R.string.plugin_empty)
+                                stringResource(Res.string.plugin_empty)
                             } else {
-                                stringResource(
-                                    R.string.plugin_type_empty,
+                                formattedStringResource(
+                                    Res.string.plugin_type_empty,
                                     stringResource(selectedTypeTab.labelRes)
                                 )
                             },
@@ -296,10 +341,8 @@ fun PluginManagerScreen(
                                 .padding(12.dp),
                             action = {
                                 TextButton(
-                                    text = stringResource(R.string.plugin_import_archive),
-                                    onClick = {
-                                        if (!uiState.isBusy) importLauncher.launch(arrayOf("*/*"))
-                                    },
+                                    text = stringResource(Res.string.plugin_import_archive),
+                                    onClick = importPluginArchive,
                                     colors = ButtonDefaults.textButtonColorsPrimary()
                                 )
                             }
@@ -366,10 +409,10 @@ fun PluginManagerScreen(
 
     YesNoDialog(
         show = showUninstallDialog,
-        title = stringResource(R.string.plugin_uninstall),
+        title = stringResource(Res.string.plugin_uninstall),
         summary = pendingUninstallPluginId?.let { id ->
             plugins.find { it.id == id }?.displayName?.let { name ->
-                stringResource(R.string.plugin_uninstall_confirm_message, name)
+                formattedStringResource(Res.string.plugin_uninstall_confirm_message, name)
             }
         },
         onDismissRequest = {
@@ -391,7 +434,7 @@ fun PluginManagerScreen(
     }
 
     WindowDialog(
-        title = stringResource(R.string.plugin_custom_name),
+        title = stringResource(Res.string.plugin_custom_name),
         show = showRenameDialog,
         onDismissRequest = {
             showRenameDialog = false
@@ -404,14 +447,14 @@ fun PluginManagerScreen(
             TextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = customNameInput,
-                label = stringResource(R.string.plugin_custom_name),
+                label = stringResource(Res.string.plugin_custom_name),
                 singleLine = true,
                 onValueChange = { customNameInput = it }
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = stringResource(
-                    R.string.plugin_custom_name_hint,
+                text = formattedStringResource(
+                    Res.string.plugin_custom_name_hint,
                     pendingRenamePlugin?.name.orEmpty()
                 ),
                 fontSize = 12.sp,
@@ -422,7 +465,7 @@ fun PluginManagerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = {
                         showRenameDialog = false
                     },
@@ -430,7 +473,7 @@ fun PluginManagerScreen(
                 )
                 Spacer(modifier = Modifier.width(20.dp))
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = {
                         showRenameDialog = false
                         pendingRenamePluginId?.let { id ->
@@ -446,7 +489,7 @@ fun PluginManagerScreen(
 
     YesNoBottomSheet(
         show = showImportPreviewSheet,
-        title = stringResource(R.string.plugin_import_found_title),
+        title = stringResource(Res.string.plugin_import_found_title),
         onDismissRequest = {
             viewModel.discardPendingImportFiles()
             showImportPreviewSheet = false
@@ -461,7 +504,7 @@ fun PluginManagerScreen(
             viewModel.discardPendingImportFiles()
             showImportPreviewSheet = false
         },
-        confirmText = stringResource(R.string.plugin_import_install),
+        confirmText = stringResource(Res.string.plugin_import_install),
         onConfirm = {
             viewModel.installPendingImport()
             showImportPreviewSheet = false
@@ -475,8 +518,8 @@ fun PluginManagerScreen(
                 ) {
                     if (session.candidates.isNotEmpty()) {
                         SmallTitle(
-                            text = stringResource(
-                                R.string.plugin_import_installable_title,
+                            text = formattedStringResource(
+                                Res.string.plugin_import_installable_title,
                                 session.candidates.size
                             ),
                             insideMargin = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
@@ -503,8 +546,8 @@ fun PluginManagerScreen(
 
                 if (session.failed.isNotEmpty()) {
                     SmallTitle(
-                        text = stringResource(
-                            R.string.plugin_import_failed_title,
+                        text = formattedStringResource(
+                            Res.string.plugin_import_failed_title,
                             session.failed.size
                         ),
                         textColor = colorScheme.error
@@ -529,12 +572,15 @@ private fun PluginImportCandidateItem(
     selected: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    val localeTags = androidx.compose.ui.platform.LocalConfiguration.current.locales.toLanguageTags()
+    // Android read the running `Configuration`'s locale list here; the desktop port reads the same
+    // preference list the plugin runtime itself localises against (`PluginLocales`), as a state so a
+    // change still re-runs the load. Same language set, one source of truth.
+    val localeTags by PluginLocales.preferences.collectAsState()
     val manifest by androidx.compose.runtime.produceState(candidate.manifest, candidate, localeTags) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {
                 com.lonx.lyrico.plugin.i18n.PluginStrings.load(candidate.pluginRoot, candidate.manifest)
-                    .snapshot(localeTags.split(',')).localize(candidate.manifest)
+                    .snapshot(localeTags).localize(candidate.manifest)
             }.getOrDefault(candidate.manifest)
         }
     }
@@ -606,21 +652,21 @@ private fun PluginImportCandidateItem(
             )
 
             Text(
-                text = stringResource(R.string.plugin_import_version, versionText),
+                text = formattedStringResource(Res.string.plugin_import_version, versionText),
                 fontSize = 12.sp,
                 color = colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = stringResource(R.string.plugin_type_with_value, pluginTypeText),
+                text = formattedStringResource(Res.string.plugin_type_with_value, pluginTypeText),
                 fontSize = 12.sp,
                 color = colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = stringResource(R.string.plugin_import_path,locationText),
+                text = formattedStringResource(Res.string.plugin_import_path,locationText),
                 fontSize = 12.sp,
                 color = colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
@@ -629,7 +675,7 @@ private fun PluginImportCandidateItem(
 
             if (manifest.description.isNotBlank()) {
                 Text(
-                    text = stringResource(R.string.plugin_import_description,manifest.description),
+                    text = formattedStringResource(Res.string.plugin_import_description,manifest.description),
                     fontSize = 12.sp,
                     color = colorScheme.onSurfaceVariantSummary,
                     maxLines = 1,
@@ -665,7 +711,7 @@ private fun PluginImportFailedItem(
             ?.takeIf { it.isNotBlank() }
             ?.let {
                 if (isNotEmpty()) append(" · ")
-                append(stringResource(R.string.plugin_import_version))
+                append(stringResource(Res.string.plugin_import_version))
                 append(" ")
                 append(it)
             }
@@ -720,9 +766,9 @@ private fun PluginImportFailedItem(
 
                 Text(
                     text = if (expanded) {
-                        stringResource(R.string.plugin_import_collapse)
+                        stringResource(Res.string.plugin_import_collapse)
                     } else {
-                        stringResource(R.string.plugin_import_expand)
+                        stringResource(Res.string.plugin_import_expand)
                     },
                     fontSize = 12.sp,
                     color = colorScheme.onErrorContainer,
@@ -799,16 +845,16 @@ private fun PluginVersionConflict.toImportConflictColor(): Color {
 private fun PluginVersionConflict.toImportConflictText(): String {
     return when (this) {
         PluginVersionConflict.NONE ->
-            stringResource(R.string.plugin_import_conflict_new)
+            stringResource(Res.string.plugin_import_conflict_new)
 
         PluginVersionConflict.UPDATE ->
-            stringResource(R.string.plugin_import_conflict_update)
+            stringResource(Res.string.plugin_import_conflict_update)
 
         PluginVersionConflict.OVERWRITE ->
-            stringResource(R.string.plugin_import_conflict_overwrite)
+            stringResource(Res.string.plugin_import_conflict_overwrite)
 
         PluginVersionConflict.DOWNGRADE ->
-            stringResource(R.string.plugin_import_conflict_downgrade)
+            stringResource(Res.string.plugin_import_conflict_downgrade)
     }
 }
 
@@ -895,7 +941,7 @@ fun PluginItem(
 
                     if (hasUpdateSource) {
                         PluginBadge(
-                            text = stringResource(R.string.plugin_update_source_configured)
+                            text = stringResource(Res.string.plugin_update_source_configured)
                         )
                     }
 
@@ -910,7 +956,7 @@ fun PluginItem(
                 )
 
                 Text(
-                    text = stringResource(R.string.plugin_version_with_value, pluginVersion),
+                    text = formattedStringResource(Res.string.plugin_version_with_value, pluginVersion),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 2.dp),
                     fontWeight = FontWeight(550),
@@ -920,8 +966,8 @@ fun PluginItem(
                 )
 
                 Text(
-                    text = stringResource(
-                        R.string.plugin_api_versions_with_value,
+                    text = formattedStringResource(
+                        Res.string.plugin_api_versions_with_value,
                         plugin.apiVersion,
                         plugin.minHostApiVersion
                     ),
@@ -933,7 +979,7 @@ fun PluginItem(
                 )
 
                 Text(
-                    text = stringResource(R.string.plugin_author_with_value, pluginAuthor),
+                    text = formattedStringResource(Res.string.plugin_author_with_value, pluginAuthor),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(bottom = 1.dp),
                     fontWeight = FontWeight(550),
@@ -985,14 +1031,14 @@ fun PluginItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             PluginActionChip(
-                text = stringResource(R.string.plugin_config),
+                text = stringResource(Res.string.plugin_config),
                 icon = MiuixIcons.Settings,
                 tint = actionIconTint,
                 background = secondaryContainer,
                 onClick = onConfig
             )
             PluginActionChip(
-                text = stringResource(R.string.plugin_custom_name),
+                text = stringResource(Res.string.plugin_custom_name),
                 icon = MiuixIcons.Rename,
                 tint = actionIconTint,
                 background = secondaryContainer,
@@ -1002,7 +1048,7 @@ fun PluginItem(
             Spacer(modifier = Modifier.weight(1f))
 
             PluginActionChip(
-                text = stringResource(R.string.plugin_uninstall),
+                text = stringResource(Res.string.plugin_uninstall),
                 icon = MiuixIcons.Delete,
                 tint = colorScheme.error,
                 background = colorScheme.errorContainer.copy(alpha = 0.45f),
@@ -1069,7 +1115,7 @@ private fun CompactPluginItem(
                 )
 
                 Text(
-                    text = stringResource(R.string.plugin_version_with_value, plugin.versionName),
+                    text = formattedStringResource(Res.string.plugin_version_with_value, plugin.versionName),
                     fontSize = 11.sp,
                     color = colorScheme.onSurfaceVariantSummary,
                     maxLines = 1,
@@ -1077,8 +1123,8 @@ private fun CompactPluginItem(
                 )
 
                 Text(
-                    text = stringResource(
-                        R.string.plugin_api_versions_with_value,
+                    text = formattedStringResource(
+                        Res.string.plugin_api_versions_with_value,
                         plugin.apiVersion,
                         plugin.minHostApiVersion
                     ),
@@ -1105,21 +1151,21 @@ private fun CompactPluginItem(
             Spacer(modifier = Modifier.weight(1f))
             CompactPluginActionButton(
                 icon = MiuixIcons.Settings,
-                contentDescription = stringResource(R.string.plugin_config),
+                contentDescription = stringResource(Res.string.plugin_config),
                 tint = neutralActionTint,
                 background = neutralActionBackground,
                 onClick = onConfig
             )
             CompactPluginActionButton(
                 icon = MiuixIcons.Rename,
-                contentDescription = stringResource(R.string.plugin_custom_name),
+                contentDescription = stringResource(Res.string.plugin_custom_name),
                 tint = neutralActionTint,
                 background = neutralActionBackground,
                 onClick = onRename
             )
             CompactPluginActionButton(
                 icon = MiuixIcons.Delete,
-                contentDescription = stringResource(R.string.plugin_uninstall),
+                contentDescription = stringResource(Res.string.plugin_uninstall),
                 tint = colorScheme.error,
                 background = colorScheme.errorContainer.copy(alpha = 0.45f),
                 onClick = onUninstall
@@ -1153,14 +1199,12 @@ private fun CompactPluginActionButton(
     }
 }
 
-private fun PluginSourceType.labelRes(): Int = when (this) {
-    PluginSourceType.METADATA -> R.string.plugin_type_metadata
-    PluginSourceType.LYRICS -> R.string.plugin_type_lyrics
-    PluginSourceType.COVER -> R.string.plugin_type_cover
+private fun PluginSourceType.labelRes(): StringResource = when (this) {
+    PluginSourceType.METADATA -> Res.string.plugin_type_metadata
+    PluginSourceType.LYRICS -> Res.string.plugin_type_lyrics
+    PluginSourceType.COVER -> Res.string.plugin_type_cover
 }
 
-private const val PLUGIN_MANAGER_PREFERENCES = "plugin_manager_preferences"
-private const val KEY_COMPACT_MODE = "compact_mode"
 
 @Composable
 private fun PluginBadge(

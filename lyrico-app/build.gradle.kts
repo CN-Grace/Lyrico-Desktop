@@ -182,6 +182,19 @@ dependencies {
     // adapter in ui/navigation/ (see PLAN section 6 risk 3 for the resolution evidence).
     implementation(libs.navigation.compose)
 
+    // Drag-to-reorder for the plugin list. Android pulled this in the same way (sh.calvin.reorderable);
+    // the library publishes a real `jvm` variant, so the ported `PluginManagerScreen` keeps its
+    // long-press-drag interaction instead of degrading to up/down buttons.
+    implementation(libs.reorderable)
+
+    // Markdown rendering for plugin-provided help text. Android used `com.github.jeziellago:compose-markdown`,
+    // which is Android-only; this is the multiplatform renderer for the same job, and its `jvm`
+    // variant depends on the IntelliJ markdown parser only -- no Compose version of its own, so it
+    // renders through whatever runtime the app already provides. See `ui/components/MiuixMarkdown.kt`
+    // for the colour/typography bridge (the library's own defaults read Material 3's theme, which this
+    // app does not use).
+    implementation(libs.multiplatform.markdown.renderer)
+
     // Chinese text handling: song sort keys are derived from pinyin, and the conversion modes
     // (simplified <-> traditional) run through OpenCC both when scanning and when encoding lyrics.
     implementation(libs.opencc4j)
@@ -235,6 +248,10 @@ tasks.named<Test>("test") {
     // A project property rather than an environment variable, because the Gradle daemon (not the
     // calling shell) hands the environment to the test worker.
     systemProperty("lyrico.seedDevLibrary", providers.gradleProperty("lyrico.seedDevLibrary").getOrElse("0"))
+    // `DevPluginSeederTest` installs a demo plugin into the app's own data folder for the same
+    // reason, and is gated the same way:
+    //   ./gradlew :lyrico-app:test --tests "*DevPluginSeederTest*" -Plyrico.seedDevPlugin=1
+    systemProperty("lyrico.seedDevPlugin", providers.gradleProperty("lyrico.seedDevPlugin").getOrElse("0"))
 }
 
 compose.desktop {
@@ -246,6 +263,14 @@ compose.desktop {
         // the per-OS directory under build/native.
         val nativeDir = rootProject.layout.projectDirectory.dir("build/native/windows-x64").asFile.absolutePath
         jvmArgs += listOf("-Dlyrico.native.dir=$nativeDir", "-Dlyrico.version=$version")
+
+        // The dev start-route override (`Main` -> `LyricoNavHost` -> `desktopStartDestination`) exists so
+        // a screen with no in-app entry point yet can still be captured in the real window. Gradle's own
+        // `-D` flags land on the daemon, not on the app, so the value is forwarded here:
+        //   ./gradlew :lyrico-app:run -Plyrico.start.route=plugin_manager
+        providers.gradleProperty("lyrico.start.route").orNull?.takeIf { it.isNotBlank() }?.let { route ->
+            jvmArgs += listOf("-Dlyrico.start.route=$route")
+        }
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)

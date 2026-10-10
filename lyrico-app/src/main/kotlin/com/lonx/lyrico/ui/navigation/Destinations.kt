@@ -140,6 +140,109 @@ data class ArtistDetailDestination(val artistId: Long) : NavDirection {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Ported in C5b: the plugin manager, the plugin config form, and the three search pages.
+//
+// The three search pages are reached from the metadata editor and the plugin manager is reached
+// from the settings screen, and *none* of those callers is ported yet, so nothing in a shipped
+// window navigates to these five routes today. They are declared and registered so the ported
+// screens are real destinations rather than untestable claims, and the dev start-route override
+// (`-Dlyrico.start.route=<route>`, see `LyricoNavHost`) is what makes them reachable for
+// real-window evidence. The real entry points arrive with the `SettingsScreen` and
+// `EditMetadataScreen` batches, which add the `navigate(...)` calls and nothing else.
+//
+// Their arguments travel as **query parameters**, not path segments. That is a deviation from what
+// the Compose Destinations generator emitted (non-null parameters went into the path), and it is
+// deliberate: the call sites pass empty strings for the lyrics search (`title = ""` is what the
+// metadata editor sends when a tag is blank) and an empty path segment does not match `{arg}`, so a
+// path-shaped route would fail to navigate for exactly the songs that need the search most. A query
+// parameter carries an empty value without complaint. Values are percent-encoded with the ported
+// [encodeNavRouteArgument] so a keyword containing a space, an `&`, a `/` or CJK survives.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The remote song-search page. `keyword` is the pre-filled query; `null` means "start empty".
+ *
+ * Returns a `LyricsSearchResult` to the caller -- see [resultKey] and [ResultBackNavigator].
+ */
+data class SearchResultsDestination(val keyword: String?) : NavDirection {
+    override val route: String
+        get() = if (keyword == null) BASE else "$BASE?$ARG_KEYWORD=${encodeNavRouteArgument(keyword)}"
+
+    companion object {
+        const val ARG_KEYWORD = "keyword"
+        const val BASE = "search_results"
+        const val PATTERN = "$BASE?$ARG_KEYWORD={$ARG_KEYWORD}"
+    }
+}
+
+/**
+ * The lyrics-search page, opened for one song. All four values come from the metadata editor's
+ * tags and may legitimately be empty, which is why they are query parameters (see the note above).
+ *
+ * Returns a `LyricsSearchResult` to the caller.
+ */
+data class SearchLyricsDestination(
+    val title: String,
+    val artist: String,
+    val album: String,
+    val date: String,
+) : NavDirection {
+    override val route: String
+        get() = "$BASE?$ARG_TITLE=${encodeNavRouteArgument(title)}" +
+            "&$ARG_ARTIST=${encodeNavRouteArgument(artist)}" +
+            "&$ARG_ALBUM=${encodeNavRouteArgument(album)}" +
+            "&$ARG_DATE=${encodeNavRouteArgument(date)}"
+
+    companion object {
+        const val ARG_TITLE = "title"
+        const val ARG_ARTIST = "artist"
+        const val ARG_ALBUM = "album"
+        const val ARG_DATE = "date"
+        const val BASE = "search_lyrics"
+        const val PATTERN = "$BASE?$ARG_TITLE={$ARG_TITLE}&$ARG_ARTIST={$ARG_ARTIST}" +
+            "&$ARG_ALBUM={$ARG_ALBUM}&$ARG_DATE={$ARG_DATE}"
+    }
+}
+
+/** The cover-search page. `keyword` pre-fills the query; `null` means "start empty". Returns the
+ * chosen cover's URL as a `String`. */
+data class SearchCoverDestination(val keyword: String?) : NavDirection {
+    override val route: String
+        get() = if (keyword == null) BASE else "$BASE?$ARG_KEYWORD=${encodeNavRouteArgument(keyword)}"
+
+    companion object {
+        const val ARG_KEYWORD = "keyword"
+        const val BASE = "search_cover"
+        const val PATTERN = "$BASE?$ARG_KEYWORD={$ARG_KEYWORD}"
+    }
+}
+
+/** The plugin manager. Reached from the settings screen once that screen is ported. */
+class PluginManagerDestination : NavDirection {
+    override val route: String = ROUTE
+
+    companion object {
+        const val ROUTE = "plugin_manager"
+    }
+}
+
+/**
+ * One plugin's configuration form, opened by tapping a plugin in the manager.
+ *
+ * `pluginId` is a path argument, unlike the search pages' query parameters: it is a non-empty
+ * reverse-DNS identifier that the installer already validated, so an empty segment cannot occur.
+ */
+data class PluginConfigDestination(val pluginId: String) : NavDirection {
+    override val route: String get() = "$BASE/${encodeNavRouteArgument(pluginId)}"
+
+    companion object {
+        const val ARG_PLUGIN_ID = "pluginId"
+        const val BASE = "plugin_config"
+        const val PATTERN = "$BASE/{$ARG_PLUGIN_ID}"
+    }
+}
+
 /**
  * Percent-encodes one route argument, matching the navigation library's own encoder.
  *

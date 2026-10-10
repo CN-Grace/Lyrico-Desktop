@@ -1,0 +1,14 @@
+file: H:/VibeCoding/03-应用/Lyrico-Desktop/docs/port-evidence/c5b-search-results.png
+engine: zh-Hans-CN
+lines: 11
+  y=10 x=31 :: Lyrico 1 ℃ 〔 g 匚 0H550
+  y=56 x=32 :: Q 朋 友 & 朋 友
+  y=105 x=26 :: 0 全 部
+  y=106 x=102 :: 演 冫 音 源 Demo Source
+  y=153 x=109 :: 朋 友 & 朋 友 · 朋 友
+  y=173 x=109 :: 周 华 健 ·
+  y=255 x=109 :: 朋 友 & 友 · 花 心
+  y=275 x=109 :: 周 华 健 · 花 0
+  y=357 x=109 :: 朋 友 & 朋 友 · 山 丘
+  y=393 x=109 :: 2 丁 3
+  y=468 x=549 :: 加 载 更 多

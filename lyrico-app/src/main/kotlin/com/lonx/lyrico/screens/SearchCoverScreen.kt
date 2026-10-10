@@ -1,6 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,13 +39,25 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_search
+import com.lonx.lyrico.resources.cd_no_results
+import com.lonx.lyrico.resources.ic_album_24dp
+import com.lonx.lyrico.resources.search_cover_placeholder
+import com.lonx.lyrico.resources.search_load_more
+import com.lonx.lyrico.resources.search_load_more_failed
+import com.lonx.lyrico.resources.search_loading_more
+import com.lonx.lyrico.resources.search_type_all
+import com.lonx.lyrico.resources.unknown_album
+import com.lonx.lyrico.resources.unknown_artist
+import com.lonx.lyrico.resources.unknown_title
+import com.lonx.lyrico.resources.unknown_year
 import com.lonx.lyrico.ui.components.bar.SearchBar
 import com.lonx.lyrico.ui.components.rememberTintedPainter
 import com.lonx.lyrico.ui.components.scaffoldTopAppBarInsetsPadding
@@ -54,14 +65,13 @@ import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
 import com.lonx.lyrico.ui.theme.LyricoColors
 import com.lonx.lyrico.ui.theme.isDarkTheme
 import com.lonx.lyrico.utils.MusicMatchUtils
+import com.lonx.lyrico.utils.readRemoteImageSize
 import com.lonx.lyrico.viewmodel.CoverSearchResult
 import com.lonx.lyrico.viewmodel.CoverSearchViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.result.ResultBackNavigator
+import com.lonx.lyrico.ui.navigation.ResultBackNavigator
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
-import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -73,10 +83,8 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@SuppressLint("LocalContextGetResourceValueCall")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Destination<RootGraph>(route = "search_cover")
 fun SearchCoverScreen(
     keyword: String?,
     resultNavigator: ResultBackNavigator<String>
@@ -137,7 +145,7 @@ fun SearchCoverScreen(
                 SearchBar(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     state = coverSearchState,
-                    placeholder = stringResource(id = R.string.search_cover_placeholder),
+                    placeholder = stringResource(Res.string.search_cover_placeholder),
                     onSearch = { keyword ->
                         keyboardController?.hide()
                         viewModel.onCoverKeywordChanged(keyword)
@@ -152,7 +160,7 @@ fun SearchCoverScreen(
                             }
                         ) {
                             Text(
-                                text = stringResource(id = R.string.action_search),
+                                text = stringResource(Res.string.action_search),
                                 style = MiuixTheme.textStyles.main,
                                 color = MiuixTheme.colorScheme.primary
                             )
@@ -182,12 +190,12 @@ fun SearchCoverScreen(
              */
             val tabs = listOf(
                 SourcePillTab(
-                    label = stringResource(id = R.string.search_type_all),
+                    label = stringResource(Res.string.search_type_all),
                     imageVector = MiuixIcons.Search
                 )
             ) + uiState.availableSources.map { source ->
                 SourcePillTab(
-                    label = source.labelRes?.let { stringResource(id = it) } ?: source.name,
+                    label = source.labelRes?.let { stringResource(it) } ?: source.name,
                     iconPath = source.iconPath
                 )
             }
@@ -274,7 +282,7 @@ fun SearchCoverScreen(
 
                     results.isEmpty() -> {
                         Box(Modifier.fillMaxSize(), Alignment.Center) {
-                            Text(stringResource(id = R.string.cd_no_results))
+                            Text(stringResource(Res.string.cd_no_results))
                         }
                     }
 
@@ -322,7 +330,7 @@ fun SearchCoverScreen(
                                             CircularProgressIndicator(size = 20.dp)
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = stringResource(R.string.search_loading_more),
+                                                text = stringResource(Res.string.search_loading_more),
                                                 fontSize = 14.sp,
                                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                                             )
@@ -342,7 +350,7 @@ fun SearchCoverScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             TextButton(
-                                                text = stringResource(R.string.search_load_more_failed),
+                                                text = stringResource(Res.string.search_load_more_failed),
                                                 onClick = {
                                                     viewModel.loadNextPage(
                                                         loadMoreError.first
@@ -366,7 +374,7 @@ fun SearchCoverScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             TextButton(
-                                                text = stringResource(R.string.search_load_more),
+                                                text = stringResource(Res.string.search_load_more),
                                                 onClick = {
                                                     viewModel.loadNextPage(source?.id)
                                                 },
@@ -394,22 +402,7 @@ fun CoverGridItem(
 
     LaunchedEffect(cover.url) {
         if (cover.url.isNotBlank()) {
-            imageSize = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                try {
-                    val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    android.graphics.BitmapFactory.decodeStream(
-                        java.net.URL(cover.url).openStream(),
-                        null,
-                        options
-                    )
-                    if (options.outWidth > 0 && options.outHeight > 0) {
-                        options.outWidth to options.outHeight
-                    } else null
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    null
-                }
-            }
+            imageSize = readRemoteImageSize(cover.url)
             imageSize?.let { size ->
                 onImageSizeLoaded(cover.url, size)
             }
@@ -438,11 +431,11 @@ fun CoverGridItem(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
                     placeholder = rememberTintedPainter(
-                        painter = painterResource(R.drawable.ic_album_24dp),
+                        painter = painterResource(Res.drawable.ic_album_24dp),
                         tint = LyricoColors.coverPlaceholderIcon
                     ),
                     error = rememberTintedPainter(
-                        painter = painterResource(R.drawable.ic_album_24dp),
+                        painter = painterResource(Res.drawable.ic_album_24dp),
                         tint = LyricoColors.coverPlaceholderIcon
                     )
                 )
@@ -498,7 +491,7 @@ fun CoverGridItem(
             ) {
                 // 标题
                 Text(
-                    text = cover.title.ifBlank { stringResource(R.string.unknown_title) },
+                    text = cover.title.ifBlank { stringResource(Res.string.unknown_title) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -506,7 +499,7 @@ fun CoverGridItem(
                 )
                 // 歌手
                 Text(
-                    text = cover.artist.ifBlank { stringResource(R.string.unknown_artist) },
+                    text = cover.artist.ifBlank { stringResource(Res.string.unknown_artist) },
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
@@ -514,14 +507,14 @@ fun CoverGridItem(
                 )
                 // 专辑
                 Text(
-                    text = cover.album.ifBlank { stringResource(R.string.unknown_album) },
+                    text = cover.album.ifBlank { stringResource(Res.string.unknown_album) },
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 Text(
-                    text = cover.date.ifBlank { stringResource(R.string.unknown_year) },
+                    text = cover.date.ifBlank { stringResource(Res.string.unknown_year) },
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,

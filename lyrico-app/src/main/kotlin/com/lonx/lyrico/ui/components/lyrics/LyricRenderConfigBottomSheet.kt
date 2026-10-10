@@ -8,12 +8,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
 import com.lonx.lyrico.data.model.lyrics.LyricRenderConfig
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.conversion_mode
+import com.lonx.lyrico.resources.lyric_mode
+import com.lonx.lyrico.resources.only_translation_if_available
+import com.lonx.lyrico.resources.only_translation_if_available_hint
+import com.lonx.lyrico.resources.remove_empty_lines
+import com.lonx.lyrico.resources.remove_empty_lines_hint
+import com.lonx.lyrico.resources.roma
+import com.lonx.lyrico.resources.roma_hint
+import com.lonx.lyrico.resources.translation
+import com.lonx.lyrico.resources.translation_hint
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -66,7 +76,7 @@ fun LyricRenderConfigBottomSheet(
                         .coerceAtLeast(0)
 
                     WindowDropdownPreference(
-                        title = stringResource(R.string.lyric_mode),
+                        title = stringResource(Res.string.lyric_mode),
                         items = lyricFormatItems,
                         selectedIndex = selectedLyricFormatIndex,
                         onSelectedIndexChange = { index ->
@@ -74,22 +84,22 @@ fun LyricRenderConfigBottomSheet(
                         }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.roma),
-                        summary = stringResource(R.string.roma_hint),
+                        title = stringResource(Res.string.roma),
+                        summary = stringResource(Res.string.roma_hint),
                         checked = lyricConfig.showRomanization,
                         onCheckedChange = onRomaEnabledChange
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.translation),
-                        summary = stringResource(R.string.translation_hint),
+                        title = stringResource(Res.string.translation),
+                        summary = stringResource(Res.string.translation_hint),
                         checked = lyricConfig.showTranslation,
                         onCheckedChange = onTranslationEnabledChange
                     )
                     AnimatedVisibility(visible = lyricConfig.showTranslation) {
                         SwitchPreference(
-                            title = stringResource(R.string.only_translation_if_available),
+                            title = stringResource(Res.string.only_translation_if_available),
                             summary = stringResource(
-                                R.string.only_translation_if_available_hint
+                                Res.string.only_translation_if_available_hint
                             ),
                             enabled = lyricConfig.showTranslation,
                             checked = lyricConfig.onlyTranslationIfAvailable,
@@ -97,13 +107,13 @@ fun LyricRenderConfigBottomSheet(
                         )
                     }
                     SwitchPreference(
-                        title = stringResource(R.string.remove_empty_lines),
-                        summary = stringResource(R.string.remove_empty_lines_hint),
+                        title = stringResource(Res.string.remove_empty_lines),
+                        summary = stringResource(Res.string.remove_empty_lines_hint),
                         checked = lyricConfig.removeEmptyLines,
                         onCheckedChange = onRemoveEmptyLinesChange
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.conversion_mode),
+                        title = stringResource(Res.string.conversion_mode),
                         items = conversionModeItems,
                         selectedIndex = selectedConversionModeIndex,
                         onSelectedIndexChange = { index ->
