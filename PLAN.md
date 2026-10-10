@@ -1417,7 +1417,13 @@ seeder 那一次跑的是一条真的 `EXPORT_LYRICS` 任务，参数与结果�
 7. **别把 `stringResource` 的坑算到这批头上**：这批没有 UI，`StringFormattingGuardTest` 一行没动——它真正的考验在下一批（#35 的界面）。
 8. **两个既有 flake 在这批的 4 次全量跑里露了头**（都不是这批的代码引起的）：
    * `AppLogViewModelTest` 的空文件竞态——**已修**（坑 3），修完全量 102 类 / 900 项 / 0 失败。
-   * **泄漏的 viewModelScope 与 `database.close()` 竞争**——**未修，如实记在这里**。症状是下一次全量跑里 `LibraryHomeScreenTest` 报 `kotlinx.coroutines.test.UncaughtExceptionsBeforeTest`，XML 的 `system-err` 里真正的异常是 `Exception in thread "AWT-EventQueue-0 @coroutine#11721" androidx.sqlite.SQLiteException: Error code: 21, message: Connection pool is closed`，调用栈穿过 `SongListViewModel` 的 `stateIn` 收集（`SongListViewModel.kt:109`）——也就是**前一个测试留下的 viewmodel 作用域还在查那个已经被 tearDown 关掉的 Room 池**，而 `Dispatchers.setMain` 的 uncaught 队列把它记到了下一个测试头上（所以「报错的类」和「出错的类」不是同一个）。同一个代码树连跑两次的结果是一次绿、一次挂；单跑 `LibraryHomeScreenTest` 三次全绿（3×5 个窗口），所以这既不是这批引入的，也没有稳定复现路径。修法属于专门的测试卫生批次：在 UI 测试 tearDown 里先取消 / 清掉 viewmodel 作用域再 `database.close()`，或者在导航条目销毁时清 store——**不要用一个 `Thread.sleep` 或「干脆不关库」把症状糊过去**（前者让超时失去意义，后者把资源泄漏留在那里）。
+   * **泄漏的 viewModelScope 与 `database.close()` 竞争**——**已修**（`LibraryHomeScreenTest` 自己当宿主，见下）。症状是下一次全量跑里 `LibraryHomeScreenTest` 报 `kotlinx.coroutines.test.UncaughtExceptionsBeforeTest`，XML 的 `system-err` 里真正的异常是 `Exception in thread "AWT-EventQueue-0 @coroutine#11721" androidx.sqlite.SQLiteException: Error code: 21, message: Connection pool is closed`，调用栈穿过 `SongListViewModel` 的 `stateIn` 收集（`SongListViewModel.kt:109`）——也就是**前一个测试留下的 viewmodel 作用域还在查那个已经被 tearDown 关掉的 Room 池**，而 `Dispatchers.setMain` 的 uncaught 队列把它记到了下一个测试头上（所以「报错的类」和「出错的类」不是同一个）。同一个代码树连跑两次的结果是一次绿、一次挂。
+
+     根因不是「谁忘了取消」：`koinViewModel()` 把 viewmodel 放进 `library_home` 这个 `NavBackStackEntry` 的 store，而那个 store 挂在**宿主**上——headless 帧虽然会自己造一个，但它永远不会被清。于是组合释放只终止了页面的订阅（`stateIn(WhileSubscribed)` 那一环），viewmodel 自己活着。
+
+     修法是这个测试类自己当宿主：`LibraryHomeHost` 用 `CompositionLocalProvider(LocalViewModelStoreOwner provides viewModelStoreOwner)` 包住 `LyricoNavHost()`，tearDown 里**先** `viewModelStore.clear()` 再 `stopKoin()` / `database.close()`——`NavControllerViewModel.onCleared()` 会连带清掉每个导航条目的 store，所以清这一个 store 就够。
+
+     取证：修前单跑该类 1 挂 1 绿；修后单跑 6 次全绿（6×5 个窗口），全量 **926 项 / 0 失败 / 2 跳过**。另外两个可观测的佐证：tearDown 里断言 `viewModelStore.keys()` 非空（证明这个 store 真是 shell 用的那个，否则「清了个空 store」也会全绿），以及 5 次单跑之后 `%TEMP%/lyrico-library-home*` 的目录数不再增长（关库时已经没有在飞的 Room 调用，文件锁放开、`deleteRecursively` 成功）。**没走的两条路**：加 `Thread.sleep` 或排空 AWT 队列（连接 acquire 的唤醒是从 Room 线程投递过来的，任何「等一等」只是把窗口缩小而不是关掉）；以及「干脆不关库」（实测 5 次单跑 25/25 个临时目录全部留下来，等于把资源泄漏留在那里）。
 
 #### 6. 这批的用户可见缺口（如实记录）
 
@@ -1425,7 +1431,7 @@ seeder 那一次跑的是一条真的 `EXPORT_LYRICS` 任务，参数与结果�
 2. **条目行点不进详情**（#36）：批量详情页的行点击目标是 `EditMetadataScreen`，它的目的地还没注册。
 3. **错误文本未本地化**（见 §2.9）。
 4. **导出目录不自动创建**（见 §2.4，这是有意的选择，但用户会看到一条英文失败）。
-5. **测试卫生问题**（见 §5.8）：泄漏的 viewmodel 作用域会让全量跑偶发挂一次；P6 打包前应先修掉，否则验收会被 flake 干扰。
+5. **测试卫生问题**（见 §5.8）：泄漏的 viewmodel 作用域**已修**（§5.8 坑 8）。但同一批全量跑里还露出**第二个无根的 flake**：`AlbumLibraryViewModelTest > the grid column count defaults to two and follows the saved setting` 一次 10 s 超时（`awaitUntil` 报 `condition not met within 10000ms; last value was 2`，即 DataStore 那次写入在 `viewModelScope`（Main = `Dispatchers.Default`）上一直没被观察到）；单跑该类 3 次全绿，同一棵树的下一次全量跑也全绿。P6 打包前应连着「全量跑偶发挂一次」这一类问题一起收（怀疑是同一个 JVM 里累计的阻塞线程把 `Dispatchers.Default` 饿住了，但还**没有证据**，不要凭猜去改）。
 
 #### 7. 前沿（本批收口）
 
@@ -1537,5 +1543,5 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **底部面板的小字要在裁切放大后 OCR（C6d 起）**：整窗 OCR 读不出面板里的小字（C6d 的 `计算中` / `90%` / `用时 1.04 秒` 全丢）。做法是裁 `(250,500,950,773)` 再 2× LANCZOS 放大，产物 `*.crop.png` / `*.crop.ocr.txt`，坐标按 `裁切原点 + 值/2` 反推回捕获坐标。两种产物都进版本库：整窗那张证明「面板在窗口里、页面被压暗」，裁切那张读得出数值，谁也不能单独当证据。
 - **行内数字只能靠「跟着行位置走」的裁切放大件（C6e 起）**：`成功：2 失败：0 跳过：1` 这种「中文标签 + 阿拉伯数字」的行，整窗 OCR 会把数字连同标点一起糊掉（C6e 实测读成 `成功 2 ] 实败 ： 跳泣 ：`）。做法是**裁左侧那一列、裁切矩形的 y 跟着行位置走**（同一页面每行高度不同，写死矩形会裁到空白），3× LANCZOS 后 OCR 才读得出 `成功 ： 2 | 失败 ： 0 | 跳过 ： 1`。另外「点击真的重画了」这件事用像素差而不是 OCR 证明：`PIL.ImageChops.difference` 出 `differing_pixels` / `bbox` / 百分比，把结论追加进 `*.analysis.txt`（C6e 的页签切换：`194374` px = `21.57%`，`bbox (13,212)-(1153,424)`）。
 - **导出侧三条有意的约定（C6e 起，勿按 Android 改回去）**：① `BatchExportTaskConfig` 的 `CONFIG_JSON` 用 `ignoreUnknownKeys = true`（其它处理器是严格解码）——不这样就解不开 Android 时代带 `destinationTreeUri` 的 `AUDIO_DIRECTORY` 任务行；② 选中目录**只校验、不创建**（`requireSelectedDirectory`），拼错的路径要响亮失败；③ 写出的 `.lrc` 是「标签里的正文原样」：不带 BOM、不加尾换行、同名覆盖而不改名（`BatchExportProcessorEndToEndTest` 用 `toByteArray(UTF_8)` 全等钉住）。
-- **等 `File.writeText` 写完不能等 `isFile`（C6e 起，测试里通用）**：`writeText` 是「先 `FileOutputStream` 建空文件、再写字节」，所以 `awaitUntil { target.isFile }` 可能读到 0 字节的空文件——症状是 JUnit 失败消息**为空**（`assertEquals("", text)` 里 `text` 是空串），看着像断言写错了，其实是「文件已经存在、字节还没落盘」。正确做法是等真正的完成信号（本仓的做法：等写完成后才发的那条事件），不要用加大超时或 `Thread.sleep` 糊过去。同类问题还有 UI 测试里泄漏的 viewmodel 作用域与 `database.close()` 竞争（证据见 C6e 段 §5.8）——修法属于专门的测试卫生批次。
+- **等 `File.writeText` 写完不能等 `isFile`（C6e 起，测试里通用）**：`writeText` 是「先 `FileOutputStream` 建空文件、再写字节」，所以 `awaitUntil { target.isFile }` 可能读到 0 字节的空文件——症状是 JUnit 失败消息**为空**（`assertEquals("", text)` 里 `text` 是空串），看着像断言写错了，其实是「文件已经存在、字节还没落盘」。正确做法是等真正的完成信号（本仓的做法：等写完成后才发的那条事件），不要用加大超时或 `Thread.sleep` 糊过去。同类问题还有 UI 测试里泄漏的 viewmodel 作用域与 `database.close()` 竞争（证据与修法见 C6e 段 §5.8，已修）。
 - **C6e 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（本批 seeder 额外跑一条真的 `EXPORT_LYRICS` 任务，产出落进 `lyrico-app/build/demo-exports/`）→ `./gradlew :lyrico-app:run` → `capture-window.ps1 -TitleLike "Lyrico 1.6"`（任务历史 `c6e-batch-list.png`）→ 点那一行（客户区 `-X 579 -Y 249`）→ `capture-window.ps1`（详情页 `c6e-export-detail.png`）→ 点 `跳过` 页签（客户区 `-X 946 -Y 192`，即捕获坐标 `(947,223)`）→ `capture-window.ps1`（`c6e-export-detail-skipped.png`）；四张裁切放大件与像素差按上面两条约定出。然后先杀掉窗口（标题匹配 `^Lyrico `）再跑磁盘链：目录列表 + sha256 → `build/ffmpeg/windows-x64/ffmpeg.exe -i <源音频>` 读 `lyrics-LYRICS` → `python -c "…sqlite3…"` 直读任务行与条目行，整理进 `docs/port-evidence/c6e-export-files.txt`。
