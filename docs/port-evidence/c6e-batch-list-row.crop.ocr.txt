@@ -1,0 +1,7 @@
+file: docs/port-evidence/c6e-batch-list-row.crop.png
+engine: zh-Hans-CN
+lines: 4
+  y=41 x=27 :: 任 务 类 型 导 出 歌 词
+  y=104 x=27 :: 运 行 状 态 ： 成 功
+  y=167 x=27 :: 成 功 ： 2 ] 失 败 明 跳 过 ： 1
+  y=230 x=27 :: 耗 时 ： 0 ℃ s

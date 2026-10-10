@@ -72,6 +72,7 @@ import com.lonx.lyrico.utils.UpdateManager
 import com.lonx.lyrico.utils.UpdateManagerImpl
 import com.lonx.lyrico.worker.BatchTaskRunner
 import com.lonx.lyrico.worker.BatchTaskScheduler
+import com.lonx.lyrico.worker.processor.BatchExportProcessor
 import com.lonx.lyrico.worker.processor.BatchTaskProcessorFactory
 import com.lonx.lyrico.worker.processor.EditTagsProcessor
 import com.lonx.lyrico.worker.processor.LyricsFormatProcessor
@@ -239,15 +240,19 @@ fun desktopAppModule(directories: AppDirectories) = module {
     // ---------------------------------------------------------------- batch tasks
 
     // The task processors that exist on desktop so far, registered as Android registered them: one
-    // typed single each, then the factory built out of them. The remaining two types (EXPORT_LYRICS,
-    // EXPORT_COVER) have no desktop processor yet, so BatchTaskProcessorFactory refuses them with its
-    // own message and the runner records that on the task row instead of leaving it RUNNING.
+    // typed single each, then the factory built out of them. Every type the app can launch now has a
+    // desktop processor; BatchTaskProcessorFactory still refuses an unregistered one with its own
+    // message rather than leaving the task RUNNING.
     single { LyricsFormatProcessor(get(), get(), get()) }
     single { RenameFilesProcessor(get(), get(), get()) }
     single { EditTagsProcessor(get(), get()) }
     single { MatchMetadataProcessor(get(), get(), get(), get(), get(), get()) }
     single { MatchLyricsProcessor(get(), get(), get(), get(), get()) }
     single { MatchCoverProcessor(get(), get(), get(), get()) }
+
+    // Export. One instance serves both types: it switches on `task.type` anyway, which is how
+    // Android's graph wired it (a single provider registered under EXPORT_LYRICS and EXPORT_COVER).
+    single { BatchExportProcessor(get()) }
 
     // ReplayGain. No arguments: the scanner builds its own FfmpegAudioDecoder, which locates the
     // bundled ffmpeg on first use, so a missing sidecar surfaces as a per-song failure with the
@@ -263,7 +268,9 @@ fun desktopAppModule(directories: AppDirectories) = module {
                 BatchTaskType.MATCH_METADATA to get<MatchMetadataProcessor>(),
                 BatchTaskType.MATCH_LYRICS to get<MatchLyricsProcessor>(),
                 BatchTaskType.MATCH_COVER to get<MatchCoverProcessor>(),
-                BatchTaskType.SCAN_REPLAY_GAIN to get<ReplayGainProcessor>()
+                BatchTaskType.SCAN_REPLAY_GAIN to get<ReplayGainProcessor>(),
+                BatchTaskType.EXPORT_LYRICS to get<BatchExportProcessor>(),
+                BatchTaskType.EXPORT_COVER to get<BatchExportProcessor>()
             )
         )
     }

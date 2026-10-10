@@ -1,0 +1,11 @@
+file: docs/port-evidence/c6e-export-detail-skipped.png
+engine: zh-Hans-CN
+lines: 8
+  y=10 x=31 :: Lyrico 1 ℃ @化81 lg 〕
+  y=126 x=29 :: 与 土 哥 0 司 《 成 功
+  y=145 x=29 :: 成 功 2 ] 实 败 ： 叫 跳 泣 ：
+  y=164 x=29 :: 耗 时 ： O.Os
+  y=286 x=29 :: 1 山 丘 .flac
+  y=308 x=30 :: H WibeCoding\03-fiRLyrico-Desktap\lyriC0-app\build\demo-library'\äRX
+  y=49 x=543 :: 任 务 详 情
+  y=307 x=522 :: 山 丘 \ 1 山 丘 flac

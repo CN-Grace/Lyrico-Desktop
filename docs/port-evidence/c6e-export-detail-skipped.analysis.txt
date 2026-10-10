@@ -1,0 +1,43 @@
+file: docs\port-evidence\c6e-export-detail-skipped.png
+size: 1166x773
+distinct_colours: 348  most_common_share: 0.707  text_pixels: 6861
+accent_blue_pixels: 160  accent_warm_pixels: 165
+top_colours: (247, 247, 247)=636838, (255, 255, 255)=253267, (25, 25, 25)=2792, (102, 102, 102)=1213
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+#++#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                          +.++++.                                           +
+  # ++                                        .#+++#+.                                           +
+  # .++.....                                                                                     +
+  # ++#+++++                                                                                     +
+  # .++..... .+.+ +                                                                              +
+  # .#....                                                                                       +
+  #                                                                                              +
+  #               +.                             ++.                            #++              +
+  #                                                                                              +
+  # ++##+#+                                                                                      +
+  #  ...+.....++.....+....+..+.....+..+.++.+ +......+                                            +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.
+TAB DIFF vs c6e-export-detail.png (success tab):
+  script: build/tmp-probe/c6e-tab-diff.py (PIL ImageChops.difference)
+  size: 1166x773
+  bbox: (13, 212, 1153, 424)
+  differing_pixels: 194374 = 21.57% of the window
+VERDICT: OK - the change is confined to the tab row plus the item list area, so clicking the
+         skipped tab really repainted that region (and nothing else in the window moved).

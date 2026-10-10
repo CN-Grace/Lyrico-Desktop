@@ -1335,6 +1335,105 @@ C4c 搬 `AlbumsPage` 时**故意少画了一行**——「计算专辑回放增�
 `python scripts/port-frontier.py` → java 树 **95 个文件 / 0 陈旧副本 / 46 可搬 / 49 被挡**（上一批 99 / 0 / 48 / 55）。
 批量任务链上只剩 `BatchExportProcessor`（C6e）与那 7 个 sheet；界面侧剩 `BatchEditScreen` / `BatchRenameScreen` / `EditMetadataScreen` /
 `ArtistDetailScreen` 与设置页那一片。
+### P5 施工批次（批量导出：处理器补齐 + 真文件落盘 + 磁盘链取证，2026-10-11）
+
+C6c 搬批量任务链时，`BatchTaskProcessorFactory` 对 `EXPORT_LYRICS` / `EXPORT_COVER` 是**明确拒绝**的（工厂里写着「没有桌面处理器」，被拒绝的任务会在任务行上记一条失败）。原因是 Android 的 `BatchExportProcessor` 整条依赖 SAF：目的地是 `destinationTreeUri`，找文件靠 `DocumentFile.findFile`，写文件靠 `openOutputStream`。桌面上没有 SAF，所以这不是「改个路径」就能过的活。这批（**C6e**）把它补齐：`git mv` 平台无关的 `ExportDestination`，重写处理器本体（251 行；Android 版 236 行），`git rm` java 树那一份，在 Koin 图里注册，并补上 `BatchTaskRunner` 里三个缺失的 config summarizer。**至此应用能发起的 8 种任务类型在桌面上都有处理器**（工厂注释同步改成这句话，`BatchTaskRunnerTest` 的摘要断言 8 种全覆盖）。这批不引入任何外部依赖：导出就是 `java.nio` 写文件。
+
+难点不在「搬」，在**证明文件真的写出来了、而且字节就是容器里那份**。这是这条链上第一个「产出物离开应用」的处理器——写出来的 `.lrc` / `.jpg` 是给别的播放器用的，处理器自己返回的 `updatedFilePath` 不能当证据。所以取证是三条互相独立的链：(a) 无头 17 项端到端（真 Koin 图 + 真 Room + 真扫描 + 真 TagLib 读回，断言落在磁盘上的字节）；(b) seeder 在真 Koin 图里跑一次真任务（真 `BatchTaskRunner` + 真处理器），产出落进 `lyrico-app/build/demo-exports/`；(c) **磁盘链**：shell 列目录 + sha256、字节级读回、**ffmpeg 独立读回源 mp3 / wav 的 `lyrics-LYRICS` 标签**、绕过 Room 直接 `sqlite3` 读任务行与条目行——三段都在 app 进程被杀之后做（复查进程计数 0）。真窗口那三张图证明的是**读侧**：界面显示的与磁盘、数据库里的是同一批数据。
+
+#### 1. 搬了什么（`git mv` 1 个 + 重写 1 个 + 删 1 个；java 主树 95 → 93）
+
+| 层 | 文件 | 改动 |
+| --- | --- | --- |
+| 原样搬入 | `data/model/ExportDestination.kt` | `git mv`，0 行改动 |
+| 桌面重写 | `worker/processor/BatchExportProcessor.kt` | 新写 251 行（Android 版 236 行） |
+| 删除 | java 树里同名的那一份 | `git rm`，−236 行 |
+
+已有文件：`di/DesktopAppModule.kt`（+11 −4）、`worker/BatchTaskRunner.kt`（+45 −4）。
+新测试类：`worker/processor/BatchExportProcessorEndToEndTest.kt`（17 项）。
+已有测试：`BatchTaskRunnerTest`（+144 −1，+6 项 → 21 项）、`DevLibrarySeederTest`（+67 −5，加一次真导出任务）、`AppLogViewModelTest`（+7 −3，见 §5.8 的既有竞态）。
+非代码：18 个取证文件（3 张真窗口图 + 4 张裁切放大图 + 各自的 OCR / 像素分析 + 1 份磁盘链文档）。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **配置字段 `destinationTreeUri` → `destinationDirectory`，并且解码是有意宽松的。** `BatchExportTaskConfig` 的 `CONFIG_JSON` 用 `Json { ignoreUnknownKeys = true }`，而库里其它处理器用默认严格解码。理由：Android 时代的任务行里 `AUDIO_DIRECTORY` 配置带 `destinationTreeUri`，严格解码会让这些行连「跳过」都记不上而直接崩在解析上。宽松解码的边界被两项测试钉住：一行 Android `AUDIO_DIRECTORY` 配置**仍然导出到音频旁边**（`destinationTreeUri` 被忽略），而一行把目的地写成 `content://…` 的 `SELECTED_DIRECTORY` 配置**失败而不是写到别处**。
+2. **封面是 `ByteArray`，不是 `Any?`。** Android 版对 `coverSource` 做 `when (getCoverSourceType(coverSource))`，六种来源（BYTE_ARRAY / NETWORK_URL / CONTENT_OR_FILE_URI / URI / FILE_PATH / BITMAP）分别去拿字节。桌面版上游早就把封面收敛成「已经取好的字节」（C6b 的封面轨），所以这里只剩一条路：字节直接 `Files.write` 成 `.jpg`。少掉的不是功能而是六种历史分支。
+3. **SAF 的两步（`findFile` + `openOutputStream`）塌成一次 `Files.write`。** Android 需要两步是因为 SAF 的文档树要先按名字找到文档、再打开输出流；磁盘上一个 `Files.write(path, bytes, CREATE, TRUNCATE_EXISTING)` 就是全部。副作用是语义变清楚：**同名文件是被覆盖的**，不会出现 `朋友 (1).lrc` 这种备份名（`BatchExportProcessorEndToEndTest` 的 `replace-on-reexport` 与 `shared-base-name` 两项各钉一半）。
+4. **「选中的目录」必须已经存在且可写，不替你创建。** Android 的目录来自选择器，选择器创建过它；桌面版 `requireSelectedDirectory` 只做存在性与可写性检查，**不 `createDirectories`**。理由：导出目录是用户明确指过的地方，一个拼错的路径应该是响亮的失败，而不是让文件散落在一个新造出来的目录里。失败消息带上探过的路径（Android 只有一句 `Destination folder unavailable`）。
+5. **兄弟目录写入（`AUDIO_DIRECTORY`）用 `songUri` 的父目录，并且仍然有一把互斥锁。** `AUDIO_DIRECTORY` 的语义是「歌词与音频放一起」，所以目的地是源音频的父目录；并发导出多首时同一目录下的写入用 `audioDirectoryWriteMutex` 串行化（Android 里为 SAF 并发写也这么做）。真窗口那次跑的是 `SELECTED_DIRECTORY`，这条路径由无头测试的 `audio-dir sibling` 一项覆盖。
+6. **TTML 判定与文件名沿用 Android。** 歌词正文里出现 `begin=` + `end=` + `<?xml` 就按 TTML 命名成 `.ttml`，否则 `.lrc`；`baseFileName` 取 `fileName.substringBeforeLast(".", missingDelimiterValue = fileName)`——只截最后一段扩展名（`a.b.mp3` → `a.b`），没有扩展名就原样用。这条有两个测试（`last-extension-only`、`extensionless name`），因为 Android 这里曾经出过错。
+7. **「跳过」与「失败」的分界原样保留。** 没有歌词、没有封面、没有配置都不是失败，是 skip（`markItemSkipped(itemId, resultJson)`，原因进 `resultJson` 而不是 `errorMessage`）；只有「目标目录没了 / 不可写」「源文件读不出来」「写不进去」才是失败。磁盘链里那条 `No lyrics` 就落在 `resultJson` 里，详情页对跳过项也不显示红字。
+8. **结果形状不变。** `BatchTaskProcessResult` 的 `updatedFilePath` / `updatedFileName` 照旧写回条目行——批量详情页显示的路径与文件名就是它，所以这两列是「导出成功」在用户侧的唯一可见物。
+9. **唯一一处用户可见的下降（如实记）：错误文本还是英文原文**（`Destination folder unavailable` 之类），本地化映射表跟着错误界面一起做（#36）。
+
+#### 3. 无头取证（新增 23 项；全量 102 类 / 900 项 / 898 执行 + 2 门控跳过 / 0 失败 0 错误）
+
+| 测试类 | 项数 | 验的是 |
+| --- | --- | --- |
+| `BatchExportProcessorEndToEndTest` | 17 | 真 Koin 图 + 真库 + 真 TagLib：`.lrc` 的 UTF-8 字节全等、TTML 命名、无歌词跳过、重导出覆盖、`AUDIO_DIRECTORY` 与音频同目录且音频字节不变、同名互斥、源文件缺失失败、封面字节不变、无封面跳过、目录不存在失败且消息带路径、目的地是文件时失败、无配置跳过、**Android `AUDIO_DIRECTORY` 行照旧导出**、**Android `SELECTED_DIRECTORY` 行失败而不写别处**、只截最后一段扩展名、无扩展名保名、不支持的类型拒绝 |
+| `BatchTaskRunnerTest` | +6 | 三类配置摘要（replay-gain / match / export），含「默认值不显示成 `null`」 |
+| 合计 | +23 | 全量 877 → 900 |
+
+那 2 项门控跳过是 seeder 类里需要 `-Plyrico.seedDevLibrary=1` 的两个用例，不是被跳过的漏测；另外这批的端到端测试显式关掉 `ignoreShortAudio`，否则几秒钟长的夹具会被静默过滤，测试会因为「库里没有歌」而假通过。
+
+#### 4. seeder 真跑 + 真窗口取证（3 图 + 4 裁切 + 1 份磁盘链）
+
+seeder 那一次跑的是一条真的 `EXPORT_LYRICS` 任务，参数与结果在窗口与数据库两侧都能对上：
+
+| 事实 | 值 |
+| --- | --- |
+| taskId | `482a9c2d-0a88-4d09-ad02-554295fe529f` |
+| 配置 | `{"destinationDirectory":"H:\…\lyrico-app\build\demo-exports","concurrency":1}`（`destination` 是默认值 `SELECTED_DIRECTORY`，序列化时省略） |
+| 统计 | 3/3，成功 2、失败 0、跳过 1（第三首 `1 山丘.flac` 没有歌词 → `resultJson` = `No lyrics`） |
+| 耗时 | 18 ms（`startedAt` / `finishedAt` 之差） |
+| 产物 | `1 朋友.lrc` 93 B、`2 花心.lrc` 63 B |
+
+真窗口三张图（截的是窗口自身矩形，标题栏里是 `Lyrico 1.6.0 (dfc8119)`）：
+
+| 图 | OCR 读到的 |
+| --- | --- |
+| `c6e-batch-list.png` | 任务历史里那一行：`任务类型 导出歌词` / `运行状态：成功` / `成功：2 失败：0 跳过：1` / `耗时：0.0s` |
+| `c6e-export-detail.png` | 详情页：`进度：3/3` / `导出歌词 · 成功` / 同一组统计 / 两个成功条目及其 `demo-exports` 路径 |
+| `c6e-export-detail-skipped.png` | 点 `跳过` 页签后：只剩 `1 山丘.flac` 一条，路径是**源音频**（与「跳过 = 一个文件也没写」一致） |
+
+第三张与其前一张的像素差被记进 `c6e-export-detail-skipped.analysis.txt`：`194374` 个像素不同 = 整窗的 `21.57%`，`bbox (13,212)-(1153,424)`——这次点击确实重画了那一块，而不是「点了没反应」。数字要靠裁切放大件（4 张，3× LANCZOS，**裁切原点跟着行位置走**）才读得出来：`成功：2 | 失败：0 | 跳过：1`、`2 花心.lrc` + `…\demo-exports\2 花心.lrc`、`跳过` 页签。
+
+磁盘链（`docs/port-evidence/c6e-export-files.txt`，三段都在 app 进程被杀之后）：
+
+* 目录里**只有两个** `.lrc`，字节数 93 / 63 能按 UTF-8 逐字符算平（既没多写 BOM / 尾换行，也没漏写）；
+* ffmpeg 从**源** mp3 与 wav 里读出的 `lyrics-LYRICS` 标签，与导出文件逐行**逐字相同**（顺带证明读侧对 8 kHz 单声道 A-law WAV 也通）；
+* `sqlite3` 直读：任务行 `SUCCEEDED` / `2 / 0 / 1`；条目行的成功项 `filePath` 指向 `demo-exports` 下的真文件、跳过项的 `filePath` 仍是源音频、`errorMessage` 全为 `None`。
+
+**一个必须如实写下的边界**：这个导出任务是 **seeder 在 Koin 图里真跑出来的**，不是窗口里点出来的——发起批量任务的界面（十二动作 FAB + 两个 bottom sheet + `BatchExportViewModel`）还在 java 树，跟着 #35 走。窗口证明的是**读侧**：列表行与详情页显示的就是上面那批真数据（同一个 taskId、同一组统计、同一批文件名与路径），两边能对上的唯一解释是「进程里跑的和界面里显示的是同一批 DB 行」。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **新建 kotlin 文件必须把 java 那一份 `git rm`。** 只写不删，`port-frontier.py` 的 stale duplicates 检查会立刻报出来（两个树里同一路径同名类），而且它挡住的不只是一个文件：删掉之后被它挡住的 3 个依赖文件同时解锁（受挡 49 → 46）。
+2. **数字在整窗 OCR 里会丢，裁切放大件才有数字。** `成功：2 失败：0 跳过：1` 在整窗 OCR 里糊成 `成功 2 ] 实败 ： 跳泣 ：`；裁切 + 3× LANCZOS 之后才读得出 `成功 ： 2 | 失败 ： 0 | 跳过 ： 1`。**裁切原点必须跟着行位置走**，不能写死矩形：同一页面每行高度不同，写死就裁到空白。
+3. **`File.writeText` 是「先建文件、再写字节」，所以等 `target.isFile` 会读到空文件。** 这是本批出现的第一个 flake：`AppLogViewModelTest` 的导出日志断言失败，而 JUnit 的失败消息是**空的**——那就是「文件存在但内容为空」的指纹。修法是等真正的完成信号（`exportLogs` 成功后发的那条事件，它在 `writeText` 返回之后才发），不是加大超时。见 §5.8。
+4. **`click-window.ps1` 不截图，`capture-window.ps1` 不点击。** 要点完看结果必须调两次；客户端坐标 = 捕获坐标 − (1, 31)（左右各 1px 边框、上面 31px 系统标题栏）。
+5. **杀掉应用窗口之后 Gradle 会报 `BUILD FAILED`（`NTSTATUS 0xFFFFFFFF`）**，这是预期的（`compose.desktop.application.run` 的进程被强杀），不要当成回归去查。
+6. **seeder 触发的任务要在文里写明。** 「窗口里看到导出成功」本身不构成「界面能发起导出」的证据，两者必须分开写（见 §4 末尾与 §6）。
+7. **别把 `stringResource` 的坑算到这批头上**：这批没有 UI，`StringFormattingGuardTest` 一行没动——它真正的考验在下一批（#35 的界面）。
+8. **两个既有 flake 在这批的 4 次全量跑里露了头**（都不是这批的代码引起的）：
+   * `AppLogViewModelTest` 的空文件竞态——**已修**（坑 3），修完全量 102 类 / 900 项 / 0 失败。
+   * **泄漏的 viewModelScope 与 `database.close()` 竞争**——**未修，如实记在这里**。症状是下一次全量跑里 `LibraryHomeScreenTest` 报 `kotlinx.coroutines.test.UncaughtExceptionsBeforeTest`，XML 的 `system-err` 里真正的异常是 `Exception in thread "AWT-EventQueue-0 @coroutine#11721" androidx.sqlite.SQLiteException: Error code: 21, message: Connection pool is closed`，调用栈穿过 `SongListViewModel` 的 `stateIn` 收集（`SongListViewModel.kt:109`）——也就是**前一个测试留下的 viewmodel 作用域还在查那个已经被 tearDown 关掉的 Room 池**，而 `Dispatchers.setMain` 的 uncaught 队列把它记到了下一个测试头上（所以「报错的类」和「出错的类」不是同一个）。同一个代码树连跑两次的结果是一次绿、一次挂；单跑 `LibraryHomeScreenTest` 三次全绿（3×5 个窗口），所以这既不是这批引入的，也没有稳定复现路径。修法属于专门的测试卫生批次：在 UI 测试 tearDown 里先取消 / 清掉 viewmodel 作用域再 `database.close()`，或者在导航条目销毁时清 store——**不要用一个 `Thread.sleep` 或「干脆不关库」把症状糊过去**（前者让超时失去意义，后者把资源泄漏留在那里）。
+
+#### 6. 这批的用户可见缺口（如实记录）
+
+1. **批量导出还没有入口**（#35）：8 种类型都有处理器了，但「勾一批歌 → 导出」的十二动作 FAB、两个 bottom sheet 与 `BatchExportViewModel` 还在 java 树。
+2. **条目行点不进详情**（#36）：批量详情页的行点击目标是 `EditMetadataScreen`，它的目的地还没注册。
+3. **错误文本未本地化**（见 §2.9）。
+4. **导出目录不自动创建**（见 §2.4，这是有意的选择，但用户会看到一条英文失败）。
+5. **测试卫生问题**（见 §5.8）：泄漏的 viewmodel 作用域会让全量跑偶发挂一次；P6 打包前应先修掉，否则验收会被 flake 干扰。
+
+#### 7. 前沿（本批收口）
+
+java 主树 **93 文件 / 0 待删重复 / 47 可搬 / 46 被挡**（本批 95 → 93；`git rm` java 版处理器时同时解锁 3 个被挡文件）。这两半的构成很不一样：
+
+* **可搬的 47 个**大多是「原样搬」的小件：21 个 `ui/components/...`（liquid 材质 6 个、Fab 菜单 2 个、`PagerDotsIndicator` / `FieldOrderState` / `SearchSectionHeader`、几个 bottom sheet 与 `PainterUtils`）、`ExternalAudioEditHost`、`data/model/*`（`ArtistSeparator` / `RenamePreview` / `LocalSearchField` / `AppLanguage` / `CacheCategory`）、`domain/poster/*`、`utils/ConflictResolver`、`screens/OpenSourceLicenceScreen`、4 个批量配置 viewmodel。另一半是**该删而不是该搬**的 Android 遗留物（`utils/SafDocuments` / `SafSiblingFileWriter` / `UriUtils` / `CoverSourceType`、`platform/player/{PlayerIntentFactory,InstalledAppChecker}`、`data/exception/RequiresUserPermissionException`、`screens/QuickJsTestScreen`、`App.kt` / `MainActivity.kt`）——它们现在「可搬」只是因为依赖都搬完了，处理方式是逐个判定「桌面版还需要它吗」，不需要的删掉而不是硬搬。
+* **被挡的 46 个就是剩下的界面侧**：15 个 screen（`EditMetadataScreen` 17 个依赖、`BatchEditScreen`、`BatchRenameScreen`、`SettingsScreen`、`AlbumDetailScreen`、`ArtistDetailScreen`、`LocalSearchScreen`、`FolderManagerScreen`、`AboutScreen`…）、13 个 `ui/components`、13 个 viewmodel（`EditMetadataViewModel`、`BatchEditViewModel`、`BatchRenameViewModel`、`SettingsViewModel`、`FolderManagerViewModel`…）、`di/AppModule.kt`（13 个依赖），以及 `utils/{RenameEngine,CacheManager,ArtistPosterFileWriter}`。这批留下的最大缺口（#35 的批量发起侧：`SongSelectionSupport` 16 个依赖 + 8 个 sheet）就在这份名单最前面。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
@@ -1436,3 +1535,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **ffmpeg 边车（C6d 起）的查找路径**：`FfmpegSidecar` 依次看系统属性 `lyrico.ffmpeg.dir` → 环境变量 `LYRICO_FFMPEG_DIR` → 从当前目录**逐级向上**找 `build/ffmpeg/<os>-<arch>`（开发布局）→ `ffmpeg/<os>-<arch>`（jpackage 布局）→ `ffmpeg`（被压平的布局）。**故意不查 `PATH`**：否则做测量的二进制版本与许可证会随机器而变。取边车用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-ffmpeg.ps1`（写到 `build/ffmpeg/windows-x64/ffmpeg.exe`，LGPL 构建，只要 `ffmpeg.exe` 不要 `ffprobe`，来源写进 `docs/third-party/ffmpeg-lgpl.md`）。找不到时的行为是「带探过目录的失败」，不是崩溃。
 - **C6d 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（种 24 首歌 / 4 个专辑，其中 `演示合集` 是二十份夹具拷贝，专门用来把「计算中」拉长到能拍）→ `./gradlew :lyrico-app:run` → 截图链：`capture-window.ps1`（歌曲页）→ 点 rail 第二项（客户区 `(40,131)`，rail 三档映射见 C4c）→ `capture-window.ps1`（专辑 grid）→ `click-window.ps1 -X 889 -Y 714 -Button longpress -HoldMs 900`（第二行第二列那张封面 = `演示合集`）→ `capture-window.ps1`（动作面板）→ `click-window.ps1 -X 499 -Y 561 -SettleMs 0`（那一行）→ `capture-window.ps1 -SettleMs 0`（`计算中` / `完成`）；中止那条链是在两者之间再插一次 `click-window.ps1 -X 855 -Y 586 -SettleMs 0`（`中止`）。OCR 与像素分析按前述两条约定（整窗 + 裁切放大）。
 - **底部面板的小字要在裁切放大后 OCR（C6d 起）**：整窗 OCR 读不出面板里的小字（C6d 的 `计算中` / `90%` / `用时 1.04 秒` 全丢）。做法是裁 `(250,500,950,773)` 再 2× LANCZOS 放大，产物 `*.crop.png` / `*.crop.ocr.txt`，坐标按 `裁切原点 + 值/2` 反推回捕获坐标。两种产物都进版本库：整窗那张证明「面板在窗口里、页面被压暗」，裁切那张读得出数值，谁也不能单独当证据。
+- **行内数字只能靠「跟着行位置走」的裁切放大件（C6e 起）**：`成功：2 失败：0 跳过：1` 这种「中文标签 + 阿拉伯数字」的行，整窗 OCR 会把数字连同标点一起糊掉（C6e 实测读成 `成功 2 ] 实败 ： 跳泣 ：`）。做法是**裁左侧那一列、裁切矩形的 y 跟着行位置走**（同一页面每行高度不同，写死矩形会裁到空白），3× LANCZOS 后 OCR 才读得出 `成功 ： 2 | 失败 ： 0 | 跳过 ： 1`。另外「点击真的重画了」这件事用像素差而不是 OCR 证明：`PIL.ImageChops.difference` 出 `differing_pixels` / `bbox` / 百分比，把结论追加进 `*.analysis.txt`（C6e 的页签切换：`194374` px = `21.57%`，`bbox (13,212)-(1153,424)`）。
+- **导出侧三条有意的约定（C6e 起，勿按 Android 改回去）**：① `BatchExportTaskConfig` 的 `CONFIG_JSON` 用 `ignoreUnknownKeys = true`（其它处理器是严格解码）——不这样就解不开 Android 时代带 `destinationTreeUri` 的 `AUDIO_DIRECTORY` 任务行；② 选中目录**只校验、不创建**（`requireSelectedDirectory`），拼错的路径要响亮失败；③ 写出的 `.lrc` 是「标签里的正文原样」：不带 BOM、不加尾换行、同名覆盖而不改名（`BatchExportProcessorEndToEndTest` 用 `toByteArray(UTF_8)` 全等钉住）。
+- **等 `File.writeText` 写完不能等 `isFile`（C6e 起，测试里通用）**：`writeText` 是「先 `FileOutputStream` 建空文件、再写字节」，所以 `awaitUntil { target.isFile }` 可能读到 0 字节的空文件——症状是 JUnit 失败消息**为空**（`assertEquals("", text)` 里 `text` 是空串），看着像断言写错了，其实是「文件已经存在、字节还没落盘」。正确做法是等真正的完成信号（本仓的做法：等写完成后才发的那条事件），不要用加大超时或 `Thread.sleep` 糊过去。同类问题还有 UI 测试里泄漏的 viewmodel 作用域与 `database.close()` 竞争（证据见 C6e 段 §5.8）——修法属于专门的测试卫生批次。
+- **C6e 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（本批 seeder 额外跑一条真的 `EXPORT_LYRICS` 任务，产出落进 `lyrico-app/build/demo-exports/`）→ `./gradlew :lyrico-app:run` → `capture-window.ps1 -TitleLike "Lyrico 1.6"`（任务历史 `c6e-batch-list.png`）→ 点那一行（客户区 `-X 579 -Y 249`）→ `capture-window.ps1`（详情页 `c6e-export-detail.png`）→ 点 `跳过` 页签（客户区 `-X 946 -Y 192`，即捕获坐标 `(947,223)`）→ `capture-window.ps1`（`c6e-export-detail-skipped.png`）；四张裁切放大件与像素差按上面两条约定出。然后先杀掉窗口（标题匹配 `^Lyrico `）再跑磁盘链：目录列表 + sha256 → `build/ffmpeg/windows-x64/ffmpeg.exe -i <源音频>` 读 `lyrics-LYRICS` → `python -c "…sqlite3…"` 直读任务行与条目行，整理进 `docs/port-evidence/c6e-export-files.txt`。

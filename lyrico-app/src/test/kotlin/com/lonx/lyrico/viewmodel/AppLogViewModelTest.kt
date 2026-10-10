@@ -125,7 +125,11 @@ class AppLogViewModelTest {
 
         viewModel.exportLogs(target)
 
-        awaitUntil(describe = { target.isFile }) { it }
+        // Wait for the *event*, not for `target.isFile`: `File.writeText` creates the file first and only
+        // then writes the bytes, so a poll that lands inside that window reads an empty file (this bit the
+        // full-suite run once -- the assertion message was empty, which is what identified the cause).
+        // The event is emitted after `writeText` returns, so it is the real completion signal.
+        awaitUntil(describe = { events.size }) { it == 1 }
         val text = target.readText(Charsets.UTF_8)
         // Anchors rather than the whole text: the system/architecture lines differ per machine.
         assertTrue(text.startsWith("Lyrico diagnostic info"), "the header comes first:\n$text")
@@ -133,7 +137,6 @@ class AppLogViewModelTest {
         assertTrue(text.contains("Lyrico log export"), "the repository's own export header is kept")
         // Real UTF-8 round trip: a CJK message read back intact proves the charset argument is honoured.
         assertTrue(text.contains("导出测试 · export me"), text)
-        awaitUntil(describe = { events.size }) { it == 1 }
         assertEquals(Res.string.export_success, assertIs<UiMessage.Localized>(assertIs<AppLogEvent.ShowMessage>(events.single()).message).res)
     }
 
@@ -145,7 +148,8 @@ class AppLogViewModelTest {
 
         viewModel.exportLogs(target, ids = listOf(id))
 
-        awaitUntil(describe = { target.isFile }) { it }
+        // Same reason as the sibling test above: the event is the completion signal, `isFile` is not.
+        awaitUntil(describe = { events.size }) { it == 1 }
         val text = target.readText(Charsets.UTF_8)
         assertTrue(text.contains("keep this one"), text)
         assertFalse(text.contains("drop this one"), text)

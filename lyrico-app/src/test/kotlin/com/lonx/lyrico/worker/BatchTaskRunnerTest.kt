@@ -2,24 +2,32 @@ package com.lonx.lyrico.worker
 
 import com.lonx.lyrico.data.model.BatchTaskStatus
 import com.lonx.lyrico.data.model.BatchTaskType
+import com.lonx.lyrico.data.model.BatchMatchConfig
 import com.lonx.lyrico.data.model.CharacterMappingRule
+import com.lonx.lyrico.data.model.ExportDestination
+import com.lonx.lyrico.data.model.ReplayGainPeakMode
 import com.lonx.lyrico.data.model.entity.BatchTaskEntity
 import com.lonx.lyrico.data.model.entity.BatchTaskItemEntity
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
+import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
+import com.lonx.lyrico.data.model.metadata.MetadataWriteMode
 import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.data.repository.BatchTaskRepositoryImpl
 import com.lonx.lyrico.data.support.RecordingAppLogRepository
 import com.lonx.lyrico.data.support.TestLibrary
 import com.lonx.lyrico.viewmodel.LyricsFormatConfig
+import com.lonx.lyrico.worker.processor.BatchExportTaskConfig
 import com.lonx.lyrico.worker.processor.BatchTaskProcessResult
 import com.lonx.lyrico.worker.processor.BatchTaskProcessor
 import com.lonx.lyrico.worker.processor.BatchTaskProcessorFactory
 import com.lonx.lyrico.worker.processor.BatchTaskSkippedException
 import com.lonx.lyrico.worker.processor.EditTagsCustomField
 import com.lonx.lyrico.worker.processor.EditTagsTaskConfig
+import com.lonx.lyrico.worker.processor.MatchMetadataTaskConfig
 import com.lonx.lyrico.worker.processor.RenameFilesTaskConfig
+import com.lonx.lyrico.worker.processor.ReplayGainTaskConfig
 import java.util.Collections
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -378,6 +386,135 @@ class BatchTaskRunnerTest {
     }
 
     @Test
+    fun `the replay-gain configuration names the loudness and peak mode it was launched with`() = runBlocking<Unit> {
+        val config = ReplayGainTaskConfig(
+            concurrency = 2,
+            targetLoudness = -18.0,
+            peakMode = ReplayGainPeakMode.TRUE_PEAK,
+        )
+        val taskId = newTaskType(encode(config))
+
+        runner(ScriptedProcessor()).run(taskId)
+
+        assertEquals(
+            """
+            concurrency=2
+            targetLoudness=-18.0
+            peakMode=TRUE_PEAK
+            """.trimIndent(),
+            configBlockOf(taskId),
+        )
+    }
+
+    @Test
+    fun `a replay-gain run that kept the defaults lists neither loudness nor peak mode`() = runBlocking<Unit> {
+        // The screen writes nulls when the user does not override the settings, and the summary has to
+        // stay honest about that: a line reading `targetLoudness=null` would suggest a value was set.
+        val taskId = newTaskType(encode(ReplayGainTaskConfig(concurrency = 3)))
+
+        runner(ScriptedProcessor()).run(taskId)
+
+        assertEquals("concurrency=3", configBlockOf(taskId))
+    }
+
+    @Test
+    fun `the match configuration lists the sources, the separator and the per-field modes`() = runBlocking<Unit> {
+        val config = MatchMetadataTaskConfig(
+            matchConfig = BatchMatchConfig(
+                targetModes = mapOf(
+                    MetadataFieldTarget.TITLE to MetadataWriteMode.OVERWRITE,
+                    MetadataFieldTarget.ARTIST to MetadataWriteMode.DISABLED,
+                ),
+                preferFileName = true,
+            ),
+            separator = " / ",
+            enabledSourceOrderIds = listOf("netease", "qq"),
+        )
+        val taskId = newTaskType(encode(config))
+
+        runner(ScriptedProcessor()).run(taskId)
+
+        // The field lines are sorted by name, so a log from two runs of the same task reads alike even
+        // though the screen's map order does not promise anything. Compared as lines so the separator's
+        // own trailing space is explicit rather than a trailing space in the source.
+        assertEquals(
+            listOf(
+                "concurrency=3",
+                "separator= / ",
+                "preferFileName=true",
+                "enabledSources=netease > qq",
+                "fields=ARTIST:DISABLED, TITLE:OVERWRITE",
+            ),
+            configBlockOf(taskId).lines(),
+        )
+    }
+
+    @Test
+    fun `a match run with no configured sources says so instead of printing nothing`() = runBlocking<Unit> {
+        val config = MatchMetadataTaskConfig(
+            matchConfig = BatchMatchConfig(targetModes = emptyMap()),
+            separator = " & ",
+            enabledSourceOrderIds = emptyList(),
+        )
+        val taskId = newTaskType(encode(config))
+
+        runner(ScriptedProcessor()).run(taskId)
+
+        assertEquals(
+            listOf(
+                "concurrency=3",
+                "separator= & ",
+                "preferFileName=false",
+                "enabledSources=(default)",
+                "fields=",
+            ),
+            configBlockOf(taskId).lines(),
+        )
+    }
+
+    @Test
+    fun `the export configuration names the destination and, when there is one, the folder`() = runBlocking<Unit> {
+        val config = BatchExportTaskConfig(
+            destinationDirectory = """H:\Music\导出""",
+            destination = ExportDestination.SELECTED_DIRECTORY,
+            concurrency = 2,
+        )
+        val taskId = newTaskType(encode(config))
+
+        runner(ScriptedProcessor()).run(taskId)
+
+        assertEquals(
+            """
+            destination=SELECTED_DIRECTORY
+            destinationDirectory=H:\Music\导出
+            concurrency=2
+            """.trimIndent(),
+            configBlockOf(taskId),
+        )
+    }
+
+    @Test
+    fun `an export next to the audio has no folder line to print`() = runBlocking<Unit> {
+        // AUDIO_DIRECTORY carries no path -- the destination is each song's own folder -- so the line is
+        // omitted rather than printed as `destinationDirectory=null`.
+        val config = BatchExportTaskConfig(
+            destination = ExportDestination.AUDIO_DIRECTORY,
+            concurrency = 3,
+        )
+        val taskId = newTaskType(encode(config))
+
+        runner(ScriptedProcessor()).run(taskId)
+
+        assertEquals(
+            """
+            destination=AUDIO_DIRECTORY
+            concurrency=3
+            """.trimIndent(),
+            configBlockOf(taskId),
+        )
+    }
+
+    @Test
     fun `a configuration that cannot be parsed is reported without failing the task`() = runBlocking<Unit> {
         // The config is written by a screen, so it should always parse; a task whose config is
         // unreadable still has to run (its processor has its own opinion) and the log has to say why
@@ -523,7 +660,7 @@ class BatchTaskRunnerTest {
         BatchTaskRunner(
             taskRepository = repository,
             processorFactory = BatchTaskProcessorFactory(
-                // Scripted for every type: the log-summary tests create tasks of three different
+                // Scripted for every type: the log-summary tests create tasks of six different
                 // types, and the runner has to get past the factory lookup to reach the summariser.
                 if (registered) BatchTaskType.entries.associateWith { processor } else emptyMap()
             ),
@@ -545,6 +682,9 @@ class BatchTaskRunnerTest {
         val type = when {
             configJson.contains("renameFormat") -> BatchTaskType.RENAME_FILES
             configJson.contains("targetFormat") -> BatchTaskType.CONVERT_LYRICS_FORMAT
+            configJson.contains("targetLoudness") -> BatchTaskType.SCAN_REPLAY_GAIN
+            configJson.contains("preferFileName") -> BatchTaskType.MATCH_METADATA
+            configJson.contains("destination") -> BatchTaskType.EXPORT_LYRICS
             else -> BatchTaskType.EDIT_TAGS
         }
         return repository.createTask(
@@ -560,6 +700,9 @@ class BatchTaskRunnerTest {
         is RenameFilesTaskConfig -> json.encodeToString(RenameFilesTaskConfig.serializer(), config)
         is EditTagsTaskConfig -> json.encodeToString(EditTagsTaskConfig.serializer(), config)
         is LyricsFormatConfig -> json.encodeToString(LyricsFormatConfig.serializer(), config)
+        is MatchMetadataTaskConfig -> json.encodeToString(MatchMetadataTaskConfig.serializer(), config)
+        is ReplayGainTaskConfig -> json.encodeToString(ReplayGainTaskConfig.serializer(), config)
+        is BatchExportTaskConfig -> json.encodeToString(BatchExportTaskConfig.serializer(), config)
         else -> error("no serializer for ${config::class}")
     }
 

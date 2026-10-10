@@ -1,0 +1,7 @@
+file: docs/port-evidence/c6e-export-detail-header.crop.png
+engine: zh-Hans-CN
+lines: 4
+  y=23 x=27 :: 进 度 ． 3 / 3
+  y=92 x=27 :: 导 出 歌 词 ． 成 功
+  y=149 x=26 :: 成 功 ： 2 | 失 败 ： 明 跳 过 ： 1
+  y=206 x=27 :: 耗 时 ： 0 ℃ s

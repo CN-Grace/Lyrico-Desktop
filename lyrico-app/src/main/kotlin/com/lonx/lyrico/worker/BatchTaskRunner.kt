@@ -7,10 +7,13 @@ import com.lonx.lyrico.data.repository.AppLogRepository
 import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.viewmodel.LyricsFormatConfig
+import com.lonx.lyrico.worker.processor.BatchExportTaskConfig
 import com.lonx.lyrico.worker.processor.BatchTaskProcessorFactory
 import com.lonx.lyrico.worker.processor.BatchTaskSkippedException
 import com.lonx.lyrico.worker.processor.EditTagsTaskConfig
+import com.lonx.lyrico.worker.processor.MatchMetadataTaskConfig
 import com.lonx.lyrico.worker.processor.RenameFilesTaskConfig
+import com.lonx.lyrico.worker.processor.ReplayGainTaskConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -297,13 +300,15 @@ class BatchTaskRunner(
         if (configJson.isNullOrBlank()) return "config=(none)"
         return runCatching {
             when (type) {
+                BatchTaskType.MATCH_METADATA,
+                BatchTaskType.MATCH_LYRICS,
+                BatchTaskType.MATCH_COVER -> summarizeMatchConfig(configJson)
                 BatchTaskType.RENAME_FILES -> summarizeRenameConfig(configJson)
                 BatchTaskType.EDIT_TAGS -> summarizeEditTagsConfig(configJson)
                 BatchTaskType.CONVERT_LYRICS_FORMAT -> summarizeLyricsFormatConfig(configJson)
-                // The remaining types have no processor yet, so the runner never reaches them; their
-                // summarizers (`summarizeMatchConfig`, `summarizeReplayGainConfig`,
-                // `summarizeExportConfig`) come with the processors that own their config classes.
-                else -> "config=(no summarizer for $type yet)"
+                BatchTaskType.SCAN_REPLAY_GAIN -> summarizeReplayGainConfig(configJson)
+                BatchTaskType.EXPORT_LYRICS,
+                BatchTaskType.EXPORT_COVER -> summarizeExportConfig(configJson)
             }
         }.getOrElse { e ->
             buildString {
@@ -311,6 +316,22 @@ class BatchTaskRunner(
                 appendLine("rawConfig=${configJson.take(MAX_CONFIG_LOG_LENGTH)}")
             }.trimEnd()
         }
+    }
+
+    private fun summarizeMatchConfig(configJson: String): String {
+        val config = Json.decodeFromString<MatchMetadataTaskConfig>(configJson)
+        return buildString {
+            appendLine("concurrency=${config.concurrency}")
+            appendLine("separator=${config.separator}")
+            appendLine("preferFileName=${config.matchConfig.preferFileName}")
+            appendLine("enabledSources=${config.enabledSourceOrderIds.joinToString(" > ").ifBlank { "(default)" }}")
+            appendLine(
+                "fields=${
+                    config.matchConfig.targetModes.toSortedMap(compareBy { it.name })
+                        .entries.joinToString(", ") { "${it.key.name}:${it.value.name}" }
+                }"
+            )
+        }.trimEnd()
     }
 
     private fun summarizeRenameConfig(configJson: String): String {
@@ -394,6 +415,26 @@ class BatchTaskRunner(
             appendLine("formatLineOrder=${config.formatLineOrder}")
             appendLine("removeTagLines=${config.removeTagLines}")
             appendLine("removeEmptyLines=${config.removeEmptyLines}")
+        }.trimEnd()
+    }
+
+    private fun summarizeExportConfig(configJson: String): String {
+        val config = Json.decodeFromString<BatchExportTaskConfig>(configJson)
+        return buildString {
+            appendLine("destination=${config.destination}")
+            if (config.destinationDirectory != null) {
+                appendLine("destinationDirectory=${config.destinationDirectory}")
+            }
+            appendLine("concurrency=${config.concurrency}")
+        }.trimEnd()
+    }
+
+    private fun summarizeReplayGainConfig(configJson: String): String {
+        val config = Json.decodeFromString<ReplayGainTaskConfig>(configJson)
+        return buildString {
+            appendLine("concurrency=${config.concurrency}")
+            config.targetLoudness?.let { appendLine("targetLoudness=$it") }
+            config.peakMode?.let { appendLine("peakMode=${it.name}") }
         }.trimEnd()
     }
 

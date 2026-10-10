@@ -1,0 +1,7 @@
+file: docs/port-evidence/c6e-export-detail-rows.crop.png
+engine: zh-Hans-CN
+lines: 4
+  y=137 x=28 :: 2 亻 心 」 rc
+  y=203 x=29 :: H:\VibeC0ding\03- 应 用 \Lyrico-Desktop\Iyrico-app\buiId\demo-exports\2 花 / 心 」 rc
+  y=395 x=28 :: 1 朋 友 」 rc
+  y=458 x=29 :: H:\VibeC0ding\03-Ü 用 \Lyrico-Desktop\Iyrico-app\buiId\dem0-exports\1 朋 友 」 rc

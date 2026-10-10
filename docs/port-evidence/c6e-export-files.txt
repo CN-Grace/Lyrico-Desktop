@@ -1,0 +1,109 @@
+# 歌词导出落盘核对（与截图无关的第二条独立证据链）
+
+窗口那两张图只能证明「详情页的行上写着 `1 朋友.lrc` / `2 花心.lrc`，路径在 `build/demo-exports` 下」。
+文件是不是真的存在、字节是不是容器里那份歌词，要**在应用之外**读回来才算数。这条链有三段，三段都不经过 app 进程
+（取证截图拍完之后 app 进程已经被杀掉，见本节末尾）：
+
+1. 用 shell 列目录、逐字节读回，并算 sha256；
+2. 用 ffmpeg（独立解码器，另一条代码路径）读**源音频**容器里的歌词标签；
+3. 用 python 的 sqlite3（绕过 Room）直接读数据库里的任务行与 item 行。
+
+写标签的是 app 侧 Koin 图里的处理器，读回来的是上面三条外部路径——所以这不是「应用内自证」。
+
+## 1. 目录里真的有两个文件，而且只有两个
+
+$ python -c "…os.listdir('lyrico-app/build/demo-exports')…"
+    1 朋友.lrc  bytes=93  sha256=b57e0a9c0beadf3ca90952c44b4f130810553dfb76e6084b28501d69731104ff
+    2 花心.lrc  bytes=63  sha256=c5287f34dbcacb8581370ac9fa8091379dbedc8da64f49e2a4980065f647b849
+
+三首歌的任务只落到两个文件：这与详情页的「成功：2 / 跳过：1」逐字一致——第三首（无歌词）没有写出文件，
+而不是「写出了空文件」。93 / 63 这两个字节数也不是巧合，它们正好等于下面第 2 段里那份歌词文本的 UTF-8 长度。
+
+（同名互斥——两首歌共用一个基名时只留一个文件、且不是 `朋友 (1).lrc` 那种备份名——是无头测试钉的，
+因为窗口里造不出这个场景：见 PLAN §4 与 `BatchExportProcessorEndToEndTest` 的 `mutex` 那一项。）
+
+## 2. 导出的字节 = 容器里那份歌词的字节（由 ffmpeg 反向读回）
+
+### 2.1 源文件（`lyrico-app/build/demo-library` 下，由 seeder 用真标签写入器写进去的标签）
+
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/周华健 - 朋友/1 朋友.mp3"
+    Input #0, mp3, from 'lyrico-app/build/demo-library/周华健 - 朋友/1 朋友.mp3':
+      Metadata:
+        album           : 朋友
+        artist          : 周华健
+        lyrics-LYRICS   : [00:00.00]朋友一生一起走
+                        : [00:08.00]那些日子不再有
+                        : [00:16.00]一句话 一辈子
+        title           : 朋友
+
+$ build/ffmpeg/windows-x64/ffmpeg.exe -nostdin -hide_banner -i "lyrico-app/build/demo-library/周华健 - 朋友/2 花心.wav"
+    Input #0, wav, from 'lyrico-app/build/demo-library/周华健 - 朋友/2 花心.wav':
+      Metadata:
+        album           : 朋友
+        artist          : 周华健
+        lyrics-LYRICS   : [00:00.00]花的心藏在蕊中
+                        : [00:06.50]空把花期都错过
+        title           : 花心
+
+`2 花心.wav` 这一条是顺手带上的第二个结论：**歌词导出的读侧对 WAV 也通**——夹具 `alaw.wav` 是 8 kHz 单声道 A-law，
+它的歌词存在 WAV 容器里的 ID3 块里，ffmpeg 一样读得回来。所以「导出只对 mp3 有效」这个猜测被否掉了。
+
+### 2.2 导出出来的文件（`lyrico-app/build/demo-exports`）
+
+$ python -c "…open(p, encoding='utf-8').read()…"  → 逐字节 UTF-8 解码后
+--- 1 朋友.lrc
+    '[00:00.00]朋友一生一起走\n[00:08.00]那些日子不再有\n[00:16.00]一句话 一辈子'
+    逐行：[00:00.00]朋友一生一起走 | [00:08.00]那些日子不再有 | [00:16.00]一句话 一辈子
+--- 2 花心.lrc
+    '[00:00.00]花的心藏在蕊中\n[00:06.50]空把花期都错过'
+    逐行：[00:00.00]花的心藏在蕊中 | [00:06.50]空把花期都错过
+
+对读结论：
+* 行数、每一行的**时间戳与文本**都与 2.1 里 ffmpeg 打出来的三行 / 两行逐字相同（连 `[00:16.00]一句话 一辈子` 中间那个空格也在）；
+* `repr()` 里没有 `\ufeff`，也没有结尾的 `\n`——导出文件是「纯歌词正文、无 BOM、无尾换行」，这一点被记在
+  `BatchExportProcessorEndToEndTest` 的 `.lrc exact UTF-8 bytes` 那一项里（那条测试比的是 `toByteArray(UTF_8)` 全等，而不是宽松的字符串相等）；
+* 两个字节数都能按 UTF-8 算平（不是「碰巧相等」）：
+  `1 朋友.lrc` = `[00:00.00]`(10) + `朋友一生一起走`(7×3=21) + `\n`(1) + `[00:08.00]`(10) + `那些日子不再有`(21) + `\n`(1)
+  + `[00:16.00]`(10) + `一句话 一辈子`(`一句话`9 + 空格 1 + `一辈子`9 = 19) = **93** ✓；
+  `2 花心.lrc` = `[00:00.00]`(10) + `花的心藏在蕊中`(21) + `\n`(1) + `[00:06.50]`(10) + `空把花期都错过`(21) = **63** ✓。
+  既没多写（没有 BOM、没有尾部换行），也没漏写。
+
+## 3. 数据库行与应用里显示的是同一批数据（绕过 Room 直接读 sqlite）
+
+$ python -c "sqlite3.connect('lyrico-app/data/lyrico.db')"
+    batch_tasks where type='EXPORT_LYRICS':
+      taskId          = 482a9c2d-0a88-4d09-ad02-554295fe529f
+      type            = EXPORT_LYRICS
+      status          = SUCCEEDED
+      total/current   = 3 / 3
+      successCount    = 2      failureCount = 0      skippedCount = 1
+      currentFile     = 1 山丘.flac
+      configJson      = {"destinationDirectory":"H:\\…\\lyrico-app\\build\\demo-exports","concurrency":1}
+      startedAt/finishedAt = 1791668565018 / 1791668565036   （耗时 18 ms）
+      errorMessage    = None
+
+    batch_task_items（按 fileName 排序）:
+      1 山丘.flac  SKIPPED    filePath = …\demo-library\李宗盛 - 山丘\1 山丘.flac   resultJson = 'No lyrics'  errorMessage = None
+      1 朋友.lrc   SUCCEEDED  filePath = …\demo-exports\1 朋友.lrc                resultJson = None         errorMessage = None
+      2 花心.lrc   SUCCEEDED  filePath = …\demo-exports\2 花心.lrc                resultJson = None         errorMessage = None
+
+三条要读出来的东西：
+1. **统计三元组** `success=2 / failure=0 / skipped=1` 与窗口详情页的「成功：2 失败：0 跳过：1」一致（第 3 段读的是数据库，
+   第 4 段那张图读的是像素，两条互不相干）；
+2. **item 的 fileName / filePath 是处理器写出来的**：成功项的 `filePath` 指向 `demo-exports` 下的真文件（第 1 段列目录列到了它们），
+   跳过项的 `filePath` 仍是**源音频**路径、`fileName` 仍是 `1 山丘.flac`——也就是「跳过 = 一个文件也没写」；
+3. **跳过的原因存在 `resultJson` 而不是 `errorMessage`**：`'No lyrics'` 是编排到 `markItemSkipped(itemId, resultJson)` 里的，
+   `errorMessage` 保持 `None`。这条在无头测试里也钉了一遍（详情页对跳过项只显示文件名 + 路径，不显示红字）。
+
+`configJson` 里只有 `destinationDirectory` 与 `concurrency`，没有 `destination` 字段——因为这是默认值 `SELECTED_DIRECTORY`，
+序列化时被省略了；同一份配置带着 Android 时代的 `destinationTreeUri` 时也能被读进来（宽松解码），
+那是无头测试的两项（见 PLAN §5）。
+
+## 4. 这条链之前的窗口取证与此处的进程状态
+
+* 本文件里所有外部读取都在**以下操作之后**做的：`Get-Process -Name java,javaw | ? { $_.MainWindowTitle -match '^Lyrico ' } | Stop-Process -Force`，
+  复查计数为 **0**——也就是说第 1～3 段读的都是「app 已经不在了」的磁盘状态；
+* 唯一一个必须如实写下的边界：**这个导出任务是由 seeder（`DevLibrarySeederTest`）在 Koin 图里真跑出来的**，
+  不是窗口里点出来的——因为发起批量任务的界面（十二个动作的 FAB 与那两个 bottom sheet）还在 java 树，属于下一批（#35）。
+  窗口这边证明的是**读侧**：列表行与详情页显示的就是上面那批真数据（同样的 taskId、同样的统计、同样的导出文件名与路径）。
+  两边要能对上，唯一的解释就是「进程里跑的和界面里显示的是同一批 DB 行」。

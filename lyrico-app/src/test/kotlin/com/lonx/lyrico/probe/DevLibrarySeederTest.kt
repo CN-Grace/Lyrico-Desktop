@@ -2,6 +2,7 @@ package com.lonx.lyrico.probe
 
 import com.lonx.lyrico.data.LyricoDatabase
 import com.lonx.lyrico.data.model.BatchTaskType
+import com.lonx.lyrico.data.model.ExportDestination
 import com.lonx.lyrico.data.model.entity.FolderEntity
 import com.lonx.lyrico.data.model.entity.SongEntity
 import com.lonx.lyrico.data.repository.BatchTaskRepository
@@ -18,8 +19,11 @@ import com.lonx.lyrico.utils.LibraryScanManager
 import com.lonx.lyrico.viewmodel.SortBy
 import com.lonx.lyrico.viewmodel.SortInfo
 import com.lonx.lyrico.viewmodel.SortOrder
+import com.lonx.lyrico.worker.BatchTaskRunner
+import com.lonx.lyrico.worker.processor.BatchExportTaskConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import org.junit.Assume.assumeTrue
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
@@ -47,6 +51,11 @@ import kotlin.test.Test
  * the folder, Room stores the rows - so the screenshot shows what a user with these files would see.
  * The seeded files are copies of the TagLib fixtures with Chinese tags, which is why the capture also
  * exercises CJK rendering and the title-bar count.
+ *
+ * Since C6e one of the seeded tasks is not hand-written at all: two of the songs carry lyrics in their
+ * tags and an `EXPORT_LYRICS` task is handed to the app's own runner, so the export row in the capture
+ * (file names, counts and the skipped song) is the record of a real run. The exported files go to
+ * `build/demo-exports`, deliberately outside the scanned library so the library stays unchanged.
  */
 class DevLibrarySeederTest {
 
@@ -59,6 +68,18 @@ class DevLibrarySeederTest {
 
         /** C6d: how many copies of the 3.55 s fixture the demo album gets (see [albums]). */
         const val DEMO_TRACK_COUNT = 20
+
+        /**
+         * C6e: the lyrics the export task writes out, keyed by title.
+         *
+         * 山丘 is deliberately absent: the run then has one item that skips (`No lyrics`) next to two
+         * that succeed, which is the shape the C6e capture needs -- a skip is what only a real
+         * processor can produce, since it is thrown from inside one.
+         */
+        val LYRICS = mapOf(
+            "朋友" to "[00:00.00]朋友一生一起走\n[00:08.00]那些日子不再有\n[00:16.00]一句话 一辈子",
+            "花心" to "[00:00.00]花的心藏在蕊中\n[00:06.50]空把花期都错过",
+        )
     }
 
     private val fixtures = File(
@@ -160,6 +181,44 @@ class DevLibrarySeederTest {
                     failing = true,
                 )
                 println("SEED batchTasks queued=$queued clean=$clean mixed=$mixed broken=$broken")
+
+                // C6e: an export that really runs. The four rows above are written by hand because the
+                // screens that launch those task types have no entry point yet either; this one is not.
+                // The task goes through the real runner and the real processor, so its counters, the
+                // file names on its item rows and the `SEED export*` lines below are the result of
+                // TagLib reading the seeded lyrics and `java.nio` writing them out. The detail page
+                // shows `朋友.lrc` / `花心.lrc` on two rows and a skipped 山丘 on the third, and those
+                // names exist only because the processor put them there.
+                val exports = File(System.getProperty("user.dir"), "build/demo-exports")
+                exports.deleteRecursively()
+                exports.mkdirs()
+                val exportSongs = taskSongs.filter { it.title in LYRICS.keys || it.title == "山丘" }
+                val exportConfig = BatchExportTaskConfig(
+                    destinationDirectory = exports.absolutePath,
+                    destination = ExportDestination.SELECTED_DIRECTORY,
+                    concurrency = 1,
+                )
+                val exportTask = tasks.createTask(
+                    BatchTaskType.EXPORT_LYRICS,
+                    exportSongs,
+                    Json.encodeToString(BatchExportTaskConfig.serializer(), exportConfig),
+                )
+                koin.get<BatchTaskRunner>().run(exportTask)
+
+                val exportRow = tasks.getTask(exportTask)
+                println(
+                    "SEED export task=$exportTask status=${exportRow?.status} success=${exportRow?.successCount} " +
+                        "failed=${exportRow?.failureCount} skipped=${exportRow?.skippedCount}"
+                )
+                tasks.observeItems(exportTask).first().forEach {
+                    println("SEED exportItem fileName=${it.fileName} status=${it.status} path=${it.filePath} error=${it.errorMessage}")
+                }
+                exports.listFiles()?.sortedBy { it.name }?.forEach {
+                    println("SEED exportFile name=${it.name} bytes=${it.length()}")
+                }
+                exports.listFiles()?.filter { it.extension == "lrc" }?.sortedBy { it.name }?.forEach {
+                    println("SEED exportLyrics ${it.name}=${it.readText().replace("\n", " | ")}")
+                }
             } finally {
                 stopKoin()
             }
@@ -186,11 +245,14 @@ class DevLibrarySeederTest {
                 file.absolutePath,
                 AudioTagMutation(
                     AudioTagMutationMode.Patch,
-                    fields = mapOf(
-                        AudioTagFieldKey.Title to FieldMutation.Set(title),
-                        AudioTagFieldKey.Artist to FieldMutation.Set(albumDir.substringBefore(" - ")),
-                        AudioTagFieldKey.Album to FieldMutation.Set(albumDir.substringAfter(" - ")),
-                    ),
+                    fields = buildMap {
+                        put(AudioTagFieldKey.Title, FieldMutation.Set(title))
+                        put(AudioTagFieldKey.Artist, FieldMutation.Set(albumDir.substringBefore(" - ")))
+                        put(AudioTagFieldKey.Album, FieldMutation.Set(albumDir.substringAfter(" - ")))
+                        // C6e: two of the three songs behind the export run carry lyrics. Written into
+                        // the real tags, because the export reads them back through the real tag reader.
+                        LYRICS[title]?.let { put(AudioTagFieldKey.Lyrics, FieldMutation.Set(it)) }
+                    },
                 ),
             )
         }

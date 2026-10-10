@@ -1,0 +1,4 @@
+file: docs/port-evidence/c6e-export-detail-tabs.crop.png
+engine: zh-Hans-CN
+lines: 1
+  y=47 x=1894 :: 跳 过
