@@ -2,11 +2,18 @@ package com.lonx.lyrico.domain.poster
 
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
+/**
+ * 艺术家海报的纯数据变换：一个艺术家只留一张（替换、重挂、交换归属），删除与还原按实例
+ * （`===`）定位目标。
+ *
+ * 随 `ArtistPosterEdits` 从 Android 测试树迁入：只把 `org.junit.Assert` 的断言换成
+ * `kotlin.test`，用例与断言一字未改。
+ */
 class ArtistPosterEditsTest {
 
     private fun artist(description: String, seed: Int = description.hashCode()) = AudioPicture(
@@ -36,7 +43,7 @@ class ArtistPosterEditsTest {
         val result = ArtistPosterEdits.setFor(pictures, listOf("A", "B"), "A", newA)
 
         assertEquals(listOf(cover, newA, b), result)
-        assertSame("B 的海报必须原样保留", b, result[2])
+        assertSame(b, result[2], "B 的海报必须原样保留")
     }
 
     @Test
@@ -143,8 +150,8 @@ class ArtistPosterEditsTest {
         // 改描述必然产生新实例，但图片数据仍是原来那张
         assertEquals("A", result[0].description)
         assertEquals(unknown.data.toList(), result[0].data.toList())
-        assertTrue("A 原来的海报被顶掉", result.none { it === existingA })
-        assertTrue("同组的另一张也被合并", result.none { it === sameUnknown })
+        assertTrue(result.none { it === existingA }, "A 原来的海报被顶掉")
+        assertTrue(result.none { it === sameUnknown }, "同组的另一张也被合并")
     }
 
     @Test
@@ -296,7 +303,7 @@ class ArtistPosterEditsTest {
             target = originalC,
             artistName = "A"
         )
-        assertEquals("重挂后只剩改挂过来的那一张", 1, afterReassign.size)
+        assertEquals(1, afterReassign.size, "重挂后只剩改挂过来的那一张")
 
         val reverted = ArtistPosterEdits.revertAll(afterReassign, originals)
 

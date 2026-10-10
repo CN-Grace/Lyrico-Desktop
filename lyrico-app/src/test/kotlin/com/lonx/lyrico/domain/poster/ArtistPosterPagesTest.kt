@@ -2,15 +2,18 @@ package com.lonx.lyrico.domain.poster
 
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * 艺术家海报位：内嵌海报和外置海报文件夹是同一个「一位艺术家一张海报」的两个来源，
  * 必须按同一套归属规则分配，否则多艺术家歌曲一张外置海报都用不上。
+ *
+ * 随 `ArtistPosterPages` 从 Android 测试树迁入：只把 `org.junit.Assert` 的断言换成
+ * `kotlin.test`，用例与断言一字未改。
  */
 class ArtistPosterPagesTest {
 
@@ -38,10 +41,10 @@ class ArtistPosterPagesTest {
         )
 
         assertEquals(listOf("A", "B"), pages.map { it.artistName })
-        assertSame("A 用内嵌海报", AudioPictureType.Artist.tagLibName, pages[0].entry?.picture?.pictureType)
-        assertFalse("A 不需要外置海报", pages[0].showExternalPoster)
-        assertEquals("B 没有内嵌海报", null, pages[1].entry)
-        assertTrue("B 去外置海报文件夹找", pages[1].showExternalPoster)
+        assertSame(AudioPictureType.Artist.tagLibName, pages[0].entry?.picture?.pictureType, "A 用内嵌海报")
+        assertFalse(pages[0].showExternalPoster, "A 不需要外置海报")
+        assertEquals(null, pages[1].entry, "B 没有内嵌海报")
+        assertTrue(pages[1].showExternalPoster, "B 去外置海报文件夹找")
     }
 
     @Test
@@ -67,7 +70,7 @@ class ArtistPosterPagesTest {
         assertEquals(1, pages.size)
         assertEquals("A", pages[0].artistName)
         assertEquals(null, pages[0].entry)
-        assertFalse("不能从外置海报把删掉的图变回来", pages[0].showExternalPoster)
+        assertFalse(pages[0].showExternalPoster, "不能从外置海报把删掉的图变回来")
     }
 
     @Test
@@ -108,8 +111,8 @@ class ArtistPosterPagesTest {
         )
 
         assertEquals(listOf("A", "B", "C"), pages.map { it.artistName })
-        assertTrue("对不上的那张单独占一页，供用户重新指定归属", pages[2].entry?.isUnmatched == true)
-        assertTrue("A、B 各自去文件夹找", pages[0].showExternalPoster && pages[1].showExternalPoster)
+        assertTrue(pages[2].entry?.isUnmatched == true, "对不上的那张单独占一页，供用户重新指定归属")
+        assertTrue(pages[0].showExternalPoster && pages[1].showExternalPoster, "A、B 各自去文件夹找")
     }
 
     @Test
@@ -122,7 +125,7 @@ class ArtistPosterPagesTest {
 
         assertEquals(1, pages.size)
         assertEquals("", pages[0].artistName)
-        assertTrue("没有艺术家时也要留一个位，否则没地方添加", pages[0].showExternalPoster)
+        assertTrue(pages[0].showExternalPoster, "没有艺术家时也要留一个位，否则没地方添加")
     }
 
     @Test
@@ -153,7 +156,7 @@ class ArtistPosterPagesTest {
 
         assertEquals(3, pages.size)
         assertEquals(listOf("A", "B", ""), pages.map { it.artistName })
-        assertTrue("无法归属的那张单独一页", pages[2].entry?.isUnmatched == true)
-        assertTrue("A、B 仍各自去文件夹找", pages[0].showExternalPoster && pages[1].showExternalPoster)
+        assertTrue(pages[2].entry?.isUnmatched == true, "无法归属的那张单独一页")
+        assertTrue(pages[0].showExternalPoster && pages[1].showExternalPoster, "A、B 仍各自去文件夹找")
     }
 }

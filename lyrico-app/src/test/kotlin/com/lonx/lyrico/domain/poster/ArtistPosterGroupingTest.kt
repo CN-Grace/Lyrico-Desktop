@@ -2,14 +2,17 @@ package com.lonx.lyrico.domain.poster
 
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 /**
  * 一个艺术家只保留一张海报：归属（艺术家名，或对不上时标签里的描述）就是操作目标。
+ *
+ * 随 [ArtistPosterGrouping] 从 Android 测试树迁入：只把 `org.junit.Assert` 的断言换成
+ * `kotlin.test`，用例与断言一字未改。
  */
 class ArtistPosterGroupingTest {
 
