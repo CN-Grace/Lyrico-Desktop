@@ -31,21 +31,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.yield
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.pow
@@ -278,24 +283,43 @@ class AlbumReplayGainViewModelTest {
         placeLongAudio()
         val albumSongs = scanLibrary()
 
-        // 状态与消息都记进同一条日志，这样"谁先发生"是可判定的：被取消的那个 job 的 `finally` 会在重启之后
-        // 几毫秒内跑，而替补的那次测量要跑大约一秒（30 分钟的 flac，`ffmpeg -af ebur128` 实测 0.97 s）。
-        val log = java.util.Collections.synchronizedList(mutableListOf<Any>())
-        val restart = Any()
         val messages = startCollecting()
-        scope.launch {
-            viewModel.uiState.collect { log.add(LoggedState(it.isCalculatingAlbumReplayGain)) }
-        }
-        scope.launch { viewModel.events.collect { log.add(LoggedMessage(it)) } }
-
         viewModel.calculateAlbumReplayGain(albumSongs)
         awaitTrue("the first run has to start", 10_000L) { viewModel.uiState.value.isCalculatingAlbumReplayGain }
+
         viewModel.cancelAlbumReplayGain()
         // 取消会把 `isCalculating` 立刻置回 false，所以紧接着的这一次会被放行 —— 而被取消的那个 job 的
         // `finally` 还在后面排队。没有 token 的话它会把替补测量的"计算中"抹掉，面板就会在扫描中途变成
         // "关闭"，用户还能再点一次，发起重复测量。
-        log.add(restart)
+        //
+        // 先等这次停下来真的落到状态上：采样要有确定的起点，起点之后只允许出现替补那一次"算着"。
+        awaitTrue("the cancel has to stop the state", 5_000L) { !viewModel.uiState.value.isCalculatingAlbumReplayGain }
         viewModel.calculateAlbumReplayGain(albumSongs)
+        assertTrue(
+            viewModel.uiState.value.isCalculatingAlbumReplayGain,
+            "the replacement run has to start; the cancelled job's `finally` runs after this point",
+        )
+
+        // 从"替补开算"这一刻起，一直采到它写标签写完：这中间只要出现 `false`，就只能是被取消那个 job 的
+        // `finally` 在写替补的状态 —— 它写出来的停止里，写标签的计数还没满。正常收尾的停止里计数是满的，
+        // 所以不需要去猜"成功消息和状态哪一个先被记下来"。
+        //
+        // 采样而不是比对两条流各自的日志位置：状态与消息是两条流，两条流谁先只在真实时间上有意义，拿日志
+        // 位置去比会因为线程调度偶发假报警（全量跑到过一次）。单一状态流自己的顺序则是可靠的：StateFlow
+        // 会丢中间值，但不会换序。
+        val stoppedMidRun = AtomicBoolean(false)
+        val sample = AtomicReference(viewModel.uiState.value)
+        val sampler = scope.launch {
+            while (isActive) {
+                val state = viewModel.uiState.value
+                sample.set(state)
+                if (!state.isCalculatingAlbumReplayGain) {
+                    if (state.albumReplayGainWrittenCount < state.albumReplayGainSongCount) stoppedMidRun.set(true)
+                    break
+                }
+                yield()
+            }
+        }
 
         // 中止自己会先报一次；再往下才是替补测量的结果。
         assertEquals(
@@ -305,17 +329,11 @@ class AlbumReplayGainViewModelTest {
         val success = messages.nextLocalized("the replacement run has to finish")
         assertEquals(Res.string.album_replay_gain_success, success.res)
         awaitTrue("the replacement run has to stop", 5_000L) { !viewModel.uiState.value.isCalculatingAlbumReplayGain }
+        sampler.cancelAndJoin()
 
-        val afterRestart = log.drop(log.indexOf(restart))
-        val reportedAt = afterRestart.indexOfFirst { entry ->
-            entry is LoggedMessage && (entry.message as? UiMessage.Localized)?.res == Res.string.album_replay_gain_success
-        }
-        val stoppedAt = afterRestart.indexOfFirst { it is LoggedState && !it.calculating }
-        assertTrue(stoppedAt >= 0, "the replacement run has to be observed as finished: $afterRestart")
-        assertTrue(
-            reportedAt in 0 until stoppedAt,
-            "the run must stay 'calculating' until it reports; a `false` before the report is the run it " +
-                "replaced writing the state of the run that replaced it: $afterRestart",
+        assertFalse(
+            stoppedMidRun.get(),
+            "the run that was replaced must not stop the run that replaced it: it stopped with ${sample.get()}",
         )
     }
 
@@ -518,15 +536,6 @@ class AlbumReplayGainViewModelTest {
         ready.await()
         return seen
     }
-
-    /**
-     * 把两条流记进一条日志，用来判定"谁先发生"。
-     *
-     * 直接断言两个收集器各自的列表做不到这一点：状态与消息是两条流，它们的先后顺序只在真实时间上有意义。
-     */
-    private class LoggedState(val calculating: Boolean)
-
-    private class LoggedMessage(val message: UiMessage)
 
     /**
      * 一条**本地化**消息，等不到就直接失败。

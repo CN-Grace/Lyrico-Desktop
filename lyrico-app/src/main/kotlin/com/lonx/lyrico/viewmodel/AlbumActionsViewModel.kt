@@ -111,9 +111,17 @@ class AlbumActionsViewModel(
     val events: SharedFlow<UiMessage> = _events.asSharedFlow()
 
     private var replayGainJob: Job? = null
+
+    /**
+     * Both are read on the analysis thread (the job's `finally`) and written on the caller's, so they
+     * have to be published: a stale read of the token would let a replaced job write the state of its
+     * replacement, which is exactly what the token exists to prevent.
+     */
+    @Volatile
     private var replayGainStartedAt: Long = 0L
 
     /** Identifies the run that is allowed to write the finished state; see the class KDoc. */
+    @Volatile
     private var replayGainRun: Any? = null
 
     fun shareAlbum(albumId: Long) {

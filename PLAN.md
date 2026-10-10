@@ -1440,6 +1440,36 @@ java 主树 **93 文件 / 0 待删重复 / 47 可搬 / 46 被挡**（本批 95 �
 * **可搬的 47 个**大多是「原样搬」的小件：21 个 `ui/components/...`（liquid 材质 6 个、Fab 菜单 2 个、`PagerDotsIndicator` / `FieldOrderState` / `SearchSectionHeader`、几个 bottom sheet 与 `PainterUtils`）、`ExternalAudioEditHost`、`data/model/*`（`ArtistSeparator` / `RenamePreview` / `LocalSearchField` / `AppLanguage` / `CacheCategory`）、`domain/poster/*`、`utils/ConflictResolver`、`screens/OpenSourceLicenceScreen`、4 个批量配置 viewmodel。另一半是**该删而不是该搬**的 Android 遗留物（`utils/SafDocuments` / `SafSiblingFileWriter` / `UriUtils` / `CoverSourceType`、`platform/player/{PlayerIntentFactory,InstalledAppChecker}`、`data/exception/RequiresUserPermissionException`、`screens/QuickJsTestScreen`、`App.kt` / `MainActivity.kt`）——它们现在「可搬」只是因为依赖都搬完了，处理方式是逐个判定「桌面版还需要它吗」，不需要的删掉而不是硬搬。
 * **被挡的 46 个就是剩下的界面侧**：15 个 screen（`EditMetadataScreen` 17 个依赖、`BatchEditScreen`、`BatchRenameScreen`、`SettingsScreen`、`AlbumDetailScreen`、`ArtistDetailScreen`、`LocalSearchScreen`、`FolderManagerScreen`、`AboutScreen`…）、13 个 `ui/components`、13 个 viewmodel（`EditMetadataViewModel`、`BatchEditViewModel`、`BatchRenameViewModel`、`SettingsViewModel`、`FolderManagerViewModel`…）、`di/AppModule.kt`（13 个依赖），以及 `utils/{RenameEngine,CacheManager,ArtistPosterFileWriter}`。这批留下的最大缺口（#35 的批量发起侧：`SongSelectionSupport` 16 个依赖 + 8 个 sheet）就在这份名单最前面。
 
+### P5 修（专辑 ReplayGain「替补运行」那条用例的偶发假报警：判定改成单状态流采样，2026-10-11）
+
+专辑 ReplayGain 那批（ReplayGain 边车 + 响度测量那一节）留下一条**偶发失败**：`AlbumReplayGainViewModelTest > a run that replaces an aborted one is not marked finished by the run it replaced`。它在 #35 切片 B 施工期间的 5 次全量跑里挂了 1 次（第 2 次，934 项里 1 失败，日志 `build/tmp-probe/sliceB-fullsuite2.log`），单跑该类 3 次全绿、同批另外 4 次全量跑也全绿。这条用例守的是那批修掉的一个真 bug——**被取代的那次测量不能把取代它的那次测量的状态抹掉**（后果是扫描中途面板变回可关闭，用户能再点一次发起重复测量）——所以它既不能删，也不能放宽到没有判定力；要修的是**判定方法**，不是被测行为。
+
+成因分析要如实说清证据边界：那次失败的 XML 结果已经被后一次全量跑覆盖，**没有留下可复查的机制证据**，所以下面两条都只当"可能"，不做"就是它"的断言。
+
+1. **跨流位置比较本身就是竞态（最可能）**：原判定把状态流与消息流都记进同一条 `synchronizedList`，再断言"成功消息的位置 < 第一个停止状态的位置"。这两条流各由一个协程收集，**谁先把日志写进去取决于线程调度**；收尾时成功消息与停止状态只隔几十微秒，负载重时状态先落就假报。这一条不需要任何窄窗口，正好能解释"5 次里坏 1 次"的量级，也能解释"单跑必绿"（单跑时机器空）。曾经怀疑的另一种形态（被取消那次的 `false` 被投递到替补开始之后）需要的窗口是"读状态与写日志之间"的纳秒级抢占，量级上对不上，不作为解释。
+2. **JMM 可见性（真存在，但没复现）**：`AlbumActionsViewModel` 的 `replayGainRun` / `replayGainStartedAt` 原是普通 `private var`，而它们在协程 `finally`（IO 线程）里读、在调用方线程写；`replayGainJob?.cancel()` 与 token 写入之间没有 happens-before 边，被取消的那个 job 理论上可能读到过期 token，然后在替补运行**中途**写 `isCalculating=false`——正是失败消息描述的那件事。x86 的 TSO 下几乎不会发生，但它是那条防护协议本身的漏洞，顺手堵上。
+
+#### 1. 改了什么（1 个测试类的判定 + 2 个字段的可见性）
+
+| 文件 | 改动 |
+| --- | --- |
+| `viewmodel/AlbumReplayGainViewModelTest.kt` | 这条用例的判定重写（+38 −29）：删掉共用日志、`restart` 标记和 `LoggedState` / `LoggedMessage` 两个只为它存在的内部类 |
+| `viewmodel/AlbumActionsViewModel.kt` | `replayGainRun` / `replayGainStartedAt` 加 `@Volatile`（+8 −0，含一段 KDoc 说明它们为什么必须发布） |
+
+新判定不再拿"两条流谁先写日志"当证据，只用**单条状态流**（StateFlow 会丢中间值，但不会换序）：取消之后先等状态真的停下来，再发起替补并**在调用方线程同步读一次** `isCalculating == true`（VM 是先写状态、后起 job，所以这一步是确定界碑，把"取消自己写的停止"和"替补开始前任何其它停止"都排除在外），然后起一个采样协程 `yield()` 轮询到状态停下：停下那一刻若 `albumReplayGainWrittenCount < albumReplayGainSongCount`，就是**中途停**（正常收尾的停止里计数是满的）。这样判定与两个收集器之间的调度先后彻底无关。
+
+#### 2. 取证
+
+* **断言仍然抓得到那个真 bug**：把 VM 里的 token 判定临时改成 `if (true)`（跑完已还原），这条用例失败，且失败消息现在是**可读的完整状态**：`it stopped with AlbumActionsUiState(albumName=null, isCalculatingAlbumReplayGain=false, showAlbumReplayGainProgressDialog=true, albumReplayGainProgress=0.0, albumReplayGainSongCount=1, albumReplayGainWrittenCount=0, albumReplayGainTotalTimeMillis=3)`——`writtenCount=0` 配 `totalTimeMillis=3` 正是"中途停"的指纹。旧断言只打印 `LoggedState@6048e26a` 这类身份哈希，出问题也读不出来。
+* **修后没有再挂**：单跑该类 3 次全绿；全量真跑 5 次全绿（107 类 / 934 项 / 0 失败 / 0 错误 / 2 门控跳过；日志 `build/tmp-probe/rgfix-*.log`），修前同样的全量跑 5 次里坏 1 次。
+* `@Volatile` 那两处**没有**独立证据说明它就是本次失败的原因（机制 2 没能复现）；它是一条跨线程读写的防线，改动零行为变化，如实记在这里。
+
+#### 3. 剩下的局限（如实记）
+
+1. 采样是 `yield()` 轮询（微秒级），但"中途停"若**短于一次轮询间隔**就会被漏看——这与旧判定受 StateFlow 合并丢值影响是同一类暴露，不是新引入的。
+2. 若替补运行真的**失败**（写标签失败），它的收尾状态里 `writtenCount < songCount`，采样会把这次收尾当成"中途停"；这条路径上用例会先在"成功消息"那条断言处失败（它在采样断言之前），失败消息里带着完整状态，不会误导。
+3. 1/5 的失败率意味着 5 次全绿**不能证明**它不会再出现；能说清的是：上面两条已知机制都被绕开了，而且下次再出现时失败消息里有完整状态可读。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
