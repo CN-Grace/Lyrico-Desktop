@@ -1,0 +1,36 @@
+file: docs\port-evidence\c4c-selection-mode.png
+size: 1166x773
+distinct_colours: 986  most_common_share: 0.853  text_pixels: 8353
+accent_blue_pixels: 6424  accent_warm_pixels: 159
+top_colours: (247, 247, 247)=769178, (209, 224, 249)=65413, (255, 255, 255)=35895, (52, 130, 255)=5916
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#++###++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        .++ .+.                                                                               +
+  #  ++   +++#.++.                                                                               +
+  # +++    ##+.#+.                                                                               +
+  # #++   #### ++                                                                                +
+  #  #     .+..+.                                                                                #
+  # ##+   ####+##                                                                                #
+  # .++                                                                                          #
+  # +#+    ###.####+#.                                                                           #
+  # ###   ++#+                                                                                   #
+  # .++       .+#.                                                                               #
+  #           .+.                                                                                #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

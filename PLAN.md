@@ -658,7 +658,9 @@ rail/bar 的判据是宽度，而无头测试的根尺寸由测试框架决定�
    脚本改成用 `ClientToScreen` 取客户区原点，并把两个原点都打印出来（本机：标题栏 31px、左边框 1px）。
 2. **Windows 会吞掉「用于激活」的那一次点击**：窗口不在前台时，第一次点击被系统拿去激活，app 收不到。
    脚本先判断窗口是否已在前台，不在就**先花一次点击做激活**，再发用户要的那一次。
-3. 点击前必须把窗口带到前台（`AttachThreadInput`，与截图脚本同一套），否则点会落到别的窗口上。
+3. 点击前必须把窗口带到前台（`AttachThreadInput`，与截图脚本同一套），否则点会落到别的窗口上；而**用来激活的那一次点击
+   要打在系统标题栏上**——它是一次真点击，打在内容上就等于替用户点了那个控件（实测把激活点击落在歌曲行上，应用被导航到了
+   未移植的 `edit_metadata` 路由，随后真正的长按被忽略，看上去像长按不生效）。有 `-Button longpress -HoldMs 800`。
 
 点击映射（都经 OCR 复核，从「歌曲」起）：客户区 (40, 50) → `歌曲 (4)`、(40, 131) → `艺术家 (3)`、
 (40, 209) → `专辑 (3)`。三张留档：`docs/port-evidence/c4c-library-shell.png`、`c4c-artists-tab.png`、`c4c-albums-tab.png`
@@ -672,7 +674,8 @@ rail/bar 的判据是宽度，而无头测试的根尺寸由测试框架决定�
   专辑 tab 两张可见卡片、`朋友 / 2 首` 与 `September`。
 - **专辑页是 2 列、卡片被拉得很大**（本批最值得记的一条）：卡片底色白 `255,255,255`、页底 `247,247,247`，
   卡片横向 94–619 与 628–1152（各 526px，间距 9px），封面 1:1（≈510px）居中画 26dp 的占位图标（`#666666`，
-  因为开发库夹具没有内嵌封面），标题/计数在封面下方（y≈623/643），第三张专辑在折叠线以下（第二行从 y≈673 开始，可滚）。
+  因为开发库夹具没有内嵌封面），标题/计数在封面下方（y≈623/643），第三张专辑在窗口下沿之外（第二行从 y≈673 开始；
+  网格本体是 `LazyVerticalGrid`，但**本批没有做滚动取证**，脚本只能点不能拖）。
   **这不是回归**：`albumGridColumns` 是 Android 也有的用户设置（默认 2，`coerceIn(2, 4)`），Android 平板横屏同样会这样；
   但因为桌面窗口动辄 1100+ dp，一张 526dp 的封面在桌面上是不可用的默认值 → 记成 P5 的桌面 UX 缺口（自适应列数），
   本批**不**擅自改行为。
@@ -680,7 +683,14 @@ rail/bar 的判据是宽度，而无头测试的根尺寸由测试框架决定�
   `1_SEPTEMBER` → `1_SHANQIU` → `1_PENGYOU`，窗口顺序（September → 山丘 → 朋友×2）与之一致，两者在这份数据上**重合**，
   所以看不到分歧。这只证明「当前数据集不分歧」，能分辨分歧的数据集（如 `10` vs `2` 前缀、拼音与 CJK 混排）不在开发库里，
   留到 P5 或换数据集时再验。
-- 抓图这一轮也确认：`LibraryHomeScreenTest` 里那条「切 tab 退出选择模式」的行为在真窗口里同样成立（点 tab 后顶栏恢复默认）。
+- **选择模式也在真窗口里验了**（长按 → 切走 → 切回）：`click-window.ps1` 加了 `-Button longpress`（按下 → 等
+  `-HoldMs`，默认 800ms → 抬起），在首行歌曲上长按，顶栏变成 `已选择 1 项` + `全选` + `关闭`（居中的 `歌曲 (4)` 消失）；
+  此时点 rail 的「艺术家」，页面换成 `艺术家 (3)` 且选择条**随页面一起消失**；再点回「歌曲」，顶栏是 **默认顶栏**
+  （居中 `歌曲 (4)`，没有 `已选择` / `全选` / `关闭`）——即选择模式**没有**跨 tab 存活，与无头测试一致。
+  三张留档：`c4c-selection-mode.png`、`c4c-selection-tab-switch-artists.png`、`c4c-selection-cleared-after-tab-switch.png`。
+  这一步也发现了那个“激活点击”的真实危害：第一次把激活点击落在内容上，它把应用导航到了另一个页面（日志里能看到
+  未移植路由 `edit_metadata/...` 的警告），随后的长按被忽略——所以脚本现在把激活点击打在**系统标题栏**上（属于窗口、
+  不属于客户区，点了只激活不触发任何界面）。
 
 #### 7. 这批的用户可见缺口（如实记录）
 
@@ -762,7 +772,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
 - **P4 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（把 4 首真标签的歌填进 `lyrico-app/data`）→ `./gradlew :lyrico-app:run` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6" -OutputPath docs/port-evidence/<名>.png -SettleMs 4000` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ocr-window-capture.ps1 -Path <png> -OutFile <txt>` → `python scripts/analyze-window-capture.py <png> --write`。**别用模糊标题匹配**（终端窗口标题里也含 “Lyrico-Desktop”），别在激活后加 sleep（会被别的窗口抢前台），OCR 结果先落盘再读（PowerShell 管道会糊 CJK）。
-- **要点界面时用 `scripts/click-window.ps1`**（`-X -Y` 是**客户区**坐标，`-SettleMs` 后自取图复核）：截图带 31px 系统标题栏、左右各 1px 边框，所以「截图里 y=240 的东西」要点 `-Y 209`；窗口不在前台时脚本会先花一次点击做激活（Windows 会把那一次吞掉），否则第一次点击看着像「点了没反应」。脚本会把框架原点与客户区原点都打出来，不要手算。
+- **要点界面时用 `scripts/click-window.ps1`**（`-X -Y` 是**客户区**坐标，`-SettleMs` 后自取图复核；长按用 `-Button longpress -HoldMs 800`）：截图带 31px 系统标题栏、左右各 1px 边框，所以「截图里 y=240 的东西」要点 `-Y 209`；窗口不在前台时脚本会先花一次点击做激活（Windows 会把那一次吞掉；这一下现在打在**标题栏**上，因为它是真点击），否则第一次点击看着像「点了没反应」。脚本会把框架原点与客户区原点都打出来，不要手算。
 - **`stringResource` 的两个坑（本仓已踩，勿回退）**：
   1. **带参数的 `stringResource` / `getString` 不走 `String.format`**：CMP 的实现是 `replaceWithArgs` + 正则 `%(\d+)\$[ds]`，只认位置参数。本仓 20 条字符串用普通 `%d`/`%s`/`%.2f`，所以主源码里禁止直接写 `stringResource(res, args)` / `getString(res, args)`，一律走 `formattedStringResource` / `formattedString`（`StringFormattingGuardTest` 会把违规的 `file:line` 报出来）。**不要**为了迁就库去改字符串：字符串必须与 Android 逐字一致，而且 `%.2f`/宽度/精度在库的模型里根本表达不出来。
   2. **多行 XML body 的缩进不会被去掉**（`\n` 转义会被正确转成换行）。aapt2 去掉的是「首尾带换行的那段空白」，行内尾空格是故意的（`Task Type: ` 后面拼值）。所以 Compose 资源里的 `<string>` body 一律写成一行；`ComposeStringResourcesTest` 会检查。

@@ -1,0 +1,18 @@
+file: docs/port-evidence/c4c-selection-mode.png
+engine: zh-Hans-CN
+lines: 15
+  y=10 x=31 :: Lyrico 1 ℃ 48 5 引
+  y=50 x=99 :: 已 选 择 1 项
+  y=49 x=1033 :: 全 选
+  y=153 x=35 :: 0
+  y=121 x=154 :: 周 华 儺 思 朋 友
+  y=185 x=154 :: 周 华 爵 · 朋 友
+  y=229 x=155 :: September
+  y=250 x=155 :: Earth, Wind & Fire · Septemhr
+  y=292 x=155 :: 山 丘
+  y=313 x=154 :: 李 宗 盛 · 山 丘
+  y=49 x=1099 :: 关 闭
+  y=168 x=1082 :: 住 03
+  y=186 x=1072 :: 64kbps
+  y=232 x=1082 :: 住 03
+  y=296 x=1082 :: 住 03

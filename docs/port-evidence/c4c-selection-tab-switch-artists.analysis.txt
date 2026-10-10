@@ -1,0 +1,36 @@
+file: docs\port-evidence\c4c-selection-tab-switch-artists.png
+size: 1166x773
+distinct_colours: 723  most_common_share: 0.936  text_pixels: 7874
+accent_blue_pixels: 162  accent_warm_pixels: 159
+top_colours: (247, 247, 247)=843452, (255, 255, 255)=38646, (228, 228, 228)=4420, (0, 0, 0)=2021
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#++###++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        +.                                   .+++++ +.                                  +. .+ +
+  #  ++    #+                                    #+++++++                                  ++ ++ +
+  # +++    +. .++++#++++#.                                 .+##+                                 +
+  # #++    #+ .+......+...                                 .+++.                                 +
+  #  #         + ..                                                                              #
+  # ###    ## .###+                                                                              #
+  # .++                                                                                          #
+  # +#+                                                                                          #
+  # ###                                                                                          #
+  # .++                                                                                          #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

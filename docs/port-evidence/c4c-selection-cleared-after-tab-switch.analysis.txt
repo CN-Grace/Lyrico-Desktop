@@ -1,0 +1,36 @@
+file: docs\port-evidence\c4c-selection-cleared-after-tab-switch.png
+size: 1166x773
+distinct_colours: 720  most_common_share: 0.929  text_pixels: 8784
+accent_blue_pixels: 162  accent_warm_pixels: 159
+top_colours: (247, 247, 247)=837757, (255, 255, 255)=35687, (228, 228, 228)=4463, (243, 243, 243)=3482
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#++###++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        +.                                    ++.. .+                                   +. .+ +
+  #  ++    #+                                    +#++ ++                                   ++ ++ +
+  # +++    ##+.++.                                                                             . +
+  # ##+   +### ++                                                                              + +
+  #  #     .+..+.                                                                                #
+  # ##+   ####+##                                                                              + #
+  # .++                                                                                          #
+  # +#+    ###.####+#.                                                                         + #
+  # ###   ++#+                                                                                 . #
+  # .++       .+#.                                                                             . #
+  #           .+.                                                                              . #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

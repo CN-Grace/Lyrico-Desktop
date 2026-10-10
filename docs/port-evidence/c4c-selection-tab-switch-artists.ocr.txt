@@ -1,0 +1,12 @@
+file: docs/port-evidence/c4c-selection-tab-switch-artists.png
+engine: zh-Hans-CN
+lines: 9
+  y=10 x=31 :: Lyrico 1 ℃ 48 5 引
+  y=100 x=700 :: 李 宗 盛
+  y=122 x=701 :: 1 张 亏 辑 ． 1 首
+  y=153 x=35 :: 0
+  y=48 x=567 :: 艺 术 家 〔 3 ）
+  y=101 x=155 :: Earth, Wind & Fire
+  y=122 x=155 :: 1 张 亏 辑 ． 1 首
+  y=164 x=154 :: 周 华 健
+  y=186 x=155 :: 1 张 亏 辑 ． 2 首

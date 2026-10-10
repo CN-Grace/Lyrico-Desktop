@@ -16,6 +16,10 @@
     # Click the third item of the navigation rail. The capture is 31 px taller than the client area
     # because it includes the OS title bar, so a rail item drawn at capture y=240 is clicked at y=209.
     powershell -ExecutionPolicy Bypass -File scripts/click-window.ps1 -X 39 -Y 209 -TitleLike "Lyrico 1.6"
+
+.EXAMPLE
+    # Long-press the first song row to enter selection mode (~800 ms hold)
+    powershell -ExecutionPolicy Bypass -File scripts/click-window.ps1 -X 200 -Y 97 -Button longpress -TitleLike "Lyrico 1.6"
 #>
 [CmdletBinding()]
 param(
@@ -38,8 +42,12 @@ param(
     # How long to wait after the click, so the app has drawn the result before the next capture.
     [int]$SettleMs = 1200,
 
-    [ValidateSet("left", "right", "double")]
-    [string]$Button = "left"
+    [ValidateSet("left", "right", "double", "longpress")]
+    [string]$Button = "left",
+
+    # How long to hold the button down for `-Button longpress`. Compose's long-press threshold is the
+    # platform's (500 ms on Windows); 800 ms leaves room for a slow frame without becoming a drag.
+    [int]$HoldMs = 800
 )
 
 $ErrorActionPreference = "Stop"
@@ -163,12 +171,21 @@ try {
     $rightUp = 0x0010
 
     if (-not $wasForeground) {
-        [void][LyricoWin32.Native]::SetCursorPos($screenX, $screenY)
+        # The activation click must be *neutral*: it is a real click, and on a content-heavy screen it does
+        # whatever that pixel does. Landing it on a song row navigated the app to another screen (visible in
+        # the app log as an unported-route warning) and the long press that followed was then ignored. The
+        # OS title bar is part of the window but not part of the client area, so a click there activates the
+        # window and nothing else.
+        $titleBarY = [int]($rect.Top + [Math]::Max(4, ($client.Y - $rect.Top) / 2))
+        $titleBarX = [int](($rect.Left + $rect.Right) / 2)
+        [void][LyricoWin32.Native]::SetCursorPos($titleBarX, $titleBarY)
         Start-Sleep -Milliseconds 150
         [LyricoWin32.Native]::mouse_event($leftDown, 0, 0, 0, [UIntPtr]::Zero)
         [LyricoWin32.Native]::mouse_event($leftUp, 0, 0, 0, [UIntPtr]::Zero)
         Start-Sleep -Milliseconds 250
-        Write-Host "Window was not in front, so a first click was spent on activation."
+        [void][LyricoWin32.Native]::SetCursorPos($screenX, $screenY)
+        Start-Sleep -Milliseconds 150
+        Write-Host "Window was not in front, so a first click was spent on activation (at the title bar, so it hits no app content)."
     }
 
     switch ($Button) {
@@ -187,6 +204,11 @@ try {
             [LyricoWin32.Native]::mouse_event($leftUp, 0, 0, 0, [UIntPtr]::Zero)
             Start-Sleep -Milliseconds 80
             [LyricoWin32.Native]::mouse_event($leftDown, 0, 0, 0, [UIntPtr]::Zero)
+            [LyricoWin32.Native]::mouse_event($leftUp, 0, 0, 0, [UIntPtr]::Zero)
+        }
+        "longpress" {
+            [LyricoWin32.Native]::mouse_event($leftDown, 0, 0, 0, [UIntPtr]::Zero)
+            Start-Sleep -Milliseconds $HoldMs
             [LyricoWin32.Native]::mouse_event($leftUp, 0, 0, 0, [UIntPtr]::Zero)
         }
     }
