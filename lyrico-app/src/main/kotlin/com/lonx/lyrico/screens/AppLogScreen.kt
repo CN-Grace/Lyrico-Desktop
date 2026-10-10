@@ -73,6 +73,7 @@ import com.lonx.lyrico.platform.FileSavePicker
 import com.lonx.lyrico.platform.rememberFileSavePicker
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
 import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.AppLogEvent
 import com.lonx.lyrico.viewmodel.AppLogViewModel
 import kotlinx.coroutines.launch
@@ -331,7 +332,7 @@ fun AppLogScreen(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = stringResource(Res.string.app_log_delete_message, pendingDeleteIds.size),
+                text = formattedStringResource(Res.string.app_log_delete_message, pendingDeleteIds.size),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))

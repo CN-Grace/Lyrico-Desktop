@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lonx.lyrico.data.model.entity.SongEntity
 import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.resources.action_close
 import com.lonx.lyrico.resources.action_deselect_all
 import com.lonx.lyrico.resources.action_select_all
@@ -63,7 +64,7 @@ fun SongSelectionTopAppBar(
             defaultWindowInsetsPadding = false,
             navigationIcon = {
                 Text(
-                    text = stringResource(
+                    text = formattedStringResource(
                         Res.string.selection_mode_selected_count,
                         selectedSongUris.size
                     )

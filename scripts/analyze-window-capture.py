@@ -121,10 +121,19 @@ def report(path: Path, compare_path: Path | None) -> str:
     out.append("density map (# ink, + detail, . faint):")
     out.extend("  " + line for line in lines)
 
-    if stats["most_common_share"] > 0.9:
+    # Flatness is judged together with ink: a light-themed page is mostly one background colour by
+    # design, so a high share alone is not evidence of a capture that beat the first frame. What such a
+    # capture looks like is a flat surface with no text at all, which is the combination tested here.
+    # `scripts/ocr-window-capture.ps1` over the same PNG is the primary check; this is a cheap pre-filter.
+    if stats["most_common_share"] > 0.9 and stats["text_pixels"] < 200:
         out.append(
-            "VERDICT: SUSPECT - the window is nearly one flat colour, which is what a capture taken "
-            "before the first frame paints looks like. Re-run with a longer -SettleMs."
+            "VERDICT: SUSPECT - one flat colour and no ink, which is what a capture taken before the "
+            "first frame paints looks like. Re-run with a longer -SettleMs."
+        )
+    elif stats["most_common_share"] > 0.97:
+        out.append(
+            "VERDICT: SUSPECT - almost the whole window is one colour; check the OCR of this PNG before "
+            "trusting it."
         )
     elif stats["text_pixels"] < 200:
         out.append("VERDICT: SUSPECT - almost no ink; the window may not have drawn its content.")

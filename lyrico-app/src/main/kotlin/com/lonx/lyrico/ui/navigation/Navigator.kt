@@ -3,6 +3,7 @@ package com.lonx.lyrico.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
+import com.lonx.lyrico.utils.logging.PlatformLog
 
 /**
  * [Navigator] backed by a real [NavHostController].
@@ -20,13 +21,39 @@ internal class NavControllerNavigator(
     private val controller: NavHostController,
 ) : Navigator {
 
+    /**
+     * Pushes [direction]'s route, or logs and does nothing when the graph does not have it yet.
+     *
+     * Three of the songs page's navigation targets (settings, local search, edit metadata) have no
+     * screen yet -- their batches come later. Navigation Compose signals "no destination matches this
+     * route" with `IllegalArgumentException` (measured in the shipped `NavController` bytecode, not
+     * assumed), and letting that escape would take the whole window down the moment a user clicks a
+     * song row. So the miss is swallowed here and written to the developer log.
+     *
+     * This is an *explicit* degradation, not silent: it is logged, it is documented in `PLAN.md`, and
+     * [com.lonx.lyrico.ui.navigation.NavigatorTest] pins both halves of the behaviour -- an
+     * unregistered route is a no-op, a registered one still navigates. Delete this `catch` once the
+     * last screen is registered.
+     */
     override fun navigate(direction: NavDirection) {
-        controller.navigate(direction.route)
+        try {
+            controller.navigate(direction.route)
+        } catch (notPortedYet: IllegalArgumentException) {
+            PlatformLog.w(
+                TAG,
+                "No destination for route '${direction.route}'; the screen is not ported yet " +
+                    "(${notPortedYet.message})",
+            )
+        }
     }
 
     override fun popBackStack(): Boolean = controller.popBackStack()
 
     override fun navigateUp(): Boolean = controller.navigateUp()
+
+    private companion object {
+        const val TAG = "Navigator"
+    }
 }
 
 /**

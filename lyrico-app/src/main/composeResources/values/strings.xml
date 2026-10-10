@@ -197,13 +197,9 @@
     <string name="floating_bar_effect_liquid_glass">Liquid glass</string>
 
     <!-- Stats -->
-    <string name="batch_match_stat_format">
-    Success: %1$d | Failed: %2$d | Skipped: %3$d
-    </string>
+    <string name="batch_match_stat_format">Success: %1$d | Failed: %2$d | Skipped: %3$d</string>
 
-    <string name="batch_match_duration_format">
-    Duration: %1$.1fs
-    </string>
+    <string name="batch_match_duration_format">Duration: %1$.1fs</string>
     <!-- Accessibility -->
     <string name="common_delete">Delete</string>
 

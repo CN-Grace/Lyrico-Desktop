@@ -1,0 +1,36 @@
+file: docs\port-evidence\c3b-songs-page-formatted.png
+size: 1166x773
+distinct_colours: 524  most_common_share: 0.939  text_pixels: 7843
+accent_blue_pixels: 156  accent_warm_pixels: 154
+top_colours: (247, 247, 247)=846481, (255, 255, 255)=35702, (243, 243, 243)=3481, (149, 149, 149)=1482
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+##+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # ++                                        ++.....                                      +. .+ +
+  # +#                                        +#+++++                                      ++ ++ +
+  # +## ++.                                                                                    . +
+  #+#+# ++.                                                                                    + +
+  # .++ +.                                                                                       #
+  #+### ##+                                                                                    + #
+  #                                                                                              #
+  # ### ####+++                                                                                + #
+  #+#+#                                                                                        . #
+  #     +++                                                                                    . #
+  #     +..                                                                                    . #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                             .#
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              #
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

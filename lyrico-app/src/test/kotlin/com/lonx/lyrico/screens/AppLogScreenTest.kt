@@ -25,6 +25,7 @@ import com.lonx.lyrico.resources.action_export_logs
 import com.lonx.lyrico.resources.app_log_empty
 import com.lonx.lyrico.resources.app_log_title
 import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.ui.navigation.AppLogsDestination
 import com.lonx.lyrico.ui.navigation.LyricoNavHost
 import com.lonx.lyrico.ui.navigation.NavDirection
 import com.lonx.lyrico.ui.navigation.Navigator
@@ -147,7 +148,10 @@ class AppLogScreenTest {
             LyricoTheme {
                 // The real host and the real route: this asserts the desktop boot path
                 // (Koin -> NavHost -> screen -> view model), not just the screen in isolation.
-                LyricoNavHost()
+                // The host's *default* start route is the songs page (`SongsPageTest` asserts that);
+                // Android reached this route from settings, which is not ported yet, so the test starts
+                // the shipped host here explicitly to cover the `app_logs` registration.
+                LyricoNavHost(startDestination = AppLogsDestination())
             }
         }
 

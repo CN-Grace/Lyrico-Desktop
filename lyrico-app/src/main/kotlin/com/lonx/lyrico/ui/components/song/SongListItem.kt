@@ -55,6 +55,7 @@ import com.lonx.lyrico.data.model.entity.SongEntity
 import com.lonx.lyrico.ui.components.CoverRequest
 import com.lonx.lyrico.ui.components.rememberTintedPainter
 import com.lonx.lyrico.ui.theme.LyricoColors
+import com.lonx.lyrico.utils.formattedStringResource
 import kotlin.math.abs
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -333,7 +334,7 @@ fun SongListItem(
                         Text(
                             text = highlightedLyricPreview(
                                 text = previewLabel
-                                    ?.let { stringResource(Res.string.search_field_preview, it, preview) }
+                                    ?.let { formattedStringResource(Res.string.search_field_preview, it, preview) }
                                     ?: preview,
                                 query = previewMatchQuery.orEmpty(),
                                 highlightColor = MiuixTheme.colorScheme.primary

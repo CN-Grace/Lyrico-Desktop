@@ -7,6 +7,7 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.resources.scan_progress_finished
 import com.lonx.lyrico.resources.scan_progress_listing
 import com.lonx.lyrico.resources.scan_progress_reading
@@ -23,7 +24,7 @@ fun LibraryScanProgressText(
 ) {
     val title = when (progress.stage) {
         LibraryScanStage.LISTING_FILES -> stringResource(Res.string.scan_progress_listing)
-        LibraryScanStage.READING_METADATA -> stringResource(
+        LibraryScanStage.READING_METADATA -> formattedStringResource(
             Res.string.scan_progress_reading,
             progress.current,
             progress.total

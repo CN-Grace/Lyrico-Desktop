@@ -2,7 +2,6 @@ package com.lonx.lyrico.utils
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -43,12 +42,12 @@ sealed interface UiMessage {
     @Composable
     fun asString(): String? = when (this) {
         is DynamicString -> value
-        is Localized -> stringResource(res, *args)
+        is Localized -> formattedStringResource(res, *args)
     }
 
     /** Resolves this message outside a composition — from a coroutine, such as a `Snackbar` host. */
     suspend fun resolve(): String? = when (this) {
         is DynamicString -> value
-        is Localized -> getString(res, *args)
+        is Localized -> formattedString(res, *args)
     }
 }

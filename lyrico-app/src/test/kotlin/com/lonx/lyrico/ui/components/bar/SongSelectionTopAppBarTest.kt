@@ -59,8 +59,9 @@ class SongSelectionTopAppBarTest {
 
     private val songs = listOf(song("a.mp3"), song("b.mp3"), song("c.mp3"))
 
+    /** Formatted with [String.format]; see `StringFormattingGuardTest` for why not `getString(res, *args)`. */
     private fun text(res: org.jetbrains.compose.resources.StringResource, vararg args: Any): String =
-        runBlocking { getString(res, *args) }
+        String.format(runBlocking { getString(res) }, *args)
 
     /** The bar is width-sensitive, so every case states the width it is being measured at. */
     @Composable

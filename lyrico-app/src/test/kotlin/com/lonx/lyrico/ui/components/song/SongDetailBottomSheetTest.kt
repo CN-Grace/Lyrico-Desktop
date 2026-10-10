@@ -60,7 +60,9 @@ class SongDetailBottomSheetTest {
         fileSize = 1_500_000L,
     )
 
-    private fun text(res: StringResource, vararg args: Any): String = runBlocking { getString(res, *args) }
+    /** Formatted with [String.format]; see `StringFormattingGuardTest` for why not `getString(res, *args)`. */
+    private fun text(res: StringResource, vararg args: Any): String =
+        String.format(runBlocking { getString(res) }, *args)
 
     @Test
     fun `the rows show the song's metadata`() = runComposeUiTest {

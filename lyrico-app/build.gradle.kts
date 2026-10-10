@@ -230,6 +230,11 @@ tasks.named<Test>("test") {
             .dir("lyrico-audiotag/src/main/cpp/taglib/tests/data")
             .asFile.absolutePath,
     )
+    // `DevLibrarySeederTest` rewrites the app's own data folder, so it only runs when asked for:
+    //   ./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1
+    // A project property rather than an environment variable, because the Gradle daemon (not the
+    // calling shell) hands the environment to the test worker.
+    systemProperty("lyrico.seedDevLibrary", providers.gradleProperty("lyrico.seedDevLibrary").getOrElse("0"))
 }
 
 compose.desktop {

@@ -63,7 +63,9 @@ class SongActionSheetsTest {
 
     private val theSong = song()
 
-    private fun text(res: StringResource, vararg args: Any): String = runBlocking { getString(res, *args) }
+    /** Formatted with [String.format]; see `StringFormattingGuardTest` for why not `getString(res, *args)`. */
+    private fun text(res: StringResource, vararg args: Any): String =
+        String.format(runBlocking { getString(res) }, *args)
 
     /** Renders the sheet with one flag set and records every callback the port exposes. */
     private class Recorder {

@@ -196,13 +196,9 @@
     <string name="floating_bar_effect_liquid_glass">液态玻璃</string>
 
     <!-- 统计文本 -->
-    <string name="batch_match_stat_format">
-    成功：%1$d | 失败：%2$d | 跳过：%3$d
-    </string>
+    <string name="batch_match_stat_format">成功：%1$d | 失败：%2$d | 跳过：%3$d</string>
 
-    <string name="batch_match_duration_format">
-    耗时：%1$.1fs
-    </string>
+    <string name="batch_match_duration_format">耗时：%1$.1fs</string>
 
     <!-- 无障碍 -->
     <string name="common_delete">删除</string>

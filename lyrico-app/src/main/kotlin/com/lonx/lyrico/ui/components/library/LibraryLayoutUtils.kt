@@ -17,6 +17,16 @@ import com.lonx.lyrico.ui.components.LocalScaffoldIncludesStartPadding
 internal val FloatingNavigationBarHeight = 64.dp
 internal val FloatingNavigationBarBottomMargin = 16.dp
 internal val ContentBreathingRoom = 12.dp
+
+/**
+ * Width of the strip [libraryScrollbarOverlay] reserves along the list's trailing edge.
+ *
+ * Android sized this for `my.nanihadesuka.compose.InternalLazyColumnScrollbar`, a
+ * `LazyColumn`-specific scrollbar that is Android-only. The desktop uses
+ * [com.lonx.lyrico.ui.components.library.LibraryScrollbar] (`androidx.compose.foundation.VerticalScrollbar`)
+ * instead, which draws a thumb no wider than the style's thickness, so this width is now only the
+ * width of the strip that thumb is aligned to rather than the width of the draggable thumb.
+ */
 internal val LibraryScrollbarTrackWidth = 22.dp
 
 internal val LocalLibraryBottomContentPadding = staticCompositionLocalOf { ContentBreathingRoom }
@@ -29,8 +39,9 @@ internal fun floatingContentBottomPadding(systemBottom: Dp, hasFloatingBar: Bool
     }
 
 /**
- * 资料库顶栏/底栏是叠在列表上的毛玻璃，列表本身铺满屏幕。
- * 滚动条和字母索引需要单独避开这两块，否则会被挡住。
+ * The library's top bar / bottom bar are translucent layers drawn over the list, and the list itself
+ * fills the screen. The scrollbar and the alphabet index have to be inset separately or the bars sit
+ * on top of them.
  */
 @Composable
 internal fun Modifier.libraryOverlayInsets(

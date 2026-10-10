@@ -177,9 +177,11 @@ class DesktopAppModuleTest {
             koin.get<com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel>(),
             koin.get<com.lonx.lyrico.viewmodel.CharacterMappingViewModel>(),
             koin.get<com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel>(),
+            koin.get<com.lonx.lyrico.viewmodel.SongListViewModel>(),
+            koin.get<com.lonx.lyrico.viewmodel.SongSelectionViewModel>(),
         )
 
-        assertEquals(7, viewModels.size)
+        assertEquals(9, viewModels.size)
         viewModels.forEach { assertNotNull(it) }
     }
 }

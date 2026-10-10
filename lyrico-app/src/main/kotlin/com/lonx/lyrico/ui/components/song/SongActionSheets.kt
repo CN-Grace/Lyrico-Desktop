@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.resources.dialog_delete_file_content
 import com.lonx.lyrico.resources.dialog_delete_file_title
 import com.lonx.lyrico.resources.dialog_rename_title
@@ -84,7 +85,7 @@ fun SongActionSheets(
         YesNoDialog(
             title = stringResource(Res.string.dialog_delete_file_title),
             show = showDeleteDialog,
-            summary = stringResource(
+            summary = formattedStringResource(
                 Res.string.dialog_delete_file_content,
                 song.fileName
             ),

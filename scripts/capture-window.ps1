@@ -41,6 +41,10 @@ public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
 [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+[DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+[DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr processId);
+[DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
 [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmdShow);
 [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attr, out RECT rect, int size);
@@ -84,6 +88,11 @@ Write-Host "Found window: '$($window.Title)' (hwnd=$($window.Handle))"
 # (which happens when the app was launched from a detached shell) or simply behind another window, the
 # file we would save is a screenshot of the wrong thing, and nothing in the pixels says so. So: restore
 # it, take the foreground, and verify that we did before capturing anything.
+#
+# SetForegroundWindow is refused outright unless the calling thread is attached to the thread that
+# currently owns the foreground, which is why a plain SetForegroundWindow fails when this script runs
+# from a shell that is not itself in front (a CI runner, or a detached background shell). Attaching
+# first makes activation deterministic instead of something to retry by hand.
 function Restore-AndFocus {
     param([IntPtr]$Handle)
     if ([LyricoWin32.Native]::IsIconic($Handle)) {
@@ -92,27 +101,36 @@ function Restore-AndFocus {
         [void][LyricoWin32.Native]::ShowWindow($Handle, 9)   # SW_RESTORE
         Start-Sleep -Milliseconds 150
     }
-    [void][LyricoWin32.Native]::ShowWindow($Handle, 1)       # SW_SHOWNORMAL
-    [void][LyricoWin32.Native]::SetForegroundWindow($Handle)
+
+    $foreground = [LyricoWin32.Native]::GetForegroundWindow()
+    $myThread = [LyricoWin32.Native]::GetCurrentThreadId()
+    $foregroundThread = if ($foreground -ne [IntPtr]::Zero) {
+        [LyricoWin32.Native]::GetWindowThreadProcessId($foreground, [IntPtr]::Zero)
+    } else { 0 }
+    $attached = $false
+    if ($foregroundThread -ne 0 -and $foregroundThread -ne $myThread) {
+        $attached = [LyricoWin32.Native]::AttachThreadInput($myThread, $foregroundThread, $true)
+    }
+    try {
+        [void][LyricoWin32.Native]::ShowWindow($Handle, 1)   # SW_SHOWNORMAL
+        [void][LyricoWin32.Native]::BringWindowToTop($Handle)
+        [void][LyricoWin32.Native]::SetForegroundWindow($Handle)
+    }
+    finally {
+        if ($attached) {
+            [void][LyricoWin32.Native]::AttachThreadInput($myThread, $foregroundThread, $false)
+        }
+    }
+
     Start-Sleep -Milliseconds 300
     return -not [LyricoWin32.Native]::IsIconic($Handle) -and
         ([LyricoWin32.Native]::GetForegroundWindow() -eq $Handle)
 }
 
-$focused = $false
-for ($attempt = 1; $attempt -le 5 -and -not $focused; $attempt++) {
-    $focused = Restore-AndFocus -Handle $window.Handle
-}
-if (-not $focused) {
-    Write-Error "Window $($window.Handle) would not come to the foreground; a capture now would save whatever is in front instead. Click the window and retry."
-}
+# Settle first, before touching focus: the wait is for the app to finish drawing its first frames, and a
+# window that is not in front still draws them. Waiting after activation would hand other windows a
+# window in which to steal the foreground again.
 Start-Sleep -Milliseconds $SettleMs
-
-# Settling can take long enough for something else to steal the foreground; capturing then would again
-# save the wrong pixels, so re-check right before the copy.
-if ([LyricoWin32.Native]::GetForegroundWindow() -ne $window.Handle) {
-    Write-Error "Another window took the foreground during the settle wait; the capture would show that window instead of Lyrico."
-}
 
 # Prefer the DWM extended frame bounds (excludes the invisible resize border), fall back to GetWindowRect.
 $rect = New-Object LyricoWin32.Native+RECT
@@ -131,10 +149,24 @@ $outputFullPath = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Outpu
 $outputDir = Split-Path -Parent $outputFullPath
 if (-not (Test-Path $outputDir)) { New-Item -ItemType Directory -Force -Path $outputDir | Out-Null }
 
+# Activate and copy in one tight sequence. Verifying the foreground and *then* sleeping is what makes the
+# capture racy - anything can come to the front in between - so the check is the last thing before the
+# copy and there is no wait after it.
 $bitmap = New-Object System.Drawing.Bitmap $width, $height
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 try {
-    $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+    $captured = $false
+    for ($attempt = 1; $attempt -le 10 -and -not $captured; $attempt++) {
+        if (-not (Restore-AndFocus -Handle $window.Handle)) {
+            Start-Sleep -Milliseconds 200
+            continue
+        }
+        $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+        $captured = $true
+    }
+    if (-not $captured) {
+        Write-Error "Could not hold the foreground long enough to copy window $($window.Handle) after 10 attempts; a capture now would save whatever is in front instead."
+    }
     $bitmap.Save($outputFullPath, [System.Drawing.Imaging.ImageFormat]::Png)
 }
 finally {

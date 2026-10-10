@@ -36,6 +36,17 @@ object PlatformLog {
         sink?.invoke(level, tag, message, throwable)
     }
 
+    /**
+     * Puts [sink] back to the standard-output writer.
+     *
+     * A test that installs a capture has to hand the process back the way it found it: the sink is a
+     * global of the whole JVM, so a capture left in place would swallow the diagnostics of every test
+     * that runs after it.
+     */
+    fun resetSink() {
+        sink = ::writeToStdOut
+    }
+
     private fun writeToStdOut(level: Char, tag: String, message: String, throwable: Throwable?) {
         println("$level/$tag: $message")
         throwable?.printStackTrace()

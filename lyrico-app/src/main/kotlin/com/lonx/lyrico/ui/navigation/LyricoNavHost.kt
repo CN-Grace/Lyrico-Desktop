@@ -11,6 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.lonx.lyrico.screens.AppLogScreen
+import com.lonx.lyrico.screens.library.SongsPage
 import top.yukonga.miuix.kmp.basic.Surface
 import androidx.compose.foundation.layout.fillMaxSize
 
@@ -24,15 +25,18 @@ import androidx.compose.foundation.layout.fillMaxSize
  *
  * `composable` gives each entry its own `ViewModelStoreOwner` and `SavedStateHandle`, which is what
  * `koinViewModel()` and the result-recipient flows rely on (see [Navigator]).
+ *
+ * The start route is the songs page for this batch. Android's start route was `library_home`, the
+ * three-tab shell; that shell needs `SongsPage` **and** `AlbumsPage`/`ArtistsPage`, so it becomes its
+ * own batch once the album and artist pages exist (see `PLAN.md`). Until then the ported songs page is
+ * the app's entry screen, which is a real screen backed by real data rather than a placeholder.
+ * `app_logs` stays registered.
  */
 @Composable
 fun LyricoNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    // Temporary start route for this batch: AppLogScreen is the only ported screen so far, and it is
-    // a real-data screen (Room-backed log list) rather than a placeholder. Switched to
-    // LibraryHomeDestination once the library-home wave lands.
-    startDestination: NavDirection = AppLogsDestination(),
+    startDestination: NavDirection = SongsDestination(),
 ) {
     val navigator = rememberNavigator(navController)
     Surface(modifier = modifier.fillMaxSize()) {
@@ -66,6 +70,9 @@ fun LyricoNavHost(
         ) {
             composable(AppLogsDestination.ROUTE) {
                 AppLogScreen(navigator = navigator)
+            }
+            composable(SongsDestination.ROUTE) {
+                SongsPage(navigator = navigator)
             }
         }
     }

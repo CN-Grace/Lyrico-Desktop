@@ -1,0 +1,14 @@
+file: docs/port-evidence/c3-songs-page.png
+engine: zh-Hans-CN
+lines: 11
+  y=10 x=31 :: Lyrico 1 ℃ @55e334〕
+  y=48 x=528 :: 歌 曲 (%d)
+  y=102 x=74 :: September
+  y=123 x=74 :: Earth, Wind & Fire · Septemhr
+  y=165 x=74 :: 山 丘
+  y=186 x=73 :: 李 宗 盛 。 山 丘
+  y=248 x=73 :: 周 华 儺 。 朋 友
+  y=291 x=73 :: 朋 友
+  y=312 x=73 :: 周 华 儺 。 朋 友
+  y=260 x=1007 :: 添 加 时 闫
+  y=296 x=1006 :: 文 件 大 小

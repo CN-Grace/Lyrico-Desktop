@@ -1,8 +1,5 @@
 package com.lonx.lyrico.screens.library
 
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -27,17 +24,38 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.entity.SongEntity
+import com.lonx.lyrico.platform.DirectoryPicker
+import com.lonx.lyrico.platform.rememberDirectoryPicker
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_add_folder
+import com.lonx.lyrico.resources.cd_search
+import com.lonx.lyrico.resources.cd_sort
+import com.lonx.lyrico.resources.empty_library_index_summary
+import com.lonx.lyrico.resources.empty_songs_title
+import com.lonx.lyrico.resources.msg_copied_to_clipboard
+import com.lonx.lyrico.resources.pull_to_refresh
+import com.lonx.lyrico.resources.refresh
+import com.lonx.lyrico.resources.refresh_success
+import com.lonx.lyrico.resources.refreshing
+import com.lonx.lyrico.resources.release_to_refresh
+import com.lonx.lyrico.resources.song_list_title
+import com.lonx.lyrico.resources.sort_ascending
+import com.lonx.lyrico.resources.sort_descending
+import com.lonx.lyrico.resources.swipe_selection_enter_selection
+import com.lonx.lyrico.resources.swipe_selection_range_end
+import com.lonx.lyrico.resources.swipe_selection_range_start
 import com.lonx.lyrico.screens.SECTIONS_ASC
 import com.lonx.lyrico.screens.SECTIONS_DESC
 import com.lonx.lyrico.screens.TopBarState
@@ -48,6 +66,7 @@ import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
 import com.lonx.lyrico.ui.components.library.LibraryEmptyState
+import com.lonx.lyrico.ui.components.library.LibraryScrollbar
 import com.lonx.lyrico.ui.components.library.LocalLibraryBottomContentPadding
 import com.lonx.lyrico.ui.components.library.libraryOverlayInsets
 import com.lonx.lyrico.ui.components.library.libraryScrollbarOverlay
@@ -58,21 +77,20 @@ import com.lonx.lyrico.ui.components.song.SongActionSheets
 import com.lonx.lyrico.ui.components.song.SongListEmptyState
 import com.lonx.lyrico.ui.components.song.SongListItem
 import com.lonx.lyrico.ui.components.song.SongListItemActions
-import com.lonx.lyrico.utils.UriUtils
+import com.lonx.lyrico.ui.navigation.EditMetadataDestination
+import com.lonx.lyrico.ui.navigation.LocalSearchDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.ui.navigation.SettingsDestination
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.SongListViewModel
 import com.lonx.lyrico.viewmodel.SongSelectionViewModel
 import com.lonx.lyrico.viewmodel.SortBy
 import com.lonx.lyrico.viewmodel.SortInfo
 import com.lonx.lyrico.viewmodel.SortOrder
-import com.ramcosta.composedestinations.generated.destinations.EditMetadataDestination
-import com.ramcosta.composedestinations.generated.destinations.LocalSearchDestination
-import com.ramcosta.composedestinations.generated.destinations.SettingsDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import my.nanihadesuka.compose.InternalLazyColumnScrollbar
-import my.nanihadesuka.compose.ScrollbarSelectionMode
-import my.nanihadesuka.compose.ScrollbarSettings
-import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.viewmodel.koinActivityViewModel
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
+import java.awt.datatransfer.StringSelection
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -82,24 +100,63 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
+/**
+ * The library's songs tab: the first library screen of the port, and the app's entry screen until the
+ * three-tab shell lands.
+ *
+ * Four Android-only mechanisms are gone rather than shimmed:
+ *
+ * * **The Storage Access Framework folder picker.** `rememberLauncherForActivityResult` with
+ *   `OpenDocumentTree`, the persistable-URI-permission dance and `UriUtils.getFileAbsolutePath` are
+ *   all replaced by [DirectoryPicker], which hands back a real directory. `UriUtils` is not ported.
+ * * **`LocalContext`.** It was only there to be passed to `SelectionViewModel.play(context, song)`
+ *   (an `Intent` launcher) and to the SAF launcher. Playback is now
+ *   [com.lonx.lyrico.data.repository.PlaybackRepository]'s system-association call.
+ * * **`my.nanihadesuka.compose.InternalLazyColumnScrollbar`** -- Android-only, replaced by
+ *   [LibraryScrollbar]. What that costs is documented there.
+ * * **`koinActivityViewModel()`.** Desktop has no activity-scoped `ViewModelStore`; the shell will
+ *   hoist one `SongListViewModel` for all three tabs when it lands, mirroring the Android activity
+ *   scope, and this page will take it as a parameter. Until then the page owns its instance through
+ *   `koinViewModel()`, which is the same call the other ported screens make.
+ *
+ * Three navigations target screens from later batches (settings, local search, edit metadata). They
+ * are wired exactly as Android wired them; the routes resolve once those screens are registered, and
+ * until then `Navigation.NavControllerNavigator` logs the miss instead of crashing (see
+ * `Destinations.kt`).
+ *
+ * [directoryPicker] is nullable only because a composable default argument cannot call a composable:
+ * production passes nothing and the body remembers the real one, a test passes a fake so the "add a
+ * folder" path can be driven without a human clicking a native dialog.
+ *
+ * Sharing was a `Intent.ACTION_SEND` chooser on Android. Desktop passes the song to
+ * `SongSelectionViewModel.share`, which reveals it in Explorer -- the behaviour chosen for this port
+ * -- and the song-detail copy button writes the AWT clipboard and confirms with the same
+ * "copied to clipboard" text Android toasted, using the Miuix snackbar `AppLogScreen` already uses.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SongsPage(
-    navigator: DestinationsNavigator,
-    modifier: Modifier = Modifier
+    navigator: Navigator,
+    modifier: Modifier = Modifier,
+    directoryPicker: DirectoryPicker? = null,
 ) {
-    val viewModel: SongListViewModel = koinActivityViewModel()
+    val viewModel: SongListViewModel = koinViewModel()
     val selectionViewModel: SongSelectionViewModel = koinViewModel()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val clipboardManager = LocalClipboard.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val copiedMessage = stringResource(Res.string.msg_copied_to_clipboard)
 
     val sortInfo by viewModel.sortInfo.collectAsState()
     val songs by viewModel.songs.collectAsState()
@@ -108,15 +165,15 @@ fun SongsPage(
     val swipeAnchorUri by selectionViewModel.swipeAnchorUri.collectAsState(initial = null)
     val swipeSelectionLabel = stringResource(
         if (!isSelectionMode) {
-            R.string.swipe_selection_enter_selection
+            Res.string.swipe_selection_enter_selection
         } else if (swipeAnchorUri == null) {
-            R.string.swipe_selection_range_start
+            Res.string.swipe_selection_range_start
         } else {
-            R.string.swipe_selection_range_end
+            Res.string.swipe_selection_range_end
         }
     )
     val swipeSelectionSecondaryLabel = if (!isSelectionMode) {
-        stringResource(R.string.swipe_selection_range_start)
+        stringResource(Res.string.swipe_selection_range_start)
     } else {
         null
     }
@@ -133,27 +190,10 @@ fun SongsPage(
         viewModel.clearSearch()
     }
 
-    val context = LocalContext.current
-    val folderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        uri?.let {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-
-            try {
-                context.contentResolver.takePersistableUriPermission(it, flags)
-            } catch (e: SecurityException) {
-                e.printStackTrace()
-            }
-
-            val path = UriUtils.getFileAbsolutePath(context, it) ?: it.toString()
-            viewModel.addSafFolderAndRefresh(
-                path = path,
-                treeUri = it.toString()
-            )
-        }
-    }
+    val scope = rememberCoroutineScope()
+    val folderPicker = directoryPicker ?: rememberDirectoryPicker(
+        title = stringResource(Res.string.action_add_folder)
+    )
     val sectionIndexMap = remember(songs, sortInfo) {
         val map = mutableMapOf<String, Int>()
         if (sortInfo.sortBy.supportsIndex) {
@@ -178,13 +218,14 @@ fun SongsPage(
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val topBarBackdrop = rememberBarBlurBackdrop()
     val refreshTexts = listOf(
-        stringResource(R.string.pull_to_refresh),
-        stringResource(R.string.release_to_refresh),
-        stringResource(R.string.refreshing),
-        stringResource(R.string.refresh_success)
+        stringResource(Res.string.pull_to_refresh),
+        stringResource(Res.string.release_to_refresh),
+        stringResource(Res.string.refreshing),
+        stringResource(Res.string.refresh_success)
     )
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             BlurredTopBar(backdrop = topBarBackdrop) {
                 val topBarState = when {
@@ -196,7 +237,8 @@ fun SongsPage(
                     targetState = topBarState,
                     label = "TopBarAnimation",
                     transitionSpec = {
-                        // 定义过渡动画：淡入淡出 + 轻微的垂直滑动 + 尺寸自适应平滑过渡
+                        // Fade + a short vertical slide, with SizeTransform so a height difference
+                        // between the two top bars animates instead of jumping.
                         val animationDuration = 300
                         val enter = fadeIn(tween(animationDuration)) +
                                 slideInVertically(
@@ -204,7 +246,7 @@ fun SongsPage(
                                         animationDuration,
                                         easing = FastOutSlowInEasing
                                     ),
-                                    initialOffsetY = { -it / 3 } // 从上方 1/3 处滑入
+                                    initialOffsetY = { -it / 3 }
                                 )
                         val exit = fadeOut(tween(animationDuration)) +
                                 slideOutVertically(
@@ -212,11 +254,10 @@ fun SongsPage(
                                         animationDuration,
                                         easing = FastOutSlowInEasing
                                     ),
-                                    targetOffsetY = { -it / 3 } // 向上方 1/3 处滑出
+                                    targetOffsetY = { -it / 3 }
                                 )
 
                         (enter togetherWith exit).using(
-                            // SizeTransform 保证了如果搜索栏和默认导航栏高度不同时，高度变化也是平滑的
                             SizeTransform(clip = false)
                         )
                     },
@@ -238,7 +279,7 @@ fun SongsPage(
 
                         TopBarState.Default -> {
                             SmallTopAppBar(
-                                title = stringResource(R.string.song_list_title, songs.size),
+                                title = formattedStringResource(Res.string.song_list_title, songs.size),
                                 color = Color.Transparent,
                                 modifier = Modifier,
                                 scrollBehavior = topAppBarScrollBehavior,
@@ -259,7 +300,7 @@ fun SongsPage(
                                     }) {
                                         Icon(
                                             imageVector = MiuixIcons.Search,
-                                            contentDescription = stringResource(R.string.cd_search)
+                                            contentDescription = stringResource(Res.string.cd_search)
                                         )
                                     }
                                     val sortTypes = SortBy.entries.toList()
@@ -272,8 +313,8 @@ fun SongsPage(
                                                 summary = if (isSelected) {
                                                     stringResource(
                                                         when (sortInfo.order) {
-                                                            SortOrder.ASC -> R.string.sort_ascending
-                                                            SortOrder.DESC -> R.string.sort_descending
+                                                            SortOrder.ASC -> Res.string.sort_ascending
+                                                            SortOrder.DESC -> Res.string.sort_descending
                                                         }
                                                     )
                                                 } else {
@@ -300,7 +341,7 @@ fun SongsPage(
                                     ) {
                                         Icon(
                                             imageVector = MiuixIcons.Sort,
-                                            contentDescription = stringResource(R.string.cd_sort)
+                                            contentDescription = stringResource(Res.string.cd_sort)
                                         )
                                     }
                                 }
@@ -331,17 +372,23 @@ fun SongsPage(
 
                         !hasFolders -> {
                             SongListEmptyState(
-                                onAddFolder = { folderPickerLauncher.launch(null) }
+                                onAddFolder = {
+                                    scope.launch {
+                                        folderPicker.pick()?.let { folder ->
+                                            viewModel.addFolderAndRefresh(folder.absolutePath)
+                                        }
+                                    }
+                                }
                             )
                         }
 
                         else -> {
                             LibraryEmptyState(
-                                title = stringResource(R.string.empty_songs_title),
-                                summary = stringResource(R.string.empty_library_index_summary),
+                                title = stringResource(Res.string.empty_songs_title),
+                                summary = stringResource(Res.string.empty_library_index_summary),
                                 action = {
                                     TextButton(
-                                        text = stringResource(R.string.refresh),
+                                        text = stringResource(Res.string.refresh),
                                         onClick = { viewModel.refreshSongs() },
                                         colors = MiuixButtonDefaults.textButtonColorsPrimary()
                                     )
@@ -416,17 +463,11 @@ fun SongsPage(
                 }
             }
             if (!enableIndex && songs.isNotEmpty()) {
-                InternalLazyColumnScrollbar(
+                LibraryScrollbar(
                     state = listState,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .libraryScrollbarOverlay(paddingValues = paddingValues),
-                    settings = ScrollbarSettings.Default.copy(
-                        alwaysShowScrollbar = true,
-                        selectionMode = ScrollbarSelectionMode.Full,
-                        thumbUnselectedColor = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                        thumbSelectedColor = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                    ),
                 )
             }
             if (enableIndex && songs.isNotEmpty()) {
@@ -461,7 +502,19 @@ fun SongsPage(
                 onShowDelete = { showDeleteDialog = true },
                 onShowRename = { showRenameDialog = true },
                 onPlay = { song ->
-                    selectionViewModel.play(context, song)
+                    selectionViewModel.play(song)
+                },
+                onShare = { song ->
+                    selectionViewModel.share(listOf(song))
+                },
+                onCopy = { text ->
+                    scope.launch {
+                        // Same AWT-backed multiplatform clipboard call `AppLogScreen` makes: the entry
+                        // is a desktop Transferable, and in a headless test Compose resolves
+                        // `LocalClipboard` to a no-op, so this stays safe to call there.
+                        clipboardManager.setClipEntry(ClipEntry(StringSelection(text)))
+                        snackbarHostState.showSnackbar(copiedMessage)
+                    }
                 },
                 onDelete = { song ->
                     selectionViewModel.delete(song)

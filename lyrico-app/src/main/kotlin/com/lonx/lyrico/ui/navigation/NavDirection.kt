@@ -34,6 +34,14 @@ interface NavDirection {
  * (`LibraryHomeScreen` only exits the app when the back stack is empty).
  */
 interface Navigator {
+    /**
+     * Navigates to [direction].
+     *
+     * The production implementation ([NavControllerNavigator]) treats a route the graph does not know
+     * as a logged no-op, because three of the songs page's targets have no screen yet. A test that
+     * asserts on navigation should pass its own implementation and record the directions it was
+     * handed -- that is the call site under test, not the graph lookup.
+     */
     fun navigate(direction: NavDirection)
     fun popBackStack(): Boolean
     fun navigateUp(): Boolean

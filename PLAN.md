@@ -407,7 +407,117 @@ Coil **3.6.2** 是 multiplatform 的（`coil-compose-jvm` 真实存在），所�
 
 `python scripts/port-frontier.py` → java 树 **173 个文件 / 0 陈旧副本 / 70 可搬 / 103 被挡**（上一批 180 / 0 / 73 / 107）。
 
-下一批（C3）：曲库首页外壳（`useNavigationRail` → `maxWidth >= 840.dp`、起始路由 → `library_home`、`SongsPage` 本体）。`SongsPage` 用的 `my.nanihadesuka.compose.InternalLazyColumnScrollbar`（`libraryScrollbarOverlay`）是 Android 专有的第三方控件，需要桌面替代方案 —— 这件事在搬 `SongsPage` 之前必须先解决。
+“下一批（C3）”见下一节：`SongsPage` 用的 `my.nanihadesuka.compose.InternalLazyColumnScrollbar`（`libraryScrollbarOverlay`）是 Android 专有的第三方控件，先解决它才谈得上搬页面。
+
+### P4 的 UI 轨道（第一个真页面：独立歌曲页 + 首次真窗口取证，2026-10-10）
+
+#### 0. 范围重划：先搬「独立歌曲页」，外壳后置
+
+原 C3 = 曲库首页外壳 + `SongsPage`。搬之前查清 `LibraryHomeScreen.kt` 的 rail 三个 tab 是**硬引用**（`SongsPage` / `AlbumsPage` / `ArtistsPage`），后两者还没搬，外壳搬过来编译不过。所以拆开：先做**能独立运行、用户可见**的歌曲页（自带顶栏/排序/选择/选目录/扫描进度/空态），外壳等专辑、艺人搬完再补，**起始路由那时从 `SongsDestination()` 换回 `library_home`**。
+
+连带一处结构改动：`SECTIONS_ASC/DESC` 与 `TopBarState` 原本写在 `LibraryHomeScreen.kt` 里，抽成 `screens/LibrarySections.kt`，歌曲页才能用这三个符号而不 import 一个编译不过的外壳。
+
+#### 1. 搬了什么
+
+| 文件 | 桌面化改动 |
+| --- | --- |
+| `screens/library/SongsPage.kt` | `git mv` 到 kotlin 树（同名文件不能同时活在两棵树）+ 小改：`LocalClipboardManager` → `LocalClipboard` + `ClipEntry(StringSelection(...))`（`ClipEntry` 在 CMP 里是 `@ExperimentalComposeUiApi`）；`onShare` 接到上一批的「在资源管理器中定位」 |
+| `ui/components/library/LibraryLayoutUtils.kt` | `git mv`，**逐字搬**（22.dp 轨道宽度等布局常量是视觉参数，不改） |
+| `screens/LibrarySections.kt`（新） | 见上：从外壳里抽出的 tab/排序符号 |
+| `ui/components/library/LibraryScrollbar.kt`（新） | 替代第三方滚动条，见下 |
+| `platform/DirectoryPicker.kt`（新） | SAF 目录授权的桌面等价物，见下 |
+| `ui/navigation/{Destinations,NavDirection,Navigator,LyricoNavHost}.kt` | 新增 4 个路由声明、route 参数编码器、未注册路由容忍、`startDestination` 变成参数（起始路由可注入，测试才能直接起在 `app_logs`） |
+| `utils/logging/PlatformLog.kt` | 加 `resetSink()`（测试要摘掉 sink 且不污染后续用例） |
+| `di/DesktopAppModule.kt` | 注册 `SongListViewModel`（桌面共 9 个 viewmodel） |
+
+#### 2. 四处适配决策（都不是偷工，是桌面确实没有对应物）
+
+1. **滚动条**：第三方控件换 Compose Desktop 自带 `VerticalScrollbar` + `ScrollbarStyle`；**保留 Android 的 22.dp 轨道宽度**（`LibraryLayoutUtils` 里的常量），滑块 6.dp / 最小 32.dp，`hoverDurationMillis = 0` 就是 Android `alwaysShowScrollbar = true` 的等价物（0 表示不淡出）。**如实记录丢掉的**：第三方控件能做的「拖动滑块时按滚动位置做范围选择」没有替代品，桌面拖拽只滚动。
+2. **选目录**：SAF 换 Swing `JFileChooser`，但**不直接 new 一个**：`DirectoryPicker` 是 `fun interface` + `rememberDirectoryPicker()` 默认实现，测试注入假实现才能断言「点了一次、选的哪个目录」。用 `SwingUtilities.invokeLater` 而不是 `invokeAndWait`——后者在 Compose 的事件分发线程上会死锁。
+3. **未搬路由容忍**：`SettingsDestination` / `LocalSearchDestination` / `EditMetadataDestination` **声明在、注册不在**。`NavControllerNavigator.navigate` 只捕获 `IllegalArgumentException`（`NavController` 对未注册路由抛的就是它），记一条 `No destination for route '...'; the screen is not ported yet (...)` 后 no-op。这样歌曲页可以保留 Android 的调用形状，点到未搬页面只是「没反应 + 日志里有据可查」，而不是崩掉或者悄悄什么都不做。
+4. **`NavBackStackEntry.arguments` 在桌面是 `SavedState` 而不是 Android 的 `Bundle`**：`entry.arguments?.getString(KEY)` **不编译**，改为 `entry.arguments?.read { getStringOrNull(KEY) }`（`SavedState.getMap()` 在字节码里有，在 Kotlin 元数据里是 internal）。
+
+#### 3. 搭路由时测试抓到的一个真 bug
+
+`EditMetadataDestination.route` 原本写成 `"$PATTERN/$value"`：`PATTERN` 本身已经是 `edit_metadata/{songFileUri}`，再拼一个值进去，生成的 route 永远匹配不上注册用的 pattern。这个 bug 是**「编码 → 生成 route → 反查参数」往返测试**抓到的，不是读代码看出来的。教训：**模板与实例是两个东西**，实例是 `route = "$BASE/${encodeNavRouteArgument(value)}"`。
+
+CJK 路径的编码器是**自己重写的**（`encodeNavRouteArgument`）：Navigation 自带的 `NavUriUtils` 在 Kotlin 元数据里是 `internal`，桌面调不到。字符集照抄 `!'()*-.0-9A-Z_a-z~`，中文走 UTF-8 百分号编码（`中文` → `%E4%B8%AD%E6%96%87`）。
+
+#### 4. 真窗口取证：这次是「跑起来、截窗口、OCR」
+
+无头渲染能证明节点存在，证明不了**画出来的字**。所以这批做了真窗口证据：`./gradlew :lyrico-app:run` 起窗口，`scripts/capture-window.ps1` 截图（1166×773），新脚本 `scripts/ocr-window-capture.ps1`（Windows.Media.Ocr，`zh-Hans-CN`）把像素变成可 grep 的文本。
+
+截之前要先把开发库填上内容，否则截到的是空态：`DevLibrarySeederTest`（**门控**，见 §7）用真 TagLib 写标签、真扫描器扫目录、真 Room 存行，做出 4 首歌（周华健《朋友》《花心》、李宗盛《山丘》、Earth, Wind & Fire《September》，都是 CJK 标签）。
+
+**第一次 OCR 就抓到一个真 bug**（`docs/port-evidence/c3-songs-page.ocr.txt`）：标题行是 `y=48 x=528 :: 歌 曲 (%d)`——用户看到的是占位符本身。这张图刻意留着当「bug 原始形态」的证据。
+
+#### 5. 由这张 OCR 揪出的 CMP 字符串格式化差异（本批最重要的发现）
+
+根因不是我们的代码写错，而是**库的同名 API 语义不同**。`org.jetbrains.compose.resources.stringResource(resource, vararg formatArgs)` 看着和 Android 一样，实际不走 `String.format`：反编译 `components-resources-desktop-1.12.0` 得到路径 `StringResourcesKt.loadString` → `getStringItem` → `StringResourcesUtilsKt.replaceWithArgs(text, args)`，**唯一**的格式化逻辑是正则 `%(\d+)\$[ds]`，也就是只认**位置参数** `%1$s` / `%1$d`：普通 `%d` / `%s` 原样留下，flags/宽度/精度（`%.2f`、`%1$.1f`）完全不认识。生成的 `song_list_title` 资源里也没有 `FormatStringItem`。
+
+清点爆炸半径（每个 locale）：**94 条用位置参数，20 条用普通 `%d`/`%s`/`%.2f`**，全仓没有 `<plurals>`。
+
+**决定：不改那 20 条字符串，改调用方。** 把普通占位符改写成 `%1$d` 也能让库猜对，但那样字符串就不再与 Android 逐字一致，而且 `%.2f` / 宽度 / 精度**在库的模型里根本表达不出来**。所以新增 `utils/FormattedStringResource.kt`：
+
+- `formattedStringResource(res, vararg args)`：composition 里用，`stringResource(res).format(*args)`；
+- `formattedString(res, vararg args)`：composition 外用（`UiMessage.resolve()` 这种协程里解析文案的地方），`getString(res).format(*args)`。
+
+并加一个**源码级守卫测试** `StringFormattingGuardTest`：扫描 `src/main/kotlin`，把 `stringResource(...)` / `getString(...)` 里**带参数**、且第一个参数是「`Res.string.` 字面量或同文件声明的 `StringResource` 变量」的调用判为违规并报 `file:line`。是第一版守卫误报了 `SourceRuntimeConfig.getString(key, default)`（本 app 自己的方法）之后才收紧的判定条件；`formattedStringResource(` 靠「前面不能是标识符字符」排除。
+
+守卫随后**又抓出 4 处真违规**（都是本批或前几批已经搬过来的代码，且都在用户可见路径上）：
+
+| 位置 | 内容 | 后果 |
+| --- | --- | --- |
+| `ui/components/bar/SongSelectionTopAppBar.kt` | `selection_mode_selected_count`（`已选择 %d 项`） | 就是 OCR 看到的那类：选择模式顶栏显示 `已选择 %d 项` |
+| `ui/components/song/SongActionSheets.kt` | `dialog_delete_file_content`（`删除“%s”？\n此操作不可撤销`） | 删除确认框把 `%s` 直接显示出来 |
+| `utils/UiMessage.kt` | `stringResource(res, *args)` 与 `getString(res, *args)` 两个分支 | 所有带参数的提示文案（扫描失败原因等）都不替换 |
+| `ui/components/song/LibraryScanProgressText.kt` | `scan_progress_reading`（`%1$d / %2$d`） | 位置参数本来能替换，**为了统一也改走 helper**（不是 bug，但一个规则比两个规则可靠） |
+
+另外把 4 处**测试侧的 `text(res, *args)` 辅助函数**也换掉了：它们和产品代码用的是同一个坏调用，所以「测试绿 + UI 显示 `%d`」能同时成立——这类测试是在跟 bug 互相印证。
+
+**修复由第二次真窗口截图闭环**（`docs/port-evidence/c3b-songs-page-formatted.ocr.txt`）：同一位置变成 `y=48 x=537 :: 歌 曲 〔 4 ）`，即 `歌曲（4）`，占位符消失、计数正确。
+
+#### 6. 顺手把「库怎么读资源」的另一半也量了（并修掉）
+
+上面那 20 条普通占位符之外，还把「转义与空白」量了一遍（一次性探针，量完删掉）：
+
+- **`\n` 会被转成真换行**（`删除“%s”？\n此操作不可撤销` 读回来是两行，与 Android 一致）；
+- **多行 XML body 的缩进不会被去掉**。而 aapt2 会去掉它。判定 aapt2 的规则比「去掉所有空白」更窄的证据就在本仓仓库里：`<string name="batch_task_type_label">Task Type: </string>` 的尾空格是**故意的**——Android 那边是 `stringResource(R.string.batch_task_type_label) + typeLabel`，如果 aapt2 连行内尾空格都去掉，Android 上会显示 `Task Type:Scan`。所以被丢掉的是「**带换行的那段空白**」。
+- 按这条规则重写了 4 个 locale 各 2 条（共 8 条）多行 body（`batch_match_stat_format` / `batch_match_duration_format`），并新增测试 `ComposeStringResourcesTest` 钉住两件事：body 不得被换行包裹（`isPaddedByLineBreak` + 样例断言），以及上面的 `\n` 转义事实。
+- 这个测试第一版写的是「body 里不许有换行」，**立刻在 `batch_edit_info_content` 上失败**——那条的换行是内容（每条提示一行），不是排版。所以规则收窄成「首尾带换行的空白」，行内尾空格（`Task Type: `）与内容里的换行都放行。
+
+#### 7. 取证（新增 5 类 21 项；全量 61 类 534 项，533 执行 + 1 门控跳过，0 失败 0 错误）
+
+| 测试类 | 项数 | 钉住的东西 |
+| --- | --- | --- |
+| `screens/library/SongsPageTest` | 7 | 全链路：真 `LyricoNavHost` + 假目录选择器 + 真扫描器 + 真 Room + 真 Flow + 真 `LazyColumn`。断言包含「选择器被点了 1 次」「库里那行的 `uri` 等于夹具的 `toRealPath()`」「标题按真实计数渲染（`歌曲（n）`，注释里写明这是 OCR 抓到的那个 bug）」；扫描用 `waitUntil` 轮询数据库，**不能用 `runBlocking` 包住点击**（composition 里启的协程只在测试线程泵帧时才推进） |
+| `ui/navigation/NavigatorTest` | 5（原 2） | 新增「route 编码往返」「未注册路由只记日志不抛」「`startDestination` 注入」；同时删掉了一段重复断言 |
+| `utils/FormattedStringResourceTest` | 3 | 用真资源分别验证「库自己的 vararg 格式化**不**替换普通占位符」（防回归的绊线：哪天 CMP 修好了，这条会红）+ helper 的 `%d`、两个占位符的字符串 |
+| `utils/StringFormattingGuardTest` | 2 | 守卫本体 + 守卫自己的样例（含 `SourceRuntimeConfig.getString` 不得误报） |
+| `utils/ComposeStringResourcesTest` | 4 | 见 §6 |
+| `probe/DevLibrarySeederTest` | 1（门控跳过） | 见下 |
+
+`DevLibrarySeederTest` 是**工具而不是断言**，所以默认跳过：它要改写 app 自己的数据目录（`lyrico-app/data`，已 gitignore），只有显式 `-Plyrico.seedDevLibrary=1` 才跑（用项目属性而不是环境变量，是因为把环境变量交给测试 JVM 的是 Gradle 守护进程，不是调用它的那个 shell）。它的意义是让真窗口取证**可复现**：换台机器，跑两条命令就能再截出同样内容的图。
+
+#### 8. 这批的用户可见缺口（如实记录）
+
+1. **没有外壳**：起始路由是 `SongsDestination()`，没有底部/侧边 rail，专辑、艺人两个 tab 不在；`library_home` 依赖它们。
+2. **没有设置、本地搜索、编辑元数据三个页面**：路由声明了但没注册，点过去只写日志（见 §2.3）。
+3. **没有批量 FAB**：上一批已裁决推到 P5。
+4. **滚动条拖动不做范围选择**（见 §2.1）。
+5. `stringResource` 的 `%1$.1f`（耗时显示）尚未在真窗口里验证过——批次匹配界面还没搬，等 P5 一起验。
+
+#### 9. 工具改动（都在 `scripts/`，都提交）
+
+- `ocr-window-capture.ps1`（新）：Windows.Media.Ocr + `zh-Hans-CN`，输出 UTF-8 无 BOM（PowerShell 5.1 管道会糊 CJK，所以必须先落盘再读）。
+- `capture-window.ps1`：激活窗口改成**确定性**的——`AttachThreadInput` 到当前前台线程 + `BringWindowToTop`，并且把它改成「先 settle，再激活 → 校验前台 → 立刻 `CopyFromScreen`」的紧凑循环（最多 10 次、间隔 200ms），中间不睡（睡就会被别的窗口抢前台，本机就有一个截图工具会抢）。
+- `analyze-window-capture.py`：`SUSPECT` 判定从「颜色数少」改成「**平**且**没墨**」的合取（`most_common_share > 0.9 && text_pixels < 200`，或单看 `> 0.97`，或单看 `text_pixels < 200`），浅色主题且有字的页面不再被误判；三张历史截图复检仍为 `OK`。
+
+#### 10. 前沿
+
+`python scripts/port-frontier.py` → java 树 **171 个文件 / 0 陈旧副本 / 69 可搬 / 102 被挡**（上一批 173 / 0 / 70 / 103）。
+
+下一批：`AlbumsPage` + `ArtistsPage`（含它们的 viewmodel 已就绪），然后 `LibraryHomeScreen` 三 tab 外壳 + 起始路由改回 `library_home`。
 
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
@@ -462,7 +572,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 3. ~~**compose-destinations 的 KSP 代码生成**是否支持 CMP Desktop~~ ✅ **已查清（2026-10-09）：不支持，走手写导航适配层**，且适配层已落地（见 §4「应用外壳 + 导航适配层」）。证据不是印象，而是发布物的 Gradle module metadata：`io.github.raamcosta.compose-destinations:core:2.3.0` 的 `core-2.3.0.pom` 是 `<packaging>aar</packaging>`，`core-2.3.0.module` 只有 `releaseVariantReleaseApiPublication` / `Runtime` / `Source` / `JavaDoc` 四个变体（`org.jetbrains.kotlin.platform.type` 为空），依赖 `androidx.navigation:navigation-compose:2.9.5`；同版本号的 `core-jvm` / `core-desktop` / `core-android` 三个坐标全部 HTTP 404（该 group 只发 Android）。AAR 在纯 JVM 模块下无法参与编译，KSP 就算生成代码也没有可用运行库，所以**这条路是死的**。
    替代方案的证据同样是 metadata：`org.jetbrains.androidx.navigation:navigation-compose:2.9.2` 的 `desktopApiElements-published` 变体 `platform = jvm`（另有 js/native 变体），即 **Navigation Compose 本身在桌面端可用**。配合上面的薄适配层即可，不需要自己实现回退栈与 ViewModelStore。Android 侧 `LyricoApp.kt` 的 `DestinationsNavHost` + 自定义左右滑转场在桌面端改为 `NavHost` + `slideInHorizontally/slideOutHorizontally`（转场函数本身是 CMP 公共 API，逐字保留）。**已落地验证**：`ui/navigation/{NavDirection,Navigator,Destinations,LyricoNavHost}.kt`，`NavigatorTest` 用真 `NavHost` 钉住「`popBackStack()` 在起始路由返回 `false`」与「每个 back stack entry 各有一份 `koinViewModel()` 实例、退栈后重建」——后者正是当初选 Navigation Compose 而不是自造 `when (current)` 宿主的原因，也是 26 个 screen 的共同前提。
 4. **Miuix desktop 与 Android 版的行为差异**（`BackHandler`、`TopAppBar`、滚动条、窗口拖拽区）——逐屏过。
-5. **`androidx.lifecycle.ViewModel` 30 处在桌面端的生命周期**——✅ **已验证**：Koin 的 `viewModel { }` 在桌面可用（`org.koin.core.module.dsl.viewModel` + `koin-compose-viewmodel`），`DesktopAppModuleTest` 真启动 Koin 并解析 7 个 viewmodel 实例。以下为当初的排查留档（`lifecycle` 一处）**部分已证伪**：`lifecycle-viewmodel-compose` 在多平台构件里存在 `-desktop` 变体，显式声明 `implementation(libs.androidx.lifecycle.viewmodel.compose)` 后 `ViewModel`/`viewModelScope` 在 `kotlin("jvm")` 模块编译并运行正常（它原本只在运行期 classpath 上，所以看起来像「桌面没有 ViewModel」）。剩下未验证的是 Koin 的 `viewModel {}` 注入（`di/AppModule.kt` 要被搬过来才会遇到）。
+5. **`androidx.lifecycle.ViewModel` 30 处在桌面端的生命周期**——✅ **已验证**：Koin 的 `viewModel { }` 在桌面可用（`org.koin.core.module.dsl.viewModel` + `koin-compose-viewmodel`），`DesktopAppModuleTest` 真启动 Koin 并解析 9 个 viewmodel 实例。以下为当初的排查留档（`lifecycle` 一处）**部分已证伪**：`lifecycle-viewmodel-compose` 在多平台构件里存在 `-desktop` 变体，显式声明 `implementation(libs.androidx.lifecycle.viewmodel.compose)` 后 `ViewModel`/`viewModelScope` 在 `kotlin("jvm")` 模块编译并运行正常（它原本只在运行期 classpath 上，所以看起来像「桌面没有 ViewModel」）。剩下未验证的是 Koin 的 `viewModel {}` 注入（`di/AppModule.kt` 要被搬过来才会遇到）。
 6. **非 ASCII 工程路径 + Gradle 参数文件编码**（已踩中并修复，勿回退）：工程位于 `H:\VibeCoding\03-应用\Lyrico-Desktop`。Gradle 用**守护进程默认字符集**（`ArgWriter` → `new PrintWriter(File)`）把 worker JVM 的 classpath 写进临时 `@argfile`，而 `java.exe` 用 **Windows ANSI 代码页（936/GBK）** 解析该文件；`gradle.properties` 里原本的 `-Dfile.encoding=UTF-8` 会把含中文的工程路径写成乱码 → worker 报 `ClassNotFoundException`（每个测试类都找不到，甚至 `GradleWorkerMain`）。修复：`org.gradle.jvmargs` 用 `-Dfile.encoding=GBK`（= 本机 ANSI 代码页）。**换机器时该值必须等于该机 ANSI 代码页**；`run`/`JavaExec` 任务同样走这条路径，所以 P2 之后不要再改回 UTF-8。
 
 ## 7. 约定
@@ -474,7 +584,11 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P1 复现命令（Gradle 侧，真 Kotlin 绑定）**：`./gradlew :lyrico-audiotag:test`（13 项检查 0 失败，覆盖 7 种格式的标签/封面读写、CJK 路径端到端）。跑之前确保 `build/native/windows-x64/*.dll` 已由 `scripts/build-native.ps1` 产出。
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；P4 各批（状态层、浏览/搜索 viewmodel、剩余 viewmodel、UI 地基、UI 轨道、选择与操作面板）之后，全量现为 **514 项 0 失败 0 跳过、56 个测试类**，按包可核对：data 203 · viewmodel 130 · utils 108 · ui 30 · domain 20 · platform 13 · di 5 · screens 5；其中 UI 轨道 25 项 = 封面 7 + 歌曲列表 11 + 壳 7，选择与操作面板 69 项，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9**）。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P4 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（把 4 首真标签的歌填进 `lyrico-app/data`）→ `./gradlew :lyrico-app:run` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6" -OutputPath docs/port-evidence/<名>.png -SettleMs 4000` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ocr-window-capture.ps1 -Path <png> -OutFile <txt>` → `python scripts/analyze-window-capture.py <png> --write`。**别用模糊标题匹配**（终端窗口标题里也含 “Lyrico-Desktop”），别在激活后加 sleep（会被别的窗口抢前台），OCR 结果先落盘再读（PowerShell 管道会糊 CJK）。
+- **`stringResource` 的两个坑（本仓已踩，勿回退）**：
+  1. **带参数的 `stringResource` / `getString` 不走 `String.format`**：CMP 的实现是 `replaceWithArgs` + 正则 `%(\d+)\$[ds]`，只认位置参数。本仓 20 条字符串用普通 `%d`/`%s`/`%.2f`，所以主源码里禁止直接写 `stringResource(res, args)` / `getString(res, args)`，一律走 `formattedStringResource` / `formattedString`（`StringFormattingGuardTest` 会把违规的 `file:line` 报出来）。**不要**为了迁就库去改字符串：字符串必须与 Android 逐字一致，而且 `%.2f`/宽度/精度在库的模型里根本表达不出来。
+  2. **多行 XML body 的缩进不会被去掉**（`\n` 转义会被正确转成换行）。aapt2 去掉的是「首尾带换行的那段空白」，行内尾空格是故意的（`Task Type: ` 后面拼值）。所以 Compose 资源里的 `<string>` body 一律写成一行；`ComposeStringResourcesTest` 会检查。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；P4 各批（状态层、浏览/搜索 viewmodel、剩余 viewmodel、UI 地基、UI 轨道、选择与操作面板、独立歌曲页）之后，全量现为 **534 项（533 执行 + 1 门控跳过）0 失败 0 错误、61 个测试类**，按包可核对：data 203 · viewmodel 130 · utils 117 · ui 33 · domain 20 · platform 13 · screens 12 · di 5 · probe 1；其中 UI 轨道 25 项 = 封面 7 + 歌曲列表 11 + 壳 7，选择与操作面板 69 项，独立歌曲页 7 项 + 导航 5 项 + 字符串格式化 9 项，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9** + 独立歌曲页全链路 7 + 导航 5（原 2）+ 字符串格式化（守卫 2 + helper 3 + 资源 XML 4）+ 开发库播种 1（门控跳过））。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。
