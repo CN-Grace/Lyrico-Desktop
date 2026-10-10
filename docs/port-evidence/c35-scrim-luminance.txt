@@ -1,0 +1,19 @@
+file: docs/port-evidence/c35-*.png (the five whole-window captures of the slice-B session)
+method: PIL 12.3.0, Image.convert("L") (ITU-R 601-2 luma), ImageStat.Stat(...).mean over the whole
+        window and over the patch (300,100)-(700,500); the patch is a list area that is never covered
+        by the FAB, the menu or a sheet, so it shows the page underneath in every shot.
+purpose: the batch menu and the export-destination sheet are modal — they draw a scrim over the whole
+        window. A screenshot alone cannot tell "the scrim is there" from "the sheet is opaque"; the
+        mean luminance of the same patch in the same session does: it drops while a modal is open and
+        comes back to the uncovered baseline afterwards.
+
+name                  size      whole_mean  patch_mean
+songs-page            1166x773  241.22      243.81     (baseline: nothing open)
+selection-fab         1166x773  239.65      243.90     (FAB expanded, no scrim)
+batch-menu            1166x773  197.86      195.52     (12-row menu open: patch -48.38)
+export-destination    1166x773  182.61      169.89     (export sheet open on top of the menu: patch -74.01)
+export-cancelled      1166x773  238.22      243.90     (Escape closed both: patch back to baseline)
+
+reading: the patch goes 243.90 -> 195.52 -> 169.89 -> 243.90 across the session, so the dimming is
+attached to the modals and is undone when they close. 238.22 / 243.90 in the last shot is also the
+evidence that Escape closed the sheet and the menu together: the window is back to the songs page.

@@ -279,6 +279,34 @@ data class BatchTaskDetailDestination(val taskId: String) : NavDirection {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Not ported yet. The batch-selection FAB mounted by the library shell navigates to these two,
+// exactly as the Android FAB did. Both screens arrive in a later batch; until then the navigator
+// logs the miss.
+//
+// Neither route carries an argument, and that is not an omission: what the two screens operate on is
+// the selection, which `SharedSelectionManager` already holds by the time the row is tapped --
+// `SongSelectionViewModel.setSelectionUris()` publishes it and the row only navigates when that call
+// reports that something was published. So the later batch adds the `composable(...)` blocks and the
+// screens, and nothing else.
+// ---------------------------------------------------------------------------------------------
+
+/** The batch file-rename screen. Reached from the batch-selection FAB's "rename" row. */
+data object BatchRenameDestination : NavDirection {
+    override val route: String = ROUTE
+
+    const val ROUTE = "batch_rename"
+}
+
+/** The batch tag-edit screen. Reached from the batch-selection FAB's "edit" row. */
+class BatchEditDestination : NavDirection {
+    override val route: String = ROUTE
+
+    companion object {
+        const val ROUTE = "batch_edit"
+    }
+}
+
 /**
  * Percent-encodes one route argument, matching the navigation library's own encoder.
  *

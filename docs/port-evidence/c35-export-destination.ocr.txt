@@ -1,0 +1,33 @@
+file: docs/port-evidence/c35-export-destination.png
+engine: zh-Hans-CN
+lines: 30
+  y=7 x=21 :: 《 Lyrico 1 ℃ 〔 14g52 〕
+  y=50 x=99 :: 已 选 择 1 项
+  y=153 x=35 :: 0
+  y=49 x=1033 :: 全 选
+  y=568 x=566 :: 出 位 首
+  y=49 x=1099 :: 关 闭
+  y=121 x=154 :: 周 华 儺 。 朋 友
+  y=164 x=154 :: 朋 友
+  y=185 x=154 :: 周 华 儺 。 朋 友
+  y=229 x=155 :: September
+  y=250 x=155 :: Earth, Wind & Fire 。 September
+  y=292 x=155 :: 山 丘
+  y=313 x=154 :: 李 宗 盛 · 山 丘
+  y=356 x=154 :: 演 示 曲 目 01
+  y=378 x=154 :: Various Artist5 。 演 示 合 隼
+  y=420 x=154 :: 演 示 曲 目 02
+  y=442 x=154 :: Various Artist5 。 演 示 合 隼
+  y=484 x=154 :: 演 示 曲 目 03
+  y=506 x=154 :: Various Artist5 · 演 了
+  y=548 x=154 :: 演 示 曲 目 04
+  y=570 x=154 :: Various Artist5 ·
+  y=612 x=154 :: 演 示 曲 目 05
+  y=634 x=154 :: Various Artist5 ·
+  y=676 x=154 :: 演 示 曲 目 06
+  y=698 x=154 :: Various Artist5 ·
+  y=740 x=154 :: 演 示 曲 目 07
+  y=632 x=342 :: 指 定 文 件 夹
+  y=655 x=342 :: 选 择 与 出 文 件 的 { 存 文 件 荚
+  y=706 x=342 :: 音 频 同 目 录
+  y=729 x=342 :: 每 个 与 土 文 件 剂 存 到 对 应 音 《 瘡 祈 在 目 录

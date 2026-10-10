@@ -24,13 +24,11 @@ import top.yukonga.miuix.kmp.basic.TextButton
  * The bar that replaces the normal one while songs are selected: how many are selected, select-all /
  * deselect-all, and close.
  *
- * This used to live in `ui/components/bar/SongSelectionSupport.kt` together with
- * `SongBatchSelectionActions`, the twelve-action expandable FAB. That file is **left in the Android
- * tree** and this one is named differently on purpose: the FAB needs four batch view models
- * (match / ReplayGain / lyrics format / export) plus eight batch sheets, and two of those depend on
- * decisions that are still open (the ReplayGain decoder, the QuickJS plugin runtime). Splitting the
- * bar out keeps the portable half from waiting on them, and the different file name keeps
- * `scripts/port-frontier.py` from reporting a stale duplicate.
+ * Android kept this bar and [com.lonx.lyrico.ui.components.bar.SongBatchSelectionActions] -- the
+ * twelve-action expandable FAB -- in one file, `ui/components/bar/SongSelectionSupport.kt`. The port
+ * split them so the bar would not wait on the FAB's four batch view models (match / ReplayGain /
+ * lyrics format / export) and eight batch sheets, and that file is now gone from the Android tree
+ * with both halves ported. This name is the one the class already had, not a workaround.
  *
  * Only the bar itself is changed on the way over: `Color.Unspecified` stayed the default so the host
  * screen can pass the blur backdrop's colour, and the compact-window rule (hide select-all below

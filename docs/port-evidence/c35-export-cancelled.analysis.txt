@@ -1,0 +1,38 @@
+file: docs\port-evidence\c35-export-cancelled.png
+size: 1166x773
+distinct_colours: 801  most_common_share: 0.744  text_pixels: 14729
+accent_blue_pixels: 9279  accent_warm_pixels: 156
+top_colours: (247, 247, 247)=670486, (209, 224, 249)=65413, (228, 228, 228)=64700, (255, 255, 255)=36046
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+###+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        .++ .+.                                                                               +
+  #  ++   +++#.++.                                                                               +
+  # +++    ##+.#+.                                                                               +
+  # #++   #### ++                                                                                +
+  #  #     .+..+.                                                                                #
+  # ##+   ####+##                                                                                #
+  # .++                                                                                          #
+  # +#+    ###.####+#.                                                                           #
+  # ###   ++#+                                                                                   #
+  # .++       .+#.                                                                               #
+  #           .+.                                                                                #
+  #        ++..+ .....                                                                           #
+  #       +###.###++#+                                                                           #
+  #                                                                                              #
+  #        ###.####+#+                                                                          .#
+  #       #+#.                                                                                   #
+  #        ##+.#+##+++                                                                           #
+  #       +###......                                                                             #
+  #        +#...+.....                                                                           #
+  #       ####.###++++                                                                           #
+  #                                                                                              #
+  #       .###.#+##+#+                                                                          .#
+  #       +++.                                                                                   #
+  #        ##+.####+#+                                                                           #
+  #       +##+                                                                                   #
+  #        ++..+ +....                                                                           +
+  #       ####.#+#+++.                                                                           +
+VERDICT: OK - the window painted real content.
+compare_with: docs\port-evidence\c35-export-destination.png
+changed_pixels: 744219 (82.57% of the window)

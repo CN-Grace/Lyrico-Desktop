@@ -15,13 +15,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_abort
+import com.lonx.lyrico.resources.action_close
+import com.lonx.lyrico.resources.batch_edit_processing
+import com.lonx.lyrico.resources.batch_replay_gain_failure
+import com.lonx.lyrico.resources.batch_replay_gain_skipped
+import com.lonx.lyrico.resources.batch_replay_gain_success
+import com.lonx.lyrico.resources.batch_replay_gain_total_time
+import com.lonx.lyrico.resources.current_target_format
 import com.lonx.lyrico.ui.components.base.ActionBottomSheet
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.BatchLyricsFormatUiState
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -54,7 +63,7 @@ fun BatchLyricsFormatBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (batchLyricsFormatUiState.operation == com.lonx.lyrico.data.model.lyrics.LyricsOperation.CONVERT) {
-                        Text(text = stringResource(R.string.current_target_format,
+                        Text(text = formattedStringResource(Res.string.current_target_format,
                             batchLyricsFormatUiState.targetFormat?.let { stringResource(it.labelRes) }.orEmpty()),
                             style = MiuixTheme.textStyles.footnote1,
                             color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
@@ -71,10 +80,10 @@ fun BatchLyricsFormatBottomSheet(
                         ) {
                             Text(
                                 text = if (batchLyricsFormatUiState.isRunning) {
-                                    stringResource(R.string.batch_edit_processing)
+                                    stringResource(Res.string.batch_edit_processing)
                                 } else {
-                                    stringResource(
-                                        R.string.batch_replay_gain_total_time,
+                                    formattedStringResource(
+                                        Res.string.batch_replay_gain_total_time,
                                         batchLyricsFormatUiState.totalTimeMillis / 1000.0
                                     )
                                 },
@@ -107,22 +116,22 @@ fun BatchLyricsFormatBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(
-                            R.string.batch_replay_gain_success,
+                        text = formattedStringResource(
+                            Res.string.batch_replay_gain_success,
                             batchLyricsFormatUiState.successCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_replay_gain_skipped,
+                        text = formattedStringResource(
+                            Res.string.batch_replay_gain_skipped,
                             batchLyricsFormatUiState.skippedCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_replay_gain_failure,
+                        text = formattedStringResource(
+                            Res.string.batch_replay_gain_failure,
                             batchLyricsFormatUiState.failureCount
                         ),
                         style = MiuixTheme.textStyles.main
@@ -149,9 +158,9 @@ fun BatchLyricsFormatBottomSheet(
             ) {
                 Text(
                     text = if (batchLyricsFormatUiState.isRunning) {
-                        stringResource(R.string.action_abort)
+                        stringResource(Res.string.action_abort)
                     } else {
-                        stringResource(R.string.action_close)
+                        stringResource(Res.string.action_close)
                     },
                     color = if (batchLyricsFormatUiState.isRunning){
                         MiuixTheme.colorScheme.primary

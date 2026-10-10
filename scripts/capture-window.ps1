@@ -17,6 +17,13 @@ param(
     # Window title (or part of it) to look for.
     [string]$TitleLike = "Lyrico",
 
+    # Capture this top-level window handle directly instead of searching for one.
+    #
+    # Needed for windows whose title cannot be passed as an argument from a non-Unicode console: the
+    # native folder chooser is titled "选择文件夹", and a GBK shell mangles it into something that matches
+    # nothing. The handle can be read off an EnumWindows listing (see the c3.5 evidence in PLAN.md).
+    [long]$Hwnd = 0,
+
     # Where to write the PNG.
     [Parameter(Mandatory = $true)]
     [string]$OutputPath,
@@ -72,14 +79,19 @@ function Get-WindowTitles {
 
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 $window = $null
-while ((Get-Date) -lt $deadline) {
-    $window = Get-WindowTitles | Where-Object { $_.Title -like "*$TitleLike*" } | Select-Object -First 1
-    if ($window) { break }
-    Start-Sleep -Milliseconds 500
-}
+if ($Hwnd -ne 0) {
+    # A handle was given, so there is nothing to search for and nothing to wait for.
+    $window = [pscustomobject]@{ Handle = [IntPtr]$Hwnd; Title = "(given by -Hwnd)" }
+} else {
+    while ((Get-Date) -lt $deadline) {
+        $window = Get-WindowTitles | Where-Object { $_.Title -like "*$TitleLike*" } | Select-Object -First 1
+        if ($window) { break }
+        Start-Sleep -Milliseconds 500
+    }
 
-if (-not $window) {
-    Write-Error "No visible window matching '*$TitleLike*' appeared within $TimeoutSeconds s."
+    if (-not $window) {
+        Write-Error "No visible window matching '*$TitleLike*' appeared within $TimeoutSeconds s."
+    }
 }
 
 Write-Host "Found window: '$($window.Title)' (hwnd=$($window.Handle))"

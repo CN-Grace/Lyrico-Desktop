@@ -15,13 +15,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_abort
+import com.lonx.lyrico.resources.action_close
+import com.lonx.lyrico.resources.batch_edit_processing
+import com.lonx.lyrico.resources.batch_matching_failure
+import com.lonx.lyrico.resources.batch_matching_skipped
+import com.lonx.lyrico.resources.batch_matching_success
+import com.lonx.lyrico.resources.batch_matching_title
+import com.lonx.lyrico.resources.batch_matching_total_time
 import com.lonx.lyrico.ui.components.base.ActionBottomSheet
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.BatchMatchUiState
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -36,7 +45,7 @@ fun BatchMatchBottomSheet(
 ) {
     ActionBottomSheet(
         show = uiState.isRunning || uiState.batchProgress != null,
-        title = stringResource(R.string.batch_matching_title),
+        title = stringResource(Res.string.batch_matching_title),
         enableNestedScroll = enableNestedScroll,
         content = {
             Column(
@@ -59,10 +68,10 @@ fun BatchMatchBottomSheet(
                         ) {
                             Text(
                                 text = if (uiState.isRunning) {
-                                    stringResource(R.string.batch_edit_processing)
+                                    stringResource(Res.string.batch_edit_processing)
                                 } else {
-                                    stringResource(
-                                        R.string.batch_matching_total_time,
+                                    formattedStringResource(
+                                        Res.string.batch_matching_total_time,
                                         uiState.batchTimeMillis / 1000.0
                                     )
                                 },
@@ -130,22 +139,22 @@ fun BatchMatchBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(
-                            R.string.batch_matching_success,
+                        text = formattedStringResource(
+                            Res.string.batch_matching_success,
                             uiState.successCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_matching_skipped,
+                        text = formattedStringResource(
+                            Res.string.batch_matching_skipped,
                             uiState.skippedCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_matching_failure,
+                        text = formattedStringResource(
+                            Res.string.batch_matching_failure,
                             uiState.failureCount
                         ),
                         style = MiuixTheme.textStyles.main
@@ -177,8 +186,8 @@ fun BatchMatchBottomSheet(
                 }
             ) {
                 Text(
-                    text = if (uiState.isRunning) stringResource(R.string.action_abort) else stringResource(
-                        R.string.action_close
+                    text = if (uiState.isRunning) stringResource(Res.string.action_abort) else stringResource(
+                        Res.string.action_close
                     ),
                     color = if (uiState.isRunning){
                         MiuixTheme.colorScheme.error

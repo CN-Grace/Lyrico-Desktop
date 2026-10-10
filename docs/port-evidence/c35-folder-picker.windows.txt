@@ -1,0 +1,15 @@
+# Top-level windows owned by the running Lyrico process (pid 135388) while the export destination
+# picker was open. Produced by build/tmp-probe/list-windows.ps1 (EnumWindows, UTF-8 via Out-File)
+# during the c3.5 slice-B window session, then filtered to the app's own pid -- EnumWindows lists
+# every window on the desktop, including other applications'.
+#
+# 'SunAwtDialog' with the localised title is the Swing folder chooser that rememberDirectoryPicker
+# opens; the two SunAwtFrame entries are the app frame (visible) and its AWT helper frame.
+
+hwnd=15338564 pid=135388 visible=True class='SunAwtDialog' title='导出歌词'
+hwnd=8785112 pid=135388 visible=False class='SunAwtFrame' title=''
+hwnd=24841394 pid=135388 visible=True class='SunAwtFrame' title='Lyrico 1.6.0 (fa14952)'
+hwnd=19205324 pid=135388 visible=False class='D3DFocusWindow' title='D3DFocusWindow'
+hwnd=10554346 pid=135388 visible=False class='SunAwtToolkit' title='theAwtToolkitWindow'
+hwnd=31788262 pid=135388 visible=False class='MSCTFIME UI' title='MSCTFIME UI'
+hwnd=33033328 pid=135388 visible=False class='IME' title='Default IME'

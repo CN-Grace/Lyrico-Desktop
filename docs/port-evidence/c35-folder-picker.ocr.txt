@@ -1,0 +1,18 @@
+file: docs/port-evidence/c35-folder-picker.png
+engine: zh-Hans-CN
+lines: 15
+  y=115 x=20 :: 最 近 用
+  y=158 x=39 :: 0
+  y=185 x=41 :: 卓 面
+  y=325 x=35 :: 吡 电 腚
+  y=364 x=40 :: 0
+  y=395 x=41 :: 网 络
+  y=93 x=126 :: GruntVi"Widget-backup-20260g2g
+  y=113 x=127 :: League 0f Legends
+  y=132 x=127 :: MlcaSetup
+  y=150 x=127 :: PowerShell
+  y=170 x=127 :: Ralnmeter
+  y=188 x=126 :: WindowsPowerShell
+  y=372 x=116 :: 件 夹 名
+  y=399 x=116 :: 件 类 型 (r)
+  y=402 x=195 :: 所 有 件

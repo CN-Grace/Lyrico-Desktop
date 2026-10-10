@@ -9,10 +9,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.ExportDestination
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.export_destination_audio_folder
+import com.lonx.lyrico.resources.export_destination_audio_folder_summary
+import com.lonx.lyrico.resources.export_destination_selected_folder
+import com.lonx.lyrico.resources.export_destination_selected_folder_summary
+import com.lonx.lyrico.resources.export_destination_title
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
@@ -30,7 +35,7 @@ fun ExportDestinationBottomSheet(
 
     YesNoBottomSheet(
         show = show,
-        title = stringResource(R.string.export_destination_title),
+        title = stringResource(Res.string.export_destination_title),
         onDismissRequest = onDismissRequest,
         onConfirm = { onConfirm(destination) },
         content = {
@@ -42,14 +47,14 @@ fun ExportDestinationBottomSheet(
                     )
                 ) {
                     RadioButtonPreference(
-                        title = stringResource(R.string.export_destination_selected_folder),
-                        summary = stringResource(R.string.export_destination_selected_folder_summary),
+                        title = stringResource(Res.string.export_destination_selected_folder),
+                        summary = stringResource(Res.string.export_destination_selected_folder_summary),
                         selected = destination == ExportDestination.SELECTED_DIRECTORY,
                         onClick = { destination = ExportDestination.SELECTED_DIRECTORY }
                     )
                     RadioButtonPreference(
-                        title = stringResource(R.string.export_destination_audio_folder),
-                        summary = stringResource(R.string.export_destination_audio_folder_summary),
+                        title = stringResource(Res.string.export_destination_audio_folder),
+                        summary = stringResource(Res.string.export_destination_audio_folder_summary),
                         selected = destination == ExportDestination.AUDIO_DIRECTORY,
                         onClick = { destination = ExportDestination.AUDIO_DIRECTORY }
                     )

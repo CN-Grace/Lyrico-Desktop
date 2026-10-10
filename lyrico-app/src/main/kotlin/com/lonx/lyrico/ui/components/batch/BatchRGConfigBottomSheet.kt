@@ -10,17 +10,20 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_batch_replay_gain
+import com.lonx.lyrico.resources.batch_replay_gain_concurrency
+import com.lonx.lyrico.resources.batch_replay_gain_concurrency_tip
 import com.lonx.lyrico.ui.components.base.YesNoBottomSheet
+import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import kotlin.math.roundToInt
 
 @Composable
 fun BatchRGConfigBottomSheet(
@@ -33,7 +36,7 @@ fun BatchRGConfigBottomSheet(
 
     YesNoBottomSheet(
         show = show,
-        title = stringResource(R.string.action_batch_replay_gain),
+        title = stringResource(Res.string.action_batch_replay_gain),
         content = {
             Card(
                 colors = CardDefaults.defaultColors(
@@ -44,7 +47,7 @@ fun BatchRGConfigBottomSheet(
                     mutableIntStateOf(initialConcurrency)
                 }
                 ArrowPreference(
-                    title = stringResource(R.string.batch_replay_gain_concurrency),
+                    title = stringResource(Res.string.batch_replay_gain_concurrency),
                     endActions = {
                         Text(
                             text = "${tempConcurrency.intValue}",
@@ -69,7 +72,7 @@ fun BatchRGConfigBottomSheet(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = stringResource(R.string.batch_replay_gain_concurrency_tip),
+                            text = stringResource(Res.string.batch_replay_gain_concurrency_tip),
                             fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )

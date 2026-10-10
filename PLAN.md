@@ -1427,7 +1427,7 @@ seeder 那一次跑的是一条真的 `EXPORT_LYRICS` 任务，参数与结果�
 
 #### 6. 这批的用户可见缺口（如实记录）
 
-1. **批量导出还没有入口**（#35）：8 种类型都有处理器了，但「勾一批歌 → 导出」的十二动作 FAB、两个 bottom sheet 与 `BatchExportViewModel` 还在 java 树。
+1. **批量导出还没有入口**（#35）：8 种类型都有处理器了，但「勾一批歌 → 导出」的十二动作 FAB、两个 bottom sheet 与 `BatchExportViewModel` 还在 java 树。 **✅ 已收口（2026-10-11）**：十二动作 FAB 与八张 sheet 已搬进 kotlin 树并挂进曲库外壳，`BatchExportViewModel` 等四个批量视图模型已注册；见下面「P5 施工批次（批量发起界面：四个批量 viewmodel + 十二动作 FAB 与八个 sheet，2026-10-11）」。
 2. **条目行点不进详情**（#36）：批量详情页的行点击目标是 `EditMetadataScreen`，它的目的地还没注册。
 3. **错误文本未本地化**（见 §2.9）。
 4. **导出目录不自动创建**（见 §2.4，这是有意的选择，但用户会看到一条英文失败）。
@@ -1469,6 +1469,122 @@ java 主树 **93 文件 / 0 待删重复 / 47 可搬 / 46 被挡**（本批 95 �
 1. 采样是 `yield()` 轮询（微秒级），但"中途停"若**短于一次轮询间隔**就会被漏看——这与旧判定受 StateFlow 合并丢值影响是同一类暴露，不是新引入的。
 2. 若替补运行真的**失败**（写标签失败），它的收尾状态里 `writtenCount < songCount`，采样会把这次收尾当成"中途停"；这条路径上用例会先在"成功消息"那条断言处失败（它在采样断言之前），失败消息里带着完整状态，不会误导。
 3. 1/5 的失败率意味着 5 次全绿**不能证明**它不会再出现；能说清的是：上面两条已知机制都被绕开了，而且下次再出现时失败消息里有完整状态可读。
+
+### P5 施工批次（批量发起界面：四个批量 viewmodel + 十二动作 FAB 与八个 sheet，2026-10-11）
+
+#35 做的是「勾一批歌 → 发起批量任务」这条入口：十二个动作的展开式 FAB、它背后八张 sheet（匹配 / 响度 / 歌词处理 / 导出各有配置与进度，其中两片共用页）、四个批量视图模型，以及把这些挂进曲库外壳的那点接线。这批分两笔提交，分界不是按界面切的，是按**谁能在没有界面的情况下被独立取证**切的：视图模型那一笔靠真实基础设施（真 Koin 图 / Room / 曲库扫描 / TagLib / ffmpeg 边车 / 插件运行时 / 任务引擎）就能把「界面按下之后每一步」钉住，界面那一笔再补上「点哪一个格子会发生什么」。切片 A 已提交（`fa14952`），当时没配 PLAN 段落，在这里补记；切片 B 就是本段所属的这次提交。
+
+#### 1. 切片 A：四个批量视图模型搬进 kotlin 树并注册（26 项测试）
+
+| 文件 | 改动 |
+| --- | --- |
+| `viewmodel/BatchExportViewModel.kt` | 搬入并改一处（+20 −4）：`destinationTreeUri: Uri?` → `destinationDirectory: String?` |
+| `viewmodel/BatchLyricsFormatViewModel.kt` / `BatchMatchViewModel.kt` / `BatchReplayGainViewModel.kt` | 纯 `git mv`（0/0），一个字没动 |
+| `di/DesktopAppModule.kt` | +40 −0：四个 `viewModel { }` 注册，`viewModel {` 出现次数 18 → 22 |
+| `di/DesktopAppModuleTest.kt` | +5 −1：把新注册纳入「图能起来」的断言 |
+| `viewmodel/BatchExportViewModelTest.kt` 等四个新测试类 | 358 行 7 项 / 379 行 7 项 / 623 行 6 项 / 338 行 6 项，合计 1698 行 26 项 |
+
+`BatchExportViewModel` 那处改动是整个 #35 里唯一「接口形状」改动：Android 走 SAF 拿到一棵可持久授权的树 `Uri`，桌面端用户在系统选择器里选的就是一个真实目录、没有任何权限可要，于是视图模型收 `String` 路径（`DirectoryPicker` 返回的 `File.absolutePath`），与曲库「添加文件夹」那条流共用一个形状。导出这条链在测试里被三层钉住：**写进任务行的 JSON**（`destinationDirectory` 与「并发保持缺省」只在这一层可见）、**盘上的 `.lrc` 字节**（任务的 `SUCCEEDED` 只说明处理器自己满意，不代表文件对了）、**`uiState` 的进度 / 计数 / 时长**（进度对话框读的就是它）。四个类头各自写明「有意不覆盖」的部分，不约而同都是界面渲染，而且都写着「跟 #35 的第二笔提交走」——就是这一笔。
+
+另一个只有这批能覆盖的点是 `init` 里的**恢复**：上一个进程留下的 RUNNING 任务要重新挂上观察，否则用户关掉窗口再打开，进度就永远停在那里。四个测试类都从真实 `ViewModelStore` 取实例、`tearDown` 里 `clear()`，理由写在 `BatchExportViewModelTest` 类头：`viewModelScope` 只在 `ViewModel.clear()` 时才取消，而 `koin.get()` 直接拿到的实例谁也不会去清——上一阶段那个「泄漏的收集器打到已关闭的 Room 连接池」的偶发失败就是这么来的，这批不新增一份。
+
+#### 2. 切片 B：搬了什么（12 个 `git mv` + 1 个改写 + 外壳接线 + 证据）
+
+`git mv` 过来的界面文件（括号里是随行的改动量，`0/0` 表示一个字没动）：
+
+* `ui/components/fab/ExpandableFabMenu.kt`、`ExpandableFabMenuStyle.kt`、`FabMenuItem.kt`（0/0 / 0/0 / 0/0）——菜单本体与样式原样可用。
+* `ui/components/base/ExportDestinationBottomSheet.kt`（+12 −7）、`ui/components/batch/BatchExportBottomSheet.kt`（+25 −15）、`BatchLyricsFormatBottomSheet.kt`（+23 −14）、`BatchLyricsFormatConfigBottomSheet.kt`（+7 −5）、`BatchMatchBottomSheet.kt`（+23 −14）、`BatchMatchConfigBottomSheet.kt`（+21 −14）、`BatchRGBottomSheet.kt`（+23 −14）、`BatchRGConfigBottomSheet.kt`（+9 −6）、`ui/components/lyrics/LyricsProcessingSheet.kt`（+26 −14）——八张 sheet 加一片歌词处理页，改动都是 Android API 换成桌面等价的那些点。
+* `ui/components/bar/SongSelectionSupport.kt` → `ui/components/bar/SongBatchSelectionActions.kt`（+93 −137，文件从 442 行变成 398 行）。**这是整批唯一被改写的文件**，Android 里它同时装着选择条与十二动作 FAB 两半；选择条那半在这里之前就单独搬走了，剩下的 FAB 这半改写成新 hub，改名是必须的（同名同路径会被 `port-frontier.py` 报成待删的陈旧副本）。四条改写点见下一节。
+
+其余改动：
+
+* `ui/components/bar/SongSelectionTopAppBar.kt`（+5 −7）：只改一段过期的 KDoc。它原来写着「FAB 那半留在 Android 树、文件名取得不一样是故意的」——现在两半都搬完了，那段话从说明变成了误导。
+* `ui/navigation/Destinations.kt`（+28 −0）：新增 `BatchRenameDestination` 与 `BatchEditDestination`。**只声明、没注册**：对应的两个 screen 属于后面的批次。两个路由都不带参数，这不是漏了——它们操作的是选择集，而点下去之前 `SongSelectionViewModel.setSelectionUris()` 已经把选择集发布进 `SharedSelectionManager` 了，所以后面的批次只要补 `composable(...)` 与 screen，别的都不用动。
+* `screens/LibraryHomeScreen.kt`（+58 −10）：把 FAB 挂进外壳。
+* `ui/components/bar/SongBatchSelectionActionsTest.kt`（新增 577 行 7 项）、`screens/LibraryHomeScreenTest.kt`（+88 −3，+1 项，共 6 项）。
+* `scripts/capture-window.ps1`（+19 −7）：加 `-Hwnd` 参数，取证工具见第 5 节。
+* `docs/port-evidence/c35-*`：6 张整窗截图 + 1 张裁切 + OCR / 像素分析 / 窗口清单 / 亮度表。
+
+#### 3. 桌面化改写点
+
+hub 的 KDoc 把四条写在类头上，其中只有第一条是行为改动：
+
+1. **导出行的「选文件夹」不再要 SAF 的树 `Uri`**：Android 起 `ActivityResultContracts.OpenDocumentTree`、对返回的树拿一个可持久化读写授权，再把 `Uri` 交给视图模型；Windows 应用本来就对用户选中的目录有权限，于是桌面接缝是 `DirectoryPicker`，视图模型拿 `directory.absolutePath`。选择器同时是参数（`directoryPicker`，缺省 null 时内部用 `rememberDirectoryPicker()` 开真 Swing 选择器），理由与曲库那边一样：导出这条链因此能被测试端到端驱动，不用人点原生对话框。
+2. **`onBatchShare` 不收 `Context`**：Android 起 `Intent.ACTION_SEND` 选择器；桌面 `SongSelectionViewModel.share` 的行为是在资源管理器里定位到选中的歌（前面批次定过的桌面语义），`Context` 在这里根本不是个东西。
+3. **`navigator` 是移植版的 `Navigator`，十二行里有两行指向已声明但未注册的路由**：「批量重命名」「批量编辑」的调用点是 Android 原样，导航器记一条日志而不是崩。
+4. **字符串走 `Res.string`**，带计数的那个走 `formattedStringResource`（CMP 的 `stringResource(res, args)` 不跑 `String.format`，`StringFormattingGuardTest` 钉着这条）。
+
+外壳接线（`LibraryHomeScreen.kt`）另有四条：
+
+1. `show = isSelectionMode && selectedTab == LibraryTab.Songs`：只有停在「歌曲」页且处于选择模式时才出现。
+2. 四个视图模型在 composable 里用 `koinViewModel()` 就地解析（与 Android 一样不往上提），sheet 与 FAB 行因此共用同一个实例；它们与批量任务列表页拿到的是同一批实例，因为 Koin 的 `viewModel` 在这个图上绑的是外壳所在的导航返回栈条目。
+3. `bottomBarPadding` 用 `SideEffect` 从 Scaffold 的 `paddingValues` 抄出来再传给 FAB 的 `modifier`：窄窗口里标签栏在页面下方，FAB 必须抬起来让开它（宽窗口该值为 0）。
+4. `selectedSongUris` 从 `SongSelectionViewModel` 收，`onSetSelectionUris` / `onBatchDelete` / `onBatchShare` 也接在它上面——外壳只做接线，选择集本身仍在那个已经有测试的视图模型里。
+
+菜单展开高度上限（320 dp）与行高（56 dp）都是从 Android 原样搬来的（`fab/` 那三个文件 0/0），所以桌面上第 7 到 12 行同样要点开菜单再滚动才能看到——测试里用 `performScrollTo()` 滚，真窗口取证里也是滚下去点的，没有为了好测去改这个值。
+
+#### 4. 无头取证（新增 8 项；全量 107 类 / 934 项 / 0 失败 / 0 错误 / 2 门控跳过）
+
+`SongBatchSelectionActionsTest`（577 行 7 项）钉的是「点哪一个格子会发生什么」：
+
+1. `the export row takes the directory from the picker into a real batch task`：点开导出 sheet → 选「指定文件夹」→ 人造 picker 返回一个临时目录 → 真任务真的跑起来 → 断言盘上有导出的 `.lrc`、且任务行里的目录就是那个临时目录。人造 picker 是这一步能自动化验证的原因（见第 3 节第 1 条）。
+2. `the delete row asks first, and confirming hands the selection to the delete callback`：删除行先弹确认，确认之后才把选择集交给回调。
+3. `the rename and edit rows publish the selection first and navigate only when it worked`：重命名 / 编辑两行先发布选择集（真返回）再导航；发布失败就不导航——也就是那两行「点了没反应」的路径，测试钉的是「选择集确实已经发布」这一半。
+4. `the organize row opens its submenu and the operation it offers reaches the config sheet`：整理歌词是二级菜单，选中一项之后到达配置 sheet。这里只断言 SORT 这一项，菜单里其余操作的文案与语义在别处已经验过，重复断言只会让这条用例变脆。
+5. `the menu carries all twelve rows the shell offers`：十二行都在（包括 320 dp 上限下要滚动才可见的那几行）。
+6. `a selection that is empty leaves the FAB inert`：选择集为空时 FAB 什么都不做。
+7. `tapping the scrim closes the menu without an action`：点遮罩关菜单且不触发任何动作——**模态是被断言的，不是被绕开的**。
+
+`LibraryHomeScreenTest` 新增 1 项（共 6 项）：`the batch FAB is the shell's, and only shows while songs are selected on the songs tab`——把 FAB 属于外壳、以及它出现的两个条件（选择模式 + 歌曲页）钉在外壳这一层。
+
+写这批用例时实测出来的三条写法，后面还会用到：Miuix 的弹层在无头测试里**可以**被测（先证明再依赖，没有为了可测去改组件）；不存在 `fetchSemanticsNodeOrNull()` 这种东西，判「有没有」用 `onAllNodesWithText(X).fetchSemanticsNodes().isNotEmpty() / isEmpty()`；`performTouchInput { click(Offset) }` 需要显式 `import androidx.compose.ui.test.click`，点遮罩用 (8f, 8f)（窗口左上角，任何一层都挡不到那儿）。
+
+全量账：切片 A 的 26 项 + 切片 B 的 8 项 = 34 项，934 − 34 = 900，正好是上一批（ReplayGain 边车）收口时的 900。
+
+#### 5. 真窗口取证（docs/port-evidence/c35-*）
+
+一次会话走完整条链，进程 pid 135388、结束时杀掉；曲库数据目录在 `.gitignore` 里，没有进仓库。六张整窗截图按顺序：
+
+| 截图 | 内容 | 怎么证明它是真的 |
+| --- | --- | --- |
+| `c35-songs-page.png` | 曲库「歌曲」页，24 首扫描出来的歌 | 亮度基线（补丁区均值 243.81），前一张基准 |
+| `c35-selection-fab.png` | 长按选中一首（客户端 (200, 97) 松手）→ 选择条出现 → 点 FAB（客户端 (1119, 688)） | 补丁区 243.90，说明此时还没有遮罩 |
+| `c35-batch-menu.png` | 十二行菜单展开 | 与上一张比 89.52% 的像素变了；补丁区掉到 195.52，遮罩真的画了 |
+| `c35-export-destination.png`（+ 裁切 `-crop.png`） | 导出 sheet 压在菜单之上 | 补丁区 169.89（更深一层遮罩）；裁切图 OCR 读出「导出位置 / 指定文件夹 / 选择导出文件的保存文件夹 / 确认」 |
+| `c35-folder-picker.png`（+ `-windows.txt`） | 点「指定文件夹」后弹出的系统选器 | `EnumWindows` 清单里多出一个 `SunAwtDialog`，标题正是「导出歌词」，可见性 True——即 `JFileChooser` 的目录模式，SAF 的桌面替代真的起来了 |
+| `c35-export-cancelled.png` | 在选器里取消、再用 Esc 关掉 sheet 与菜单 | 补丁区回到 243.90；库里 `batch_tasks` 仍是最初那 5 行播种数据——**取消就是没发起任务**，不是靠像素猜的 |
+
+亮度表写在 `c35-scrim-luminance.txt` 里（方法、图名、两个区域的均值、怎么读都写着）：同一块补丁区在同一会话里 243.90 → 195.52 → 169.89 → 243.90，遮罩跟着模态出现、跟着模态消失。这张表存在的理由是单看截图分不出「画了遮罩」和「sheet 本来就不透明」。
+
+窗口标题在截图里是 `Lyrico 1.6.0 (fa14952)`：会话当时 `fa14952` 还是 HEAD，切片 B 的改动还没提交（构建信息里的短哈希来自 git，不来自工作区状态）。`-Hwnd` 参数就是为了这一步加的：`capture-window.ps1` 原来只能按进程找主窗口，取不到**另一个**窗口（选择器是 `SunAwtDialog`，不是主框架）；现在可以先列出全部顶层窗口的 hwnd，再按 hwnd 精确截图。另一个坑也一并说清：控制台是 GBK，中文窗口标题经 PowerShell 参数传进去会被搞坏，所以脚本从不接收标题，只接收 hwnd（`param()` 必须是脚本第一条语句，这也是那次踩出来的）。
+
+#### 6. 这批实测出来的坑（都会再踩）
+
+1. **无头里没有 `fetchSemanticsNodeOrNull()`**：判节点有无要数节点数（见第 4 节）。
+2. **`performTouchInput { click(Offset) }` 要显式 import**，否则编译错误出现在调用点、看起来像 API 不存在。
+3. **Miuix 的模态遮罩可测，但要真的点它**：点 (8f, 8f) 关菜单，然后断言「没有动作发生」，而不是换个方式绕开遮罩。
+4. **「选择集为空」不等于「没有专辑」**：空选择时 FAB 该是什么都不做，这条要单独写，别混进「库里没歌」的场景里。
+5. **320 dp 上限意味着后几行不可见**：断言第 7–12 行必须先 `performScrollTo()`；同理真窗口取证里得先滚。
+6. **sheet 标题与触发它的行常常同名**：断言只能用「存在 / 不存在」这一档（`onAllNodesWithText`），别去分辨「标题那一处还是行那一处」。
+7. **控制台是 GBK**：中文标题进 PowerShell 参数会被 mangle，重定向输出也会丢字符——脚本改用 hwnd 定位窗口，输出用 `| Out-File -Encoding utf8`；用 `read` 工具（而不是控制台）核对 UTF-8 文本。
+8. **取消的证明要去数据库看行数**，不要只看界面回到了干净状态。
+9. **取证结束后应用窗口还开着会让 Gradle 报 `BUILD FAILED`**：这是预期现象（构建产物被占用），先关窗口再跑构建。
+
+#### 7. 用户可见缺口（如实记录）
+
+1. **没有 `BackHandler`**：Android 的返回键在这两处被用到（关菜单、退出选择模式），桌面端没有等价物接到这两个位置——菜单只能点遮罩关，选择模式只能点选择条上的关闭按钮或切标签页退出。这是零散的键盘 / 鼠标可达性损失，不是功能缺失。
+2. **`ExpandableFabMenu.kt` 里 FAB 的 `contentDescription` 是 Android 硬编码的英文字面量 `"Actions"`**（原样搬来的，0/0），所以读屏用户会听到英文。不是这次移植引入的，但确实是个可改的点。
+3. **菜单 320 dp 上限**（Android 自带的值）：十二行要滚动才能看全。
+4. **「分享」= 在资源管理器中定位**（桌面语义裁决的结果），不是缺功能。
+5. **「批量重命名」「批量编辑」两行点了没反应**（路由已声明未注册），留给后面的批次；导航器有日志。
+
+#### 8. 前沿（本批收口）
+
+`src/main/java` 树 89 → 76 个文件；前沿（依赖已满足、现在就能搬）48 → 40；被挡 41 → 36；陈旧副本 0。
+
+算术要拆开看，因为「搬走的 13 个路径」里有 4 个本来是被挡的：**9 个本来就在前沿上**（八张 sheet 里除 `BatchLyricsFormatConfigBottomSheet` 之外的七张、`fab/ExpandableFabMenuStyle.kt`、`lyrics/LyricsProcessingSheet.kt`）；**3 个本来被挡、在这一批里被同批搬走的邻居解锁**——`fab/ExpandableFabMenu.kt` 与 `fab/FabMenuItem.kt` 都只被 `fab/ExpandableFabMenuStyle` 挡着，`batch/BatchLyricsFormatConfigBottomSheet.kt` 只被 `lyrics/LyricsProcessingSheet` 挡着；**第 4 个是被删并改写成 hub 的 `ui/components/bar/SongSelectionSupport.kt`**（它自己当时被 12 个依赖挡着，就是刚搬的这九个文件加三个 fab 文件）。于是 48 − 9 + 1 = 40、41 − 4 − 1 = 36：前者那条「+1」是 `screens/AlbumDetailScreen.kt`，它当时只有一个依赖，正是 `SongSelectionSupport.kt`，这个依赖随 hub 改写消失，它从被挡升到前沿，还留在 java 树里等下一批。
+
+下一批（#36 及之后）的界面侧可以从这 40 个里挑：其中 4 个是 screen；被挡的 36 个里还剩 13 个 screen，加上 `di/AppModule.kt` 与 `MainActivity.kt`（Android 专属，不会搬）。批量重命名 / 批量编辑两个 screen 就在这 36 个里等它们的依赖。
 
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 

@@ -1,0 +1,18 @@
+file: docs/port-evidence/c35-export-destination-crop.png
+engine: zh-Hans-CN
+lines: 15
+  y=6 x=309 :: 演 示 曲 目 04
+  y=50 x=308 :: Various Artists ·
+  y=134 x=309 :: 演 示 曲 目 05
+  y=178 x=308 :: Various Artists ·
+  y=262 x=309 :: 演 示 曲 目 06
+  y=49 x=598 :: 取 消
+  y=174 x=684 :: 指 定 文 亻 牛 夹
+  y=220 x=684 :: 选 择 导 出 文 件 的 俣 存 文 件 夹
+  y=47 x=1094 :: 导 出 亻 立 置
+  y=46 x=1666 :: 确 认
+  y=14 x=2164 :: 0 ： 03
+  y=50 x=2144 :: 64kbps
+  y=142 x=2164 :: 0 ： 03
+  y=178 x=2144 :: 64kbps
+  y=270 x=2164 :: 0 ： 03

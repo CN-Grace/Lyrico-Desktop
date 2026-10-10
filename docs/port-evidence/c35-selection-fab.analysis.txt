@@ -1,0 +1,38 @@
+file: docs\port-evidence\c35-selection-fab.png
+size: 1166x773
+distinct_colours: 795  most_common_share: 0.816  text_pixels: 14647
+accent_blue_pixels: 9279  accent_warm_pixels: 156
+top_colours: (247, 247, 247)=735168, (209, 224, 249)=65413, (255, 255, 255)=36057, (243, 243, 243)=10373
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+###+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        .++ .+.                                                                               +
+  #  ++   +++#.++.                                                                               +
+  # +++    ##+.#+.                                                                               +
+  # #++   #### ++                                                                                +
+  #  #     .+..+.                                                                                #
+  # ##+   ####+##                                                                                #
+  # .++                                                                                          #
+  # +#+    ###.####+#.                                                                           #
+  # ###   ++#+                                                                                   #
+  # .++       .+#.                                                                               #
+  #           .+.                                                                                #
+  #        ++..+ .....                                                                           #
+  #       +###.###++#+                                                                           #
+  #                                                                                              #
+  #        ###.####+#+                                                                          .#
+  #       #+#.                                                                                   #
+  #        ##+.#+##+++                                                                           #
+  #       +###......                                                                             #
+  #        ++...+.....                                                                           #
+  #       +###.###++++                                                                           #
+  #                                                                                              #
+  #       .###.#+##+#+                                                                          .#
+  #       +++.                                                                                   #
+  #        ##+.####+#+                                                                           #
+  #       +##+                                                                                   #
+  #        ++..+ +....                                                                           +
+  #       ####.#+#+++.                                                                           +
+VERDICT: OK - the window painted real content.
+compare_with: docs\port-evidence\c35-songs-page.png
+changed_pixels: 149524 (16.59% of the window)

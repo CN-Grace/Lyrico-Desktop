@@ -10,17 +10,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.lyrics.*
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.batch_replay_gain_concurrency
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.lyrics_column_hint
+import com.lonx.lyrico.resources.lyrics_column_remove
+import com.lonx.lyrico.resources.lyrics_input_line
+import com.lonx.lyrico.resources.lyrics_output_line
+import com.lonx.lyrico.resources.lyrics_remove_empty_lines_manual_hint
+import com.lonx.lyrico.resources.lyrics_remove_tag_lines_settings_hint
+import com.lonx.lyrico.resources.lyrics_three_columns
+import com.lonx.lyrico.resources.lyrics_two_columns
 import com.lonx.lyrico.ui.components.base.ActionBottomSheet
 import com.lonx.lyrico.ui.components.base.PillButton
 import com.lonx.lyrico.ui.components.base.PillButtonDefaults
 import com.lonx.lyrico.ui.components.base.PillButtonSize
+import com.lonx.lyrico.utils.formattedStringResource
+import org.jetbrains.compose.resources.stringResource
+import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowUpDown
-import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowListPopup
@@ -100,22 +112,22 @@ private fun LyricsColumnCountSettings(
     count: Int, mapping: LyricsColumnMapping, onMapping: (LyricsColumnMapping) -> Unit
 ) {
     Card(colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.secondaryContainer)) {
-        Text(stringResource(if (count == 2) R.string.lyrics_two_columns else R.string.lyrics_three_columns),
+        Text(stringResource(if (count == 2) Res.string.lyrics_two_columns else Res.string.lyrics_three_columns),
             modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp),
             style = MiuixTheme.textStyles.subtitle)
-        LyricsHint(stringResource(R.string.lyrics_column_hint))
+        LyricsHint(stringResource(Res.string.lyrics_column_hint))
         repeat(count) { source ->
             val destination = mapping.order.indexOf(source)
             val kept = destination >= 0
             val outputCount = mapping.order.size + if (kept) 0 else 1
-            val positions = (1..outputCount).map { stringResource(R.string.lyrics_output_line, it) }
-            val choices = positions + stringResource(R.string.lyrics_column_remove)
+            val positions = (1..outputCount).map { formattedStringResource(Res.string.lyrics_output_line, it) }
+            val choices = positions + stringResource(Res.string.lyrics_column_remove)
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.lyrics_input_line, source + 1),
+                Text(formattedStringResource(Res.string.lyrics_input_line, source + 1),
                     modifier = Modifier.weight(1f), style = MiuixTheme.textStyles.body2)
                 LyricsChoice(
-                    label = if (kept) positions[destination] else stringResource(R.string.lyrics_column_remove),
+                    label = if (kept) positions[destination] else stringResource(Res.string.lyrics_column_remove),
                     items = choices,
                     selected = if (kept) destination else positions.size
                 ) { selected -> onMapping(mapping.place(source, selected.takeIf { it < positions.size })) }
@@ -130,7 +142,7 @@ fun LyricsConcurrency(value: Int, onChange: (Int) -> Unit, header: (@Composable 
         colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.secondaryContainer)) {
         header?.invoke()
         top.yukonga.miuix.kmp.preference.WindowDropdownPreference(
-            title = stringResource(R.string.batch_replay_gain_concurrency), items = (1..5).map { it.toString() },
+            title = stringResource(Res.string.batch_replay_gain_concurrency), items = (1..5).map { it.toString() },
             selectedIndex = value - 1, onSelectedIndexChange = { onChange(it + 1) })
     }
 }
@@ -144,8 +156,8 @@ fun LyricsOperationContent(operation: LyricsOperation, targetFormat: LyricFormat
                     onClick = { onFormat(format) })
             }
         }
-        LyricsOperation.REMOVE_EMPTY -> LyricsHint(stringResource(R.string.lyrics_remove_empty_lines_manual_hint))
-        LyricsOperation.REMOVE_TAGS -> LyricsHint(stringResource(R.string.lyrics_remove_tag_lines_settings_hint))
+        LyricsOperation.REMOVE_EMPTY -> LyricsHint(stringResource(Res.string.lyrics_remove_empty_lines_manual_hint))
+        LyricsOperation.REMOVE_TAGS -> LyricsHint(stringResource(Res.string.lyrics_remove_tag_lines_settings_hint))
         LyricsOperation.SORT -> Unit
     }
 }
@@ -166,9 +178,9 @@ fun LyricsProcessingSheet(show: Boolean, raw: String, operation: LyricsOperation
     }
     val canConfirm = raw.isNotBlank()
     ActionBottomSheet(show = show, title = stringResource(operation.titleRes), onDismissRequest = onDismiss,
-        startAction = { LyricsActionButton(stringResource(R.string.cancel), onClick = onDismiss) },
+        startAction = { LyricsActionButton(stringResource(Res.string.cancel), onClick = onDismiss) },
         endAction = {
-            LyricsActionButton(stringResource(R.string.confirm), canConfirm, primary = true) {
+            LyricsActionButton(stringResource(Res.string.confirm), canConfirm, primary = true) {
                 onConfirm(operation.options(target).copy(twoColumnMapping = twoColumnMapping, threeColumnMapping = threeColumnMapping))
             }
         }, content = {

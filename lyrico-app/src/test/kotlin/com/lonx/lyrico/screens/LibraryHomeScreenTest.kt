@@ -6,13 +6,17 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -26,6 +30,7 @@ import com.lonx.lyrico.di.desktopAppModule
 import com.lonx.lyrico.platform.AppDirectories
 import com.lonx.lyrico.resources.Res
 import com.lonx.lyrico.resources.action_add_folder
+import com.lonx.lyrico.resources.action_batch_export_lyrics
 import com.lonx.lyrico.resources.album_list_title
 import com.lonx.lyrico.resources.artist_list_title
 import com.lonx.lyrico.resources.cd_sort
@@ -87,9 +92,10 @@ import kotlin.test.assertTrue
  *
  * What the shell deliberately does not have is as much a part of the port as what it has, and each of
  * those pieces is a `PLAN.md` gap rather than a silent omission: Android's `BackHandler` (no system
- * back gesture here), the floating / liquid-glass bottom bar (`floatingBottomBarEnabled` and
- * `floatingBarEffect` are still stored, with no rendering effect), and `SongBatchSelectionActions`
- * (the batch FAB). See `LibraryHomeScreen`'s KDoc for each one.
+ * back gesture here -- the batch menu closes by tapping its scrim) and the floating / liquid-glass
+ * bottom bar (`floatingBottomBarEnabled` and `floatingBarEffect` are still stored, with no rendering
+ * effect). See `LibraryHomeScreen`'s KDoc for each one. The batch FAB itself *is* mounted, by the shell
+ * and not by the page it floats over, and the last test below covers when the shell shows it.
  */
 @OptIn(ExperimentalTestApi::class)
 class LibraryHomeScreenTest {
@@ -173,6 +179,17 @@ class LibraryHomeScreenTest {
     private inline fun <reified T : Any> koin(): T = GlobalContext.get().get()
 
     private fun settings(): SettingsRepository = koin()
+
+    /**
+     * The a11y label of the batch FAB's main button.
+     *
+     * It is the English literal `"Actions"` because `ExpandableFabMenu` hardcodes it -- Android did too,
+     * so the port kept the wart rather than silently changing a user-visible label while moving the file.
+     * There is no `Res.string` entry for it, which is why it is spelled out here and in the component test.
+     */
+    private companion object {
+        const val FAB_LABEL = "Actions"
+    }
 
     private fun scanLibrary() {
         koin<LibraryScanManager>().addFolderAndScan(musicDir.toRealPath().toString())
@@ -308,6 +325,74 @@ class LibraryHomeScreenTest {
                     "SongSelectionViewModel, so nothing may still be selected",
             )
             onNodeWithContentDescription(text(Res.string.cd_sort)).assertExists()
+        }
+
+    @Test
+    fun `the batch FAB is the shell's, and only shows while songs are selected on the songs tab`() =
+        runComposeUiTest {
+            placeTaggedFixture(
+                musicDir = musicDir,
+                fixture = "bladeenc.mp3",
+                relativeDir = "Album One",
+                title = "Solar Song",
+                artist = "An Artist",
+                album = "Album One",
+                tags = koin(),
+            )
+
+            setContent {
+                LibraryHomeHost()
+            }
+
+            scanLibrary()
+            waitUntil("wait for the scanned song to be composed", 30_000) {
+                nodeCount("Solar Song") > 0
+            }
+
+            // With no selection there is nothing to batch, so the FAB is not in the tree at all. This is
+            // the half of the FAB's contract the component test cannot see: it is the *shell* that
+            // decides visibility, from its selection mode and the selected tab.
+            assertTrue(
+                onAllNodesWithContentDescription(FAB_LABEL).fetchSemanticsNodes().isEmpty(),
+                "the batch FAB must not show before anything is selected",
+            )
+
+            // Long press is the gesture that starts selection, exactly as on the songs page's own test.
+            onNodeWithText("Solar Song").performTouchInput { longClick() }
+            waitUntil("wait for the selection bar to replace the title bar", 5_000) {
+                nodeCount(text(Res.string.selection_mode_selected_count, 1)) > 0
+            }
+
+            // The FAB is mounted once, by the shell, and it shares the songs page's view model: the row
+            // it opens is the batch export flow, which is the one whose sheet needs a directory.
+            onNodeWithContentDescription(FAB_LABEL).performClick()
+            val exportRow = text(Res.string.action_batch_export_lyrics)
+            waitUntil("wait for the batch menu to expand", 5_000) { nodeCount(exportRow) > 0 }
+
+            // An expanded menu is modal: it lays a full-window scrim over the shell, so the tab strip is
+            // behind it and nothing but a row -- or the scrim itself -- can be clicked. Tapping the scrim
+            // away is the gesture that replaces Android's `BackHandler`, and it leaves the selection (and
+            // therefore the FAB) alone.
+            onRoot().performTouchInput { click(Offset(8f, 8f)) }
+            waitUntil("wait for the scrim to close the menu", 5_000) { nodeCount(exportRow) == 0 }
+            assertTrue(
+                onAllNodesWithContentDescription(FAB_LABEL).fetchSemanticsNodes().isNotEmpty(),
+                "closing the menu must not clear the selection the FAB is shown for",
+            )
+
+            // Leaving the songs tab has to take the FAB with it. Nothing clears the shell's `expanded`
+            // flag on a tab click, so this is the assertion that would fail if visibility were decided
+            // by the menu's own state instead of by selection mode and the selected tab.
+            onNodeWithText(text(Res.string.library_tab_albums)).performClick()
+            // The albums page has a song to show -- "Solar Song" is in "Album One" -- so the page that
+            // proves the tab moved is the album list, not the empty state the other tests wait for.
+            waitUntil("wait for the albums page to replace the songs page", 20_000) {
+                nodeCount(text(Res.string.album_list_title, 1)) > 0 && nodeCount("Solar Song") == 0
+            }
+            waitUntil("wait for the batch FAB to leave the tree", 5_000) {
+                onAllNodesWithContentDescription(FAB_LABEL).fetchSemanticsNodes().isEmpty()
+            }
+            assertEquals(0, nodeCount(exportRow), "the batch menu must close with the tab it belongs to")
         }
 
     @Test

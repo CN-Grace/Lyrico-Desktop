@@ -15,13 +15,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_abort
+import com.lonx.lyrico.resources.action_batch_replay_gain
+import com.lonx.lyrico.resources.action_close
+import com.lonx.lyrico.resources.batch_edit_processing
+import com.lonx.lyrico.resources.batch_replay_gain_failure
+import com.lonx.lyrico.resources.batch_replay_gain_skipped
+import com.lonx.lyrico.resources.batch_replay_gain_success
+import com.lonx.lyrico.resources.batch_replay_gain_total_time
 import com.lonx.lyrico.ui.components.base.ActionBottomSheet
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.BatchReplayGainUiState
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -42,7 +51,7 @@ fun BatchRGBottomSheet(
             onDismissFinished()
         },
         allowDismiss = !batchReplayGainUiState.isRunning,
-        title = stringResource(R.string.action_batch_replay_gain),
+        title = stringResource(Res.string.action_batch_replay_gain),
         content = {
             Column(
                 modifier = Modifier
@@ -64,10 +73,10 @@ fun BatchRGBottomSheet(
                         ) {
                             Text(
                                 text = if (batchReplayGainUiState.isRunning) {
-                                    stringResource(R.string.batch_edit_processing)
+                                    stringResource(Res.string.batch_edit_processing)
                                 } else {
-                                    stringResource(
-                                        R.string.batch_replay_gain_total_time,
+                                    formattedStringResource(
+                                        Res.string.batch_replay_gain_total_time,
                                         batchReplayGainUiState.totalTimeMillis / 1000.0
                                     )
                                 },
@@ -136,22 +145,22 @@ fun BatchRGBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(
-                            R.string.batch_replay_gain_success,
+                        text = formattedStringResource(
+                            Res.string.batch_replay_gain_success,
                             batchReplayGainUiState.successCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_replay_gain_skipped,
+                        text = formattedStringResource(
+                            Res.string.batch_replay_gain_skipped,
                             batchReplayGainUiState.skippedCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_replay_gain_failure,
+                        text = formattedStringResource(
+                            Res.string.batch_replay_gain_failure,
                             batchReplayGainUiState.failureCount
                         ),
                         style = MiuixTheme.textStyles.main
@@ -177,8 +186,8 @@ fun BatchRGBottomSheet(
                 }
             ) {
                 Text(
-                    text = if (batchReplayGainUiState.isRunning) stringResource(R.string.action_abort) else stringResource(
-                        R.string.action_close
+                    text = if (batchReplayGainUiState.isRunning) stringResource(Res.string.action_abort) else stringResource(
+                        Res.string.action_close
                     ),
                     color = if (batchReplayGainUiState.isRunning){
                         MiuixTheme.colorScheme.error
