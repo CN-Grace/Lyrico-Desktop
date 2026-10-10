@@ -998,6 +998,61 @@ Android 用 WorkManager + 前台通知跑批量任务；桌面既没有 WorkMana
 
 `python scripts/port-frontier.py` → java 树 **108 个文件 / 0 陈旧副本 / 49 可搬 / 59 被挡**（上一批 124 / 0 / 51 / 73）。批量任务这条链剩下的都在被挡一侧：3 个 match 处理器（要 QuickJS 夹具）、`BatchExportProcessor`、ReplayGain 两个文件，以及 `BatchTaskListScreen`/`BatchTaskDetailScreen`/`BatchEditScreen`/`BatchRenameScreen` 与那 7 个 bottom sheet。
 
+### P5 施工批次（3 个 match 处理器 + 真实 QuickJS 夹具端到端，2026-10-10）
+
+C6a 的三个处理器全部**自给自足**：要写什么由用户选的字段和标签自己决定。**MATCH_METADATA / MATCH_LYRICS / MATCH_COVER 不一样 —— 它们要写的内容来自外部**：插件脚本在 QuickJS 里发 HTTP、解析回包、挑一个结果，处理器再按得分门槛决定「这条结果到底配不配写进用户的文件」。所以这批（**C6b**）的重点不是「把代码搬到能编译」，而是证明**这条链路真的通**：字节级真实的插件 zip → 真安装器 → 真 QuickJS 运行时 → 真回环 HTTP → 真 TagLib 写入 → 真数据库行。
+
+#### 1. 搬了什么（`git mv` 5 个文件；java 主树 108 → 103）
+
+| 层 | 文件 | 行数 |
+| --- | --- | --- |
+| 模型 | `data/model/ScoredSearchResult` | 10 |
+| 模型 | `data/model/metadata/SearchResultApplier` | 160 |
+| 处理器 | `worker/processor/MatchMetadataProcessor` | 458 |
+| 处理器 | `worker/processor/MatchLyricsProcessor` | 173 |
+| 处理器 | `worker/processor/MatchCoverProcessor` | 107 |
+
+#### 2. 桌面化改写点（这批几乎没改，这本身是个结论）
+
+1. **三个处理器里只有 `MatchMetadataProcessor` 需要动，且只动了日志**：`android.util.Log` → `PlatformLog`（1 个 import + 6 个调用点）。`MatchLyricsProcessor` 与 `MatchCoverProcessor` 是**逐字搬过来的（0 行变更）** —— 它们从来没引用过 `Log`、`Uri`、`Context`、`SAF`。这三份代码之所以能这样搬，是因为 C5a/C5b 已经把插件契约（`SearchSourceProvider` / `ScriptSearchSource` / `PluginJsonParser`）和写入契约（`PatchSongTagsUseCase` → `PictureMutationResolver` → `ImageBytesFetcher`）都搬到了桌面侧；处理器本身只是这两个契约的**调用方**。
+2. **DI 与 Android 同形**：3 个处理器各一个 typed single（`MatchMetadataProcessor(get(), get(), get(), get(), get(), get())` 等），`BatchTaskProcessorFactory` 的 map 从 3 项扩到 6 项。工厂仍是**部分映射**：`SCAN_REPLAY_GAIN` / `EXPORT_LYRICS` / `EXPORT_COVER` 依然会走「没有注册处理器 → 任务立刻 FAILED」那条路（C6a §2.4 的行为不变，C6d/C6e 才补）。
+3. **搬完 `worker/processor` 的 java 目录只剩 2 个文件**：`BatchExportProcessor.kt`（C6e）与 `ReplayGainProcessor.kt`（C6d）。
+
+#### 3. 无头取证（新增 2 类 17 项；全量 89 类 / 776 项 / 774 执行 + 2 门控跳过 / 0 失败 0 错误）
+
+| 测试类 | 项数 | 验什么 |
+| --- | --- | --- |
+| `data/model/metadata/SearchResultApplierTest` | 10 | 纯逻辑（不走插件）：覆写替换、补充只填空白、**纯空白算空白**、全 DISABLED 不写、空答案永远不清（即便覆写）、插件编造的标准键被忽略、`track_number "3/12"` 按字符串保留、未改动字段不进补丁、`buildPatch` 无变化时等于空 `AudioTagData`、`SongEntity.toAudioTagData()` 的字段映射（含 `trackerNumber`→`trackNumber`） |
+| `worker/processor/MatchProcessorEndToEndTest` | 7 | **真 Koin 图 + 真插件 zip + 真 QuickJS + 真回环 HTTP + 真 TagLib + 真 Room**（见下） |
+
+端到端那 7 项**不自己拼夹具对象**：插件是 `ZipOutputStream` 打出来的真 zip，经 `SourcePluginInstaller.prepareImport` / `installPrepared` 真装进 `AppDirectories.pluginInstallRoot` 并落 Room 行；脚本由 QuickJS 真跑，`Platform.http.getText` 打到 `LocalGitHubServer`；插件配置（`baseUrl`）经任务的 `sourceSettings` → `source.applyConfig` 通道下发（**不是测试从后门塞的**）；音频用 TagLib 自带的 mp3 夹具抄出来再打标；任务由真 `BatchTaskRunner` 驱动。7 项分别是：
+
+1. **元数据匹配真的写进文件和数据库行**：插件字段落盘（专辑被填、注释补上），而**没被选为目标字段的标题/艺人原样保留**、库里同步且**没有多出第二行**、请求真的带 `q=` 出去了、插件的调用日志能用 `relatedId` 查回来。
+2. **全字段 DISABLED → 跳过（"No fields need processing"），插件一次都没被问**。
+3. **插件答不上来 → 跳过（"No match found"），任务仍 SUCCEEDED，文件未被改**。
+4. **歌词匹配真的写进文件与行**：先按引擎生成的每条 query 搜，最后才取歌词；文件标签里出现 LRC 内容（对内容断言，不对编码格式断言）。
+5. **SUPPLEMENT 模式下已有歌词不被覆盖**（"Lyrics already exist"，且**没花掉一次搜索**）。
+6. **封面匹配真的把图下载进标签**：断言读回的 `pictures.single().data` 与服务器发出的 PNG 字节**逐字节相等** —— 证明写进去的是图，不是一个 URL 字符串。
+7. **一个插件都没装 → 跳过（"No enabled lyrics source"）、任务 SUCCEEDED、日志是 INFO 且 `skipped=1 / failure=0`**（这是刚装完 Windows 版时的真实处境）。
+
+#### 4. 这批实测出来的坑
+
+1. **v4 契约对「封面结果」比对元数据结果更严**：`PluginJsonParser.parseCoverResults(enforceApi4Contract = true)`（apiVersion ≥ 4）会**丢掉**任何 title / artist / album / **date** / coverUrl 缺一项的条目。第一版夹具只给了 title/artist/album/cover，插件日志写的是 `Plugin cover search returned 0 result(s)`，处理器报 `No reliable cover match`。**这不是报错，是静默不匹配** —— 一个只返回「歌名+封面」的插件在这条链上永远匹配不到东西，且屏幕上只会说「没有可靠的封面匹配」。夹具补上 `year` 后才通；测试里留了注释。
+2. **「跳过」的 item 让任务状态仍是 SUCCEEDED，所以断言任务状态等于什么都没验**：封面用例第一版就是这样「绿着红」的 —— 任务 SUCCEEDED、文件一个字没写，直到断言请求路径时才发现只请求了 `/covers`。此后**每条正向用例都断言 item 状态**（失败信息里带上 `resultJson`），任务状态只用来验「跳过/失败不算任务失败」。
+3. **歌词匹配会按 `MusicMatchUtils.buildSearchQueries` 逐条搜**（实测 3 次 `/search`），不是一次；所以断言写成「最后一条是 `/lyrics`，之前的都必须是 `/search`」，而不是写死 2 条请求。
+4. **写给「无插件」用例的断言必须落在**「处理器在找到歌之后才报 `No enabled lyrics source`」上：`MatchLyricsProcessor` 会先取源、再查歌、再判 plan；所以那个用例必须先真的入库一首歌，否则拿到的是 `Song not found`（另一个诚实但不同的原因）。
+
+#### 5. 这批的用户可见缺口（如实记录）
+
+1. **仍然没有界面入口**：任务只能由测试或将来 C6c 的路由建；批量发起界面（`BatchEditScreen` 那一串）排在其后。
+2. **MATCH_* 的行为依赖用户没见过的配置**：`enabledSourceOrderIds` / `sourceSettings` / 分数门槛都落在 `configJson` 里，当前没有任何界面能编辑它们。
+3. **`SCAN_REPLAY_GAIN` / `EXPORT_LYRICS` / `EXPORT_COVER` 仍无处理器**，建了会立刻 FAILED 并写明原因。
+
+#### 6. 前沿
+
+`python scripts/port-frontier.py` → java 树 **103 个文件 / 0 陈旧副本 / 48 可搬 / 55 被挡**（上一批 108 / 0 / 49 / 59）。批量任务链上还在被挡一侧的只剩 `BatchExportProcessor`（C6e）与 `ReplayGainProcessor` + `ReplayGainScanner` + `LibEbuR128`（C6d，ffmpeg 边车）。
+
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：

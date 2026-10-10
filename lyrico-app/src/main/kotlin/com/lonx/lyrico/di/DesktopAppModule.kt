@@ -74,6 +74,9 @@ import com.lonx.lyrico.worker.BatchTaskScheduler
 import com.lonx.lyrico.worker.processor.BatchTaskProcessorFactory
 import com.lonx.lyrico.worker.processor.EditTagsProcessor
 import com.lonx.lyrico.worker.processor.LyricsFormatProcessor
+import com.lonx.lyrico.worker.processor.MatchCoverProcessor
+import com.lonx.lyrico.worker.processor.MatchLyricsProcessor
+import com.lonx.lyrico.worker.processor.MatchMetadataProcessor
 import com.lonx.lyrico.worker.processor.RenameFilesProcessor
 import com.lonx.lyrico.viewmodel.AlbumActionsViewModel
 import com.lonx.lyrico.viewmodel.AlbumDetailViewModel
@@ -232,19 +235,25 @@ fun desktopAppModule(directories: AppDirectories) = module {
     // ---------------------------------------------------------------- batch tasks
 
     // The task processors that exist on desktop so far, registered as Android registered them: one
-    // typed single each, then the factory built out of them. The remaining six types
-    // (MATCH_METADATA, MATCH_LYRICS, MATCH_COVER, SCAN_REPLAY_GAIN, EXPORT_LYRICS, EXPORT_COVER)
-    // have no desktop processor yet, so BatchTaskProcessorFactory refuses them with its own message
-    // and the runner records that on the task row instead of leaving it RUNNING.
+    // typed single each, then the factory built out of them. The remaining three types
+    // (SCAN_REPLAY_GAIN, EXPORT_LYRICS, EXPORT_COVER) have no desktop processor yet, so
+    // BatchTaskProcessorFactory refuses them with its own message and the runner records that on
+    // the task row instead of leaving it RUNNING.
     single { LyricsFormatProcessor(get(), get(), get()) }
     single { RenameFilesProcessor(get(), get(), get()) }
     single { EditTagsProcessor(get(), get()) }
+    single { MatchMetadataProcessor(get(), get(), get(), get(), get(), get()) }
+    single { MatchLyricsProcessor(get(), get(), get(), get(), get()) }
+    single { MatchCoverProcessor(get(), get(), get(), get()) }
     single {
         BatchTaskProcessorFactory(
             mapOf(
                 BatchTaskType.CONVERT_LYRICS_FORMAT to get<LyricsFormatProcessor>(),
                 BatchTaskType.RENAME_FILES to get<RenameFilesProcessor>(),
-                BatchTaskType.EDIT_TAGS to get<EditTagsProcessor>()
+                BatchTaskType.EDIT_TAGS to get<EditTagsProcessor>(),
+                BatchTaskType.MATCH_METADATA to get<MatchMetadataProcessor>(),
+                BatchTaskType.MATCH_LYRICS to get<MatchLyricsProcessor>(),
+                BatchTaskType.MATCH_COVER to get<MatchCoverProcessor>()
             )
         )
     }

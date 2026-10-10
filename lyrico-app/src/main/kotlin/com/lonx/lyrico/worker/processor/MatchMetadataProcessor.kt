@@ -1,6 +1,6 @@
 package com.lonx.lyrico.worker.processor
 
-import android.util.Log
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.audiotag.model.AudioTagData
 import com.lonx.lyrico.data.model.BatchMatchConfig
 import com.lonx.lyrico.data.model.ScoredSearchResult
@@ -148,7 +148,7 @@ class MatchMetadataProcessor(
                     }
                 } catch (throwable: Exception) {
                     if (throwable is CancellationException) throw throwable
-                    Log.w(
+                    PlatformLog.w(
                         TAG,
                         "Search source failed. songUri=${song.uri}, source=${source.id}, query=$query",
                         throwable
@@ -163,7 +163,7 @@ class MatchMetadataProcessor(
                     emptyList()
                 }
 
-                Log.d(
+                PlatformLog.d(
                     TAG,
                     "Search source results. songUri=${song.uri}, source=${source.id}, " +
                             "query=$query, count=${sourceResults.size}, " +
@@ -248,7 +248,7 @@ class MatchMetadataProcessor(
         val finalMatch = bestMatch ?: throw BatchTaskSkippedException("No match found")
         val finalDetail = bestMatchDetail ?: throw BatchTaskSkippedException("No match detail found")
 
-        Log.d(
+        PlatformLog.d(
             TAG,
             "Selected match. songUri=${song.uri}, source=${finalMatch.source?.id}, " +
                     "result=${finalMatch.result.id}:${finalMatch.result.title}, " +
@@ -339,7 +339,7 @@ class MatchMetadataProcessor(
         )
 
         if (tagDataToWrite.isEmpty()) {
-            Log.w(
+            PlatformLog.w(
                 TAG,
                 "Skipping match metadata with empty patch. " +
                         "songUri=${song.uri}, source=$sourceId, " +
@@ -382,7 +382,7 @@ class MatchMetadataProcessor(
                 relatedId = relatedId
             )
         }.onFailure { throwable ->
-            Log.w(TAG, "Failed to write batch plugin log", throwable)
+            PlatformLog.w(TAG, "Failed to write batch plugin log", throwable)
         }
     }
 
@@ -400,7 +400,7 @@ class MatchMetadataProcessor(
                 relatedId = relatedId
             )
         }.onFailure { logThrowable ->
-            Log.w(TAG, "Failed to write batch plugin exception log", logThrowable)
+            PlatformLog.w(TAG, "Failed to write batch plugin exception log", logThrowable)
         }
     }
 
