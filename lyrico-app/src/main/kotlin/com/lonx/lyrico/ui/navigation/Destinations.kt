@@ -59,12 +59,19 @@ class AppLogsDestination : NavDirection {
     }
 }
 
-/** The library's songs tab. Registered by `LyricoNavHost`; the temporary start route. */
-class SongsDestination : NavDirection {
+/**
+ * The library shell: the songs, artists and albums tabs behind one tab bar.
+ *
+ * Android declared it `@Destination<RootGraph>(start = true, route = "library_home")`, and the port
+ * keeps both the route string and the start position, so `LyricoNavHost()` with no arguments boots
+ * into the shipped entry screen. The songs page used to be the temporary start route while the album
+ * and artist pages did not exist; it is now a tab like the other two.
+ */
+class LibraryHomeDestination : NavDirection {
     override val route: String = ROUTE
 
     companion object {
-        const val ROUTE = "songs"
+        const val ROUTE = "library_home"
     }
 }
 

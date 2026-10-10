@@ -1,0 +1,6 @@
+file: docs/port-evidence/c4c-albums-tab.png
+engine: zh-Hans-CN
+lines: 3
+  y=10 x=31 :: Lyrico 1 ℃ 〔 80gf1b4 〕
+  y=49 x=577 :: 专 辑 〔 3 ）
+  y=623 x=636 :: September

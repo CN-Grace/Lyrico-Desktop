@@ -3,11 +3,10 @@ package com.lonx.lyrico.screens
 /**
  * The alphabet index shared by the library pages.
  *
- * Android declared these next to `LibraryHomeScreen`, which meant the songs page (the only page
- * ported so far) could not exist without dragging in the whole three-tab shell. The shell lands in a
- * later batch together with the album and artist pages; until then this file is the home of the two
- * constants and the enum. When the shell is ported it drops its own copies and keeps importing from
- * here, so nothing changes at the call sites.
+ * Android declared these next to `LibraryHomeScreen`, which meant the songs page (the first library
+ * page the port built) could not exist without dragging in the whole three-tab shell. They moved here
+ * for that reason and stayed: the shell now imports them from this file rather than declaring its own
+ * copies, and the album and artist pages take `SECTIONS_ASC`/`SECTIONS_DESC` from here too.
  */
 val SECTIONS_ASC = listOf(
     "0"

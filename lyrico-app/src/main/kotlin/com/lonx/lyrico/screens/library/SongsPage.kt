@@ -112,8 +112,8 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /**
- * The library's songs tab: the first library screen of the port, and the app's entry screen until the
- * three-tab shell lands.
+ * The library's songs tab: the first library page of the port, now hosted by the three-tab
+ * `LibraryHomeScreen` shell.
  *
  * Four Android-only mechanisms are gone rather than shimmed:
  *
@@ -125,10 +125,13 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  *   [com.lonx.lyrico.data.repository.PlaybackRepository]'s system-association call.
  * * **`my.nanihadesuka.compose.InternalLazyColumnScrollbar`** -- Android-only, replaced by
  *   [LibraryScrollbar]. What that costs is documented there.
- * * **`koinActivityViewModel()`.** Desktop has no activity-scoped `ViewModelStore`; the shell will
- *   hoist one `SongListViewModel` for all three tabs when it lands, mirroring the Android activity
- *   scope, and this page will take it as a parameter. Until then the page owns its instance through
- *   `koinViewModel()`, which is the same call the other ported screens make.
+ * * **`koinActivityViewModel()`.** Desktop has no activity-scoped `ViewModelStore`, and it does not
+ *   need one: the shell is a navigation destination, so this page's `koinViewModel()` resolves against
+ *   the `library_home` `NavBackStackEntry` and every screen inside the shell shares that one store.
+ *   That is the activity scope Android was emulating, so no view model is hoisted and this page keeps
+ *   owning its instance through `koinViewModel()` -- the same call the other ported screens make. The
+ *   shell itself resolves only `SongSelectionViewModel` (to drop the selection when a tab is clicked),
+ *   which is the *same* instance this page observes.
  *
  * Three navigations target screens from later batches (settings, local search, edit metadata). They
  * are wired exactly as Android wired them; the routes resolve once those screens are registered, and

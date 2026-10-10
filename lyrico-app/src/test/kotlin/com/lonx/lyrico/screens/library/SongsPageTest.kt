@@ -60,8 +60,8 @@ import kotlin.test.assertTrue
 /**
  * The songs page, rendered from real scans of real audio files.
  *
- * This is the port's first library screen and, until the three-tab shell lands, the app's entry route.
- * The test drives the whole desktop stack the way a user would: pick a folder (the one OS seam that is
+ * This is the page the shipped shell selects at boot, and the first library screen the port grew. The
+ * test drives the whole desktop stack the way a user would: pick a folder (the one OS seam that is
  * replaced), walk it, read the audio tags with TagLib, write rows into a real Room database on disk,
  * and render whatever comes back out of the observable query -- then long-press a row to enter
  * selection mode, and press a song to exercise the navigation that has no screen behind it yet.
@@ -198,11 +198,12 @@ class SongsPageTest {
         song.title?.takeIf(String::isNotBlank) ?: song.fileName
 
     @Test
-    fun `the shipped host starts on the songs page and shows the add-folder empty state`() = runComposeUiTest {
+    fun `the songs tab of the shipped shell shows the add-folder empty state`() = runComposeUiTest {
         setContent {
             LyricoTheme {
-                // The real host, so the temporary start route is asserted rather than assumed: this
-                // guard fails if the songs page stops being reachable from the app's own boot path.
+                // The real host, so the songs page is asserted to be the page the app boots onto: the
+                // shell's tabs are asserted in `LibraryHomeScreenTest`, this guard fails if the songs
+                // page stops being the tab that is selected at boot.
                 LyricoNavHost()
             }
         }

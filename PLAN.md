@@ -592,6 +592,110 @@ CJK 路径的编码器是**自己重写的**（`encodeNavRouteArgument`）：Nav
 `python scripts/port-frontier.py` → java 树 **165 个文件 / 0 陈旧副本 / 66 可搬 / 99 被挡**。
 本批的 6 个文件原来都在 java 树里，随本批删除（与之前几批 `git mv` 的净效果一致）。
 
+### P4 的 UI 轨道（曲库三 tab 外壳 + 第二次真窗口取证，2026-10-10）
+
+#### 0. 这批把「先搬独立歌曲页」收回来
+
+上一批把 `SongsPage` 当独立页面先搬（起始路由是 `songs`），外壳后置。这批补上外壳：歌曲 / 艺人 / 专辑三个 tab 的
+pager + 自适应导航（宽窗口左侧 rail，窄窗口底部 bar），起始路由改回 `library_home`，`SongsDestination` 连同它的注册一并删除。
+
+#### 1. 搬了什么
+
+| 新文件（kotlin 树） | 来源（java 树，随本批删除） | 改动 |
+| --- | --- | --- |
+| `screens/LibraryHomeScreen.kt` | 同名 | 见 §2 |
+| `screens/library/LibraryTab.kt` | 同名 | 去掉 Android 注解 |
+| `ui/components/library/LibraryNavigationBar.kt` | `LibraryBottomNavigationBar.kt` | **改名**，一个文件同时放 bar 与 rail |
+
+连带改动（都是 kotlin 树里的既有文件）：`Destinations.kt`（`SongsDestination` → `LibraryHomeDestination`，
+起始路由）、`LyricoNavHost.kt`（注册新起始路由、删 `songs`）、`LibraryLayoutUtils.kt`（删掉三个「悬浮条 / 液态玻璃」
+helper）、`LibrarySections.kt`（把页内容与分节滚动位置从外壳文件里分出来）、`SongsPage.kt`（KDoc 改成「外壳的第一个 tab」）。
+
+#### 2. 四处适配决策
+
+1. **rail / bar 的判据由「高度」换成「宽度」**：Android 看 `maxHeight < 520.dp` 决定底部 bar（手机竖屏 vs 横屏），
+   桌面窗口高度不是主要变量、宽度才是（用户会把窗口拉宽），改成 `maxWidth >= LibraryHomeRailMinWidth (= 840.dp)`
+   → 左侧 rail，否则底部 bar。数值不是拍的：主窗口默认 1180×780，rail 要在这个尺寸下成立，同时窄窗口下要还能用 bar。
+2. **`LibraryBlurBottomBar` 整块删除**：它依赖 Miuix 的液态玻璃模糊条（`miuix-blur-desktop` 存在，但那条组件的
+   交互前提是「内容从条下面穿过」），桌面这批把导航做成了布局的一部分，模糊条没有立足点。删除，写进缺口。
+3. **外壳只持有 `SongSelectionViewModel`**：切 tab 要调 `exitSelectionMode()`（与 Android 一致：切走即退出选择模式）。
+   各页自己的 viewmodel 仍由各页 `koinViewModel()` 解析，外壳不替它们建实例。
+4. **文件必须改名**：java 树里叫 `LibraryBottomNavigationBar.kt`，而桌面这个文件里 bar 与 rail 是一对搭档，
+   名字得换；`git rm` 旧文件 + 新文件，净效果与 `git mv` 相同（`LibraryHomeScreen` 的 `Scaffold` 还要把起始内边距
+   关掉：`LocalScaffoldIncludesStartPadding provides false`，否则内容被 rail 推两次）。
+
+#### 3. 先量「测试根」，再写几何断言（一次性 probe，已删）
+
+rail/bar 的判据是宽度，而无头测试的根尺寸由测试框架决定，所以先量清楚再写断言：
+
+- `runComposeUiTest` 的根**包住固定尺寸的子节点**，所以 `Modifier.requiredSize(w, h)` 就得到 w×h（用 `size` 会被根的
+  约束改写）；`fillMaxSize` 得到 **1024×768**；density = **1.0**，即 dp == px。
+- 因此 rail/bar 两个用例的宽度**从 `LibraryHomeRailMinWidth` 派生**（宽 = `+160.dp`，窄 = `−320.dp`），常量将来改了也
+  不会让断言漏到另一边；裸 `LyricoNavHost()` 是 1024dp 宽的窗口 → **rail 分支**，所以第 1 个用例天然在 rail 下跑。
+- 顺带量到：bar 与 rail **渲染同一组 tab 文案**（Miuix `NavigationBar` 默认 `IconAndText`，`NavigationRail` 也带标签），
+  所以「rail 还是 bar」只能用几何判定（标签中心点相对页面内容节点的位置），不能用「有没有标签」。量出的原始数字
+  （rail 标签 80×96、bar 标签整宽 64 高）写进了 `LibraryHomeScreenTest` 的类注释，probe 本身删掉。
+
+#### 4. 无头取证（新增 1 类 5 项；全量 65 类 553 项，552 执行 + 1 门控跳过，0 失败 0 错误）
+
+`screens/LibraryHomeScreenTest`（真 Koin + 真扫描 + 真 Room + 真 `LyricoNavHost`）：
+
+| 用例 | 钉住的东西 |
+| --- | --- |
+| 起始路由就是三 tab 外壳 | 三个 tab 文案齐全 + 歌曲空态 + 「添加文件夹」；另两个 tab 的文案**不存在**（未合成的页不上屏） |
+| 点 tab 切页并切回来 | 每次切换都断言「新页在、旧页不在」 |
+| 选择模式切走再切回 | 长按进选择模式（计数条 = 1）→ 点艺人 tab → 点回歌曲 tab：**默认顶栏回来了**（选择计数条与排序图标的状态都断言） |
+| 宽窗口 → rail | 标签中心点在页面内容左侧 |
+| 窄窗口 → bar | 标签中心点在页面内容下方，且仍能切到专辑 tab |
+
+#### 5. 真窗口取证：这次连「点」也验了
+
+前两批的真窗口取证只证明「渲染出来了」。这批要证明三 tab 外壳**能响应**，于是加了 `scripts/click-window.ps1`。
+写这个脚本踩到三件事，都写进了脚本注释（下一批还会用）：
+
+1. **截图坐标 ≠ 点击坐标**：`capture-window.ps1` 截的是 DWM **框架**矩形（含 31px 系统标题栏、左右各 1px 边框），
+   而 Compose 的命中测试吃的是**客户区**坐标。第一轮点击全错位，表现是「点了没反应」，看起来像 app 的 bug。
+   脚本改成用 `ClientToScreen` 取客户区原点，并把两个原点都打印出来（本机：标题栏 31px、左边框 1px）。
+2. **Windows 会吞掉「用于激活」的那一次点击**：窗口不在前台时，第一次点击被系统拿去激活，app 收不到。
+   脚本先判断窗口是否已在前台，不在就**先花一次点击做激活**，再发用户要的那一次。
+3. 点击前必须把窗口带到前台（`AttachThreadInput`，与截图脚本同一套），否则点会落到别的窗口上。
+
+点击映射（都经 OCR 复核，从「歌曲」起）：客户区 (40, 50) → `歌曲 (4)`、(40, 131) → `艺术家 (3)`、
+(40, 209) → `专辑 (3)`。三张留档：`docs/port-evidence/c4c-library-shell.png`、`c4c-artists-tab.png`、`c4c-albums-tab.png`
+（各配 `.ocr.txt` 与 `.analysis.txt`）。窗口 1166×773（客户区 1164×741），rail 宽 80px，内容从 x≈154 起。
+
+#### 6. 真窗口这轮看到的东西
+
+- **rail 分支没有底部导航**：整幅 1166×773 截图在 y 650–770 的墨迹图是空白（只有一个孤立像素），确认 rail 分支不叠 bar。
+- **三个 tab 都是真数据**：歌曲 tab 从 C3 的四首（`周华健·朋友`×2、`September`、`山丘`）不变；
+  艺人 tab 三行、行摘要是 `1 专辑 · 2 首` 这种真计数（`周华健 1 专辑 · 2 首` 与库里 2 首一致）；
+  专辑 tab 两张可见卡片、`朋友 / 2 首` 与 `September`。
+- **专辑页是 2 列、卡片被拉得很大**（本批最值得记的一条）：卡片底色白 `255,255,255`、页底 `247,247,247`，
+  卡片横向 94–619 与 628–1152（各 526px，间距 9px），封面 1:1（≈510px）居中画 26dp 的占位图标（`#666666`，
+  因为开发库夹具没有内嵌封面），标题/计数在封面下方（y≈623/643），第三张专辑在折叠线以下（第二行从 y≈673 开始，可滚）。
+  **这不是回归**：`albumGridColumns` 是 Android 也有的用户设置（默认 2，`coerceIn(2, 4)`），Android 平板横屏同样会这样；
+  但因为桌面窗口动辄 1100+ dp，一张 526dp 的封面在桌面上是不可用的默认值 → 记成 P5 的桌面 UX 缺口（自适应列数），
+  本批**不**擅自改行为。
+- **顺手关掉 C3 留下的一个悬案**：「窗口排序 vs 数据库查询排序是否一致」。开发库的 `titleSortKey` 升序是
+  `1_SEPTEMBER` → `1_SHANQIU` → `1_PENGYOU`，窗口顺序（September → 山丘 → 朋友×2）与之一致，两者在这份数据上**重合**，
+  所以看不到分歧。这只证明「当前数据集不分歧」，能分辨分歧的数据集（如 `10` vs `2` 前缀、拼音与 CJK 混排）不在开发库里，
+  留到 P5 或换数据集时再验。
+- 抓图这一轮也确认：`LibraryHomeScreenTest` 里那条「切 tab 退出选择模式」的行为在真窗口里同样成立（点 tab 后顶栏恢复默认）。
+
+#### 7. 这批的用户可见缺口（如实记录）
+
+1. 专辑详情页、艺人详情页**仍只有路由没有界面**（点卡片/行只写日志）——与上一批相同。
+2. `floatingBottomBarEnabled` / `floatingBarEffect` 两个设置仍然存得住、读得出，但桌面**没有任何渲染效果**（悬浮条已裁，§2.2）。
+3. **Esc / 返回键退出选择模式丢掉**：Android 的 `BackHandler` 是 Android 专属，桌面这批没做等价物（选择模式只能靠
+   顶栏的关闭按钮或切 tab 退出）。写进 P5 的 UX 缺口，不假装它有。
+4. 设置页、本地搜索页仍未注册（路由声明了，点过去只写日志）。
+5. 批量 FAB、ReplayGain 两项动作仍缺（上一批的裁决）。
+
+#### 8. 前沿
+
+`python scripts/port-frontier.py` → java 树 **162 个文件 / 0 陈旧副本 / 65 可搬 / 97 被挡**（上一批 165 / 0 / 66 / 99）。
+本批的 3 个文件原来都在 java 树里，随本批删除。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
@@ -658,10 +762,11 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **P2 复现命令**：`./gradlew :lyrico-app:run` 弹出窗口（标题 `Lyrico <版本> (<commit>)`）；取证用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6.0" -OutputPath docs/port-evidence/p2-miuix-window.png`（截的是窗口自身矩形；**别用模糊标题匹配**——终端窗口标题里也含 “Lyrico-Desktop”）。截图非空白的客观校验在 `docs/port-evidence/p2-miuix-window.analysis.txt`（561 色；白底 `255,255,255` + 卡片底 `247,247,247`；2906 个文字暗像素分布在 96 行）。
 - **P2 版本锁定**：Kotlin 2.4.20 + Compose Multiplatform **1.12.0** + Miuix **0.9.4**。不是随手写的：Miuix `-desktop` 产物的 pom 显示它是用 CMP 1.12.0 / Kotlin 2.4.20 编的，Kotlin 版本又要跟仓库原有 2.4.20 对齐，三者必须同进同退。
 - **P4 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（把 4 首真标签的歌填进 `lyrico-app/data`）→ `./gradlew :lyrico-app:run` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-window.ps1 -TitleLike "Lyrico 1.6" -OutputPath docs/port-evidence/<名>.png -SettleMs 4000` → `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ocr-window-capture.ps1 -Path <png> -OutFile <txt>` → `python scripts/analyze-window-capture.py <png> --write`。**别用模糊标题匹配**（终端窗口标题里也含 “Lyrico-Desktop”），别在激活后加 sleep（会被别的窗口抢前台），OCR 结果先落盘再读（PowerShell 管道会糊 CJK）。
+- **要点界面时用 `scripts/click-window.ps1`**（`-X -Y` 是**客户区**坐标，`-SettleMs` 后自取图复核）：截图带 31px 系统标题栏、左右各 1px 边框，所以「截图里 y=240 的东西」要点 `-Y 209`；窗口不在前台时脚本会先花一次点击做激活（Windows 会把那一次吞掉），否则第一次点击看着像「点了没反应」。脚本会把框架原点与客户区原点都打出来，不要手算。
 - **`stringResource` 的两个坑（本仓已踩，勿回退）**：
   1. **带参数的 `stringResource` / `getString` 不走 `String.format`**：CMP 的实现是 `replaceWithArgs` + 正则 `%(\d+)\$[ds]`，只认位置参数。本仓 20 条字符串用普通 `%d`/`%s`/`%.2f`，所以主源码里禁止直接写 `stringResource(res, args)` / `getString(res, args)`，一律走 `formattedStringResource` / `formattedString`（`StringFormattingGuardTest` 会把违规的 `file:line` 报出来）。**不要**为了迁就库去改字符串：字符串必须与 Android 逐字一致，而且 `%.2f`/宽度/精度在库的模型里根本表达不出来。
   2. **多行 XML body 的缩进不会被去掉**（`\n` 转义会被正确转成换行）。aapt2 去掉的是「首尾带换行的那段空白」，行内尾空格是故意的（`Task Type: ` 后面拼值）。所以 Compose 资源里的 `<string>` body 一律写成一行；`ComposeStringResourcesTest` 会检查。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；P4 各批（状态层、浏览/搜索 viewmodel、剩余 viewmodel、UI 地基、UI 轨道、选择与操作面板、独立歌曲页、专辑页与艺人页）之后，全量现为 **548 项（547 执行 + 1 门控跳过）0 失败 0 错误、64 个测试类**，按包可核对：data 203 · viewmodel 134 · utils 117 · ui 33 · screens 22 · domain 20 · platform 13 · di 5 · probe 1；其中 UI 轨道 25 项 = 封面 7 + 歌曲列表 11 + 壳 7，选择与操作面板 69 项，独立歌曲页 7 项 + 导航 5 项 + 字符串格式化 9 项，专辑页 6 项 + 艺人页 4 项 + 专辑操作 viewmodel 4 项，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9** + 独立歌曲页全链路 7 + 导航 5（原 2）+ 字符串格式化（守卫 2 + helper 3 + 资源 XML 4）+ 开发库播种 1（门控跳过））。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；P4 各批（状态层、浏览/搜索 viewmodel、剩余 viewmodel、UI 地基、UI 轨道、选择与操作面板、独立歌曲页、专辑页与艺人页、三 tab 外壳）之后，全量现为 **553 项（552 执行 + 1 门控跳过）0 失败 0 错误、65 个测试类**，按包可核对：data 203 · viewmodel 134 · utils 117 · ui 33 · screens 27 · domain 20 · platform 13 · di 5 · probe 1；其中 UI 轨道 25 项 = 封面 7 + 歌曲列表 11 + 壳 7，选择与操作面板 69 项，独立歌曲页 7 项 + 导航 5 项 + 字符串格式化 9 项，专辑页 6 项 + 艺人页 4 项 + 专辑操作 viewmodel 4 项，三 tab 外壳 5 项，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9** + 独立歌曲页全链路 7 + 导航 5（原 2）+ 字符串格式化（守卫 2 + helper 3 + 资源 XML 4）+ 开发库播种 1（门控跳过））。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。

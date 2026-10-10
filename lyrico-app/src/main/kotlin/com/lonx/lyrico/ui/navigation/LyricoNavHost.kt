@@ -11,7 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.lonx.lyrico.screens.AppLogScreen
-import com.lonx.lyrico.screens.library.SongsPage
+import com.lonx.lyrico.screens.LibraryHomeScreen
 import top.yukonga.miuix.kmp.basic.Surface
 import androidx.compose.foundation.layout.fillMaxSize
 
@@ -26,17 +26,18 @@ import androidx.compose.foundation.layout.fillMaxSize
  * `composable` gives each entry its own `ViewModelStoreOwner` and `SavedStateHandle`, which is what
  * `koinViewModel()` and the result-recipient flows rely on (see [Navigator]).
  *
- * The start route is the songs page for this batch. Android's start route was `library_home`, the
- * three-tab shell; that shell needs `SongsPage` **and** `AlbumsPage`/`ArtistsPage`, so it becomes its
- * own batch once the album and artist pages exist (see `PLAN.md`). Until then the ported songs page is
- * the app's entry screen, which is a real screen backed by real data rather than a placeholder.
- * `app_logs` stays registered.
+ * The start route is the library shell (`library_home`), which is the route Android started on and
+ * which is now complete: the shell's three tabs are the ported songs, artists and albums pages. It is
+ * the default of [startDestination], so a bare `LyricoNavHost()` boots the shipped entry screen, and a
+ * test that wants to start elsewhere (e.g. straight on the app log) passes the route in.
+ * `app_logs` stays registered; local search and the metadata editor are still declared-only and are
+ * registered by the batches that port their screens.
  */
 @Composable
 fun LyricoNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: NavDirection = SongsDestination(),
+    startDestination: NavDirection = LibraryHomeDestination(),
 ) {
     val navigator = rememberNavigator(navController)
     Surface(modifier = modifier.fillMaxSize()) {
@@ -71,8 +72,8 @@ fun LyricoNavHost(
             composable(AppLogsDestination.ROUTE) {
                 AppLogScreen(navigator = navigator)
             }
-            composable(SongsDestination.ROUTE) {
-                SongsPage(navigator = navigator)
+            composable(LibraryHomeDestination.ROUTE) {
+                LibraryHomeScreen(navigator = navigator)
             }
         }
     }
