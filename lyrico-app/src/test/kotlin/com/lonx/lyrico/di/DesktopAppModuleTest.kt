@@ -180,9 +180,13 @@ class DesktopAppModuleTest {
             koin.get<com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel>(),
             koin.get<com.lonx.lyrico.viewmodel.SongListViewModel>(),
             koin.get<com.lonx.lyrico.viewmodel.SongSelectionViewModel>(),
+            koin.get<com.lonx.lyrico.viewmodel.BatchExportViewModel>(),
+            koin.get<com.lonx.lyrico.viewmodel.BatchLyricsFormatViewModel>(),
+            koin.get<com.lonx.lyrico.viewmodel.BatchMatchViewModel>(),
+            koin.get<com.lonx.lyrico.viewmodel.BatchReplayGainViewModel>(),
         )
 
-        assertEquals(10, viewModels.size)
+        assertEquals(14, viewModels.size)
         viewModels.forEach { assertNotNull(it) }
     }
 }

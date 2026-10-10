@@ -1,6 +1,5 @@
 package com.lonx.lyrico.viewmodel
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lonx.lyrico.data.model.ExportDestination
@@ -32,6 +31,23 @@ data class BatchExportUiState(
     val taskType: BatchTaskType? = null
 )
 
+/**
+ * Starts `EXPORT_LYRICS` / `EXPORT_COVER` tasks and mirrors the running one into [uiState].
+ *
+ * One Android type is gone: `destinationTreeUri: Uri`. "Write into a folder the user picked" stored a
+ * SAF tree `Uri` and took a persistable permission on it; desktop has neither, so the caller hands
+ * over a Windows path ([destinationDirectory]) that came from
+ * [com.lonx.lyrico.platform.DirectoryPicker]. Everything else is the Android class unchanged -- the
+ * same type guard, the same "nothing selected, nothing happens", the same resumption of a task left
+ * running by a previous process ([BatchTaskRepository.getRunningTaskByType] in `init`).
+ *
+ * The config JSON is encoded with the default [Json] settings, so fields left at their defaults are
+ * omitted exactly as they were on Android (`encodeDefaults = false`). A `SELECTED_DIRECTORY` run
+ * therefore still writes `{"destinationDirectory":...,"destination":...}`, and `concurrency` stays
+ * absent so [com.lonx.lyrico.worker.processor.BatchExportTaskConfig]'s own default applies on the
+ * reading side. That is the encode half of the decode rule documented on the processor: Android rows
+ * remain readable here, and a row written here stays readable by the same lenient decoder.
+ */
 class BatchExportViewModel(
     private val songLibraryRepository: SongLibraryRepository,
     private val batchTaskRepository: BatchTaskRepository,
@@ -61,10 +77,10 @@ class BatchExportViewModel(
     fun startBatchExport(
         taskType: BatchTaskType,
         destination: ExportDestination,
-        destinationTreeUri: Uri? = null
+        destinationDirectory: String? = null
     ) {
         if (taskType != BatchTaskType.EXPORT_LYRICS && taskType != BatchTaskType.EXPORT_COVER) return
-        if (destination == ExportDestination.SELECTED_DIRECTORY && destinationTreeUri == null) return
+        if (destination == ExportDestination.SELECTED_DIRECTORY && destinationDirectory == null) return
         val uris = selectedUris.toList()
         if (uris.isEmpty()) return
 
@@ -94,7 +110,7 @@ class BatchExportViewModel(
             val configJson = Json.encodeToString(
                 BatchExportTaskConfig.serializer(),
                 BatchExportTaskConfig(
-                    destinationTreeUri = destinationTreeUri?.toString(),
+                    destinationDirectory = destinationDirectory,
                     destination = destination
                 )
             )

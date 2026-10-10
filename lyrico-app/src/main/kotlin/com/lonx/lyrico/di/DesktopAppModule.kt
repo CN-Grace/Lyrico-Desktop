@@ -87,6 +87,10 @@ import com.lonx.lyrico.viewmodel.AlbumLibraryViewModel
 import com.lonx.lyrico.viewmodel.AppLogViewModel
 import com.lonx.lyrico.viewmodel.ArtistLibraryViewModel
 import com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel
+import com.lonx.lyrico.viewmodel.BatchExportViewModel
+import com.lonx.lyrico.viewmodel.BatchLyricsFormatViewModel
+import com.lonx.lyrico.viewmodel.BatchMatchViewModel
+import com.lonx.lyrico.viewmodel.BatchReplayGainViewModel
 import com.lonx.lyrico.viewmodel.BatchTaskDetailViewModel
 import com.lonx.lyrico.viewmodel.BatchTaskListViewModel
 import com.lonx.lyrico.viewmodel.CharacterMappingViewModel
@@ -345,6 +349,42 @@ fun desktopAppModule(directories: AppDirectories) = module {
         )
     }
     viewModel { BatchTaskListViewModel(get(), get()) }
+    // The four batch launchers behind `SongBatchSelectionActions`. Every argument is named: two of
+    // these constructors take both a song-library and a batch-task repository, and swapping those two
+    // by position would still compile.
+    viewModel {
+        BatchMatchViewModel(
+            settingsRepository = get(),
+            selectionManager = get(),
+            batchTaskRepository = get(),
+            batchTaskScheduler = get(),
+            editFieldConfigRepository = get(),
+            searchSourceProvider = get(),
+        )
+    }
+    viewModel {
+        BatchReplayGainViewModel(
+            songLibraryRepository = get(),
+            batchTaskRepository = get(),
+            batchTaskScheduler = get(),
+            settingsRepository = get(),
+        )
+    }
+    viewModel {
+        BatchLyricsFormatViewModel(
+            songLibraryRepository = get(),
+            batchTaskRepository = get(),
+            batchTaskScheduler = get(),
+            settingsRepository = get(),
+        )
+    }
+    viewModel {
+        BatchExportViewModel(
+            songLibraryRepository = get(),
+            batchTaskRepository = get(),
+            batchTaskScheduler = get(),
+        )
+    }
     viewModel { SongListViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { SongSelectionViewModel(get(), get(), get(), get(), get()) }
     viewModel { SearchViewModel(get(), get(), get(), get()) }
