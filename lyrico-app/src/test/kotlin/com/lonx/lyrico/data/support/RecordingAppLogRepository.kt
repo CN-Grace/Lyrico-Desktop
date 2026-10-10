@@ -8,13 +8,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
 /**
- * An [AppLogRepository] that records logged exceptions instead of writing them anywhere.
+ * An [AppLogRepository] that records what it was asked to write instead of writing it anywhere.
  *
  * The logging repository is a dependency of most of the data layer, but a test that is not about
- * logging should not need a database and a retention policy to construct its subject. Exceptions are
- * kept so a test can still assert that a failure was reported rather than swallowed.
+ * logging should not need a database and a retention policy to construct its subject. Entries and
+ * exceptions are both kept, so a test can assert that a failure was reported rather than swallowed —
+ * and, for the plugin layer, that a call reported what it actually returned.
  */
 class RecordingAppLogRepository : AppLogRepository {
+    val entries = mutableListOf<RecordedLog>()
     val exceptions = mutableListOf<RecordedException>()
 
     override fun observeLatest(limit: Int): Flow<List<AppLogEntity>> = flowOf(emptyList())
@@ -36,7 +38,9 @@ class RecordingAppLogRepository : AppLogRepository {
         message: String,
         detail: String?,
         relatedId: String?,
-    ) = Unit
+    ) {
+        entries += RecordedLog(level, type, tag, message, detail, relatedId)
+    }
 
     override suspend fun logException(
         type: AppLogType,
@@ -55,6 +59,15 @@ class RecordingAppLogRepository : AppLogRepository {
     override suspend fun trim() = Unit
 
     override suspend fun applyRetentionPolicy() = Unit
+
+    data class RecordedLog(
+        val level: AppLogLevel,
+        val type: AppLogType,
+        val tag: String,
+        val message: String,
+        val detail: String?,
+        val relatedId: String?,
+    )
 
     data class RecordedException(
         val type: AppLogType,

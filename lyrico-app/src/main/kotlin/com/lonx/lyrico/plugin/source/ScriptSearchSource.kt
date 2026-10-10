@@ -1,6 +1,6 @@
 package com.lonx.lyrico.plugin.source
 
-import android.util.Log
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.model.plugin.PluginConfigField
@@ -103,7 +103,7 @@ class ScriptSearchSource(
                 pluginId = id,
                 pluginName = name
             )
-            Log.d(
+            PlatformLog.d(
                 TAG,
                 "searchSongs plugin=$id version=${manifest.versionName}(${
                     manifest.versionCode
@@ -130,7 +130,7 @@ class ScriptSearchSource(
             results
         } catch (throwable: Exception) {
             if (throwable is CancellationException) throw throwable
-            Log.w(TAG, "search failed for plugin $id (${manifest.name})", throwable)
+            PlatformLog.w(TAG, "search failed for plugin $id (${manifest.name})", throwable)
             logPluginException(
                 message = "Plugin song search failed",
                 throwable = throwable,
@@ -188,7 +188,7 @@ class ScriptSearchSource(
             candidates
         } catch (throwable: Exception) {
             if (throwable is CancellationException) throw throwable
-            Log.w(TAG, "getLyrics failed for plugin $id (${manifest.name})", throwable)
+            PlatformLog.w(TAG, "getLyrics failed for plugin $id (${manifest.name})", throwable)
             logPluginException(
                 message = "Plugin lyrics call failed",
                 throwable = throwable,
@@ -227,7 +227,7 @@ class ScriptSearchSource(
                 results
             } catch (throwable: Exception) {
                 if (throwable is CancellationException) throw throwable
-                Log.w(TAG, "searchCover failed for plugin $id (${manifest.name})", throwable)
+                PlatformLog.w(TAG, "searchCover failed for plugin $id (${manifest.name})", throwable)
                 logPluginException(
                     message = "Plugin cover search failed",
                     throwable = throwable,
@@ -267,7 +267,7 @@ class ScriptSearchSource(
                 results
             } catch (throwable: Exception) {
                 if (throwable is CancellationException) throw throwable
-                Log.w(TAG, "searchCover failed for plugin $id (${manifest.name})", throwable)
+                PlatformLog.w(TAG, "searchCover failed for plugin $id (${manifest.name})", throwable)
                 logPluginException(
                     message = "Plugin cover search failed",
                     throwable = throwable,
@@ -321,7 +321,7 @@ class ScriptSearchSource(
                 relatedId = id
             )
         }.onFailure { throwable ->
-            Log.w(TAG, "Failed to write plugin call log", throwable)
+            PlatformLog.w(TAG, "Failed to write plugin call log", throwable)
         }
     }
 
@@ -339,7 +339,7 @@ class ScriptSearchSource(
                 relatedId = id
             )
         }.onFailure { logThrowable ->
-            Log.w(TAG, "Failed to write plugin exception log", logThrowable)
+            PlatformLog.w(TAG, "Failed to write plugin exception log", logThrowable)
         }
     }
 

@@ -1,6 +1,6 @@
 package com.lonx.lyrico.plugin.source
 
-import android.util.Log
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.model.entity.SourcePluginEntity
 import com.lonx.lyrico.data.model.log.AppLogLevel
 import com.lonx.lyrico.data.model.log.AppLogType
@@ -518,7 +518,7 @@ class SourcePluginInstaller(
                             )
                         }
                     }.onFailure { throwable ->
-                        Log.w(TAG, "Failed to synchronize manifest metadata for ${plugin.id}", throwable)
+                        PlatformLog.w(TAG, "Failed to synchronize manifest metadata for ${plugin.id}", throwable)
                     }
                 }
             }
@@ -655,7 +655,7 @@ class SourcePluginInstaller(
                 relatedId = relatedId
             )
         }.onFailure { throwable ->
-            Log.w(TAG, "Failed to write plugin installer log", throwable)
+            PlatformLog.w(TAG, "Failed to write plugin installer log", throwable)
         }
     }
 
@@ -673,7 +673,7 @@ class SourcePluginInstaller(
                 relatedId = relatedId
             )
         }.onFailure { logThrowable ->
-            Log.w(TAG, "Failed to write plugin installer exception log", logThrowable)
+            PlatformLog.w(TAG, "Failed to write plugin installer exception log", logThrowable)
         }
     }
 

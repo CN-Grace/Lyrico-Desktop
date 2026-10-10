@@ -1,5 +1,6 @@
 package com.lonx.lyrico.di
 
+import com.lonx.lyrico.BuildInfo
 import com.lonx.lyrico.data.LyricoDatabase
 import com.lonx.lyrico.data.SharedSelectionManager
 import com.lonx.lyrico.data.editfield.EditFieldConfigRepository
@@ -10,9 +11,9 @@ import com.lonx.lyrico.data.repository.AppLogRepositoryImpl
 import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.data.repository.BatchTaskRepositoryImpl
 import com.lonx.lyrico.data.repository.CustomTagKeyRepository
-import com.lonx.lyrico.data.repository.GhContributorRepository
 import com.lonx.lyrico.data.repository.FileRevealRepository
 import com.lonx.lyrico.data.repository.FileRevealRepositoryImpl
+import com.lonx.lyrico.data.repository.GhContributorRepository
 import com.lonx.lyrico.data.repository.GhContributorRepositoryImpl
 import com.lonx.lyrico.data.repository.LibraryIndexRepository
 import com.lonx.lyrico.data.repository.LibraryIndexRepositoryImpl
@@ -20,6 +21,8 @@ import com.lonx.lyrico.data.repository.PlaybackRepository
 import com.lonx.lyrico.data.repository.PlaybackRepositoryImpl
 import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.repository.SettingsRepositoryImpl
+import com.lonx.lyrico.data.repository.SourcePluginRepository
+import com.lonx.lyrico.data.repository.SourcePluginRepositoryImpl
 import com.lonx.lyrico.data.repository.UpdateRepository
 import com.lonx.lyrico.data.repository.UpdateRepositoryImpl
 import com.lonx.lyrico.data.repository.createSettingsDataStore
@@ -43,12 +46,21 @@ import com.lonx.lyrico.data.song.tag.ImageBytesFetcher
 import com.lonx.lyrico.data.song.tag.ImageMimeTypeDetector
 import com.lonx.lyrico.data.song.tag.PictureMutationResolver
 import com.lonx.lyrico.data.song.tag.TagMapBuilder
+import com.lonx.lyrico.domain.SearchSourceConfigApplier
 import com.lonx.lyrico.domain.song.usecase.DeleteSongsUseCase
 import com.lonx.lyrico.domain.song.usecase.ReadAudioTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.RenameSongUseCase
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.SynchronizeLibraryUseCase
 import com.lonx.lyrico.platform.AppDirectories
+import com.lonx.lyrico.plugin.i18n.PluginLocales
+import com.lonx.lyrico.plugin.runtime.HostAppInfo
+import com.lonx.lyrico.plugin.runtime.QuickJsHostApi
+import com.lonx.lyrico.plugin.runtime.QuickJsRuntime
+import com.lonx.lyrico.plugin.source.PluginSearchSourceManager
+import com.lonx.lyrico.plugin.source.ScriptSearchSourceFactory
+import com.lonx.lyrico.plugin.source.SearchSourceProvider
+import com.lonx.lyrico.plugin.source.SourcePluginInstaller
 import com.lonx.lyrico.utils.LibraryScanManager
 import com.lonx.lyrico.utils.LibraryScanManagerImpl
 import com.lonx.lyrico.utils.UpdateManager
@@ -64,6 +76,7 @@ import com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel
 import com.lonx.lyrico.viewmodel.LocalSearchViewModel
 import com.lonx.lyrico.viewmodel.SongListViewModel
 import com.lonx.lyrico.viewmodel.SongSelectionViewModel
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,7 +89,6 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.dsl.onClose
-import java.util.concurrent.TimeUnit
 
 /** The Koin qualifier for the settings `DataStore`, and for the edit-field one. */
 private val SettingsStore = named("settingsStore")
@@ -198,6 +210,53 @@ fun desktopAppModule(directories: AppDirectories) = module {
 
     single<LibraryScanManager> { LibraryScanManagerImpl(get(), get(), get(), get()) }
     single<UpdateManager> { UpdateManagerImpl(get(), get()) }
+
+    // ---------------------------------------------------------------- plugins
+
+    single { get<LyricoDatabase>().sourcePluginDao() }
+    single<SourcePluginRepository> { SourcePluginRepositoryImpl(get()) }
+
+    // One factory for every plugin runtime. Mirrors Android's graph, with three desktop
+    // substitutions: the app identity comes from BuildInfo instead of BuildConfig, the host API's
+    // cache lives under the data folder instead of `Context.cacheDir`, and PluginLocales reads the
+    // JVM default locale instead of a `Context` (see PluginLocales for the documented gaps).
+    single {
+        val okHttpClient = get<OkHttpClient>()
+        PluginLocales.initialize()
+        ScriptSearchSourceFactory(
+            json = get(),
+            appLogRepository = get(),
+            runtimeFactory = { plugin, strings ->
+                QuickJsRuntime(
+                    hostApi = QuickJsHostApi(
+                        appInfo = HostAppInfo(
+                            name = "Lyrico",
+                            packageName = HostAppInfo.DEFAULT_PACKAGE_NAME,
+                            versionName = BuildInfo.VERSION_NAME,
+                            versionCode = BuildInfo.VERSION_CODE,
+                            buildType = BuildInfo.BUILD_TYPE,
+                            debug = BuildInfo.DEBUG
+                        ),
+                        okHttpClient = okHttpClient,
+                        pluginId = plugin.id,
+                        pluginStrings = strings,
+                        cacheRootDir = directories.pluginCacheDir
+                    )
+                )
+            }
+        )
+    }
+    single { SourcePluginInstaller(repository = get(), json = get(), appLogRepository = get()) }
+    single {
+        PluginSearchSourceManager(
+            repository = get(),
+            factory = get(),
+            installer = get(),
+            appLogRepository = get()
+        )
+    }
+    single { SearchSourceProvider(pluginManager = get()) }
+    single { SearchSourceConfigApplier(get()) }
 
     // ---------------------------------------------------------------- view models
 

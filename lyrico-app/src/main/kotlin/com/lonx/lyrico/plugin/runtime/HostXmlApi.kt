@@ -8,12 +8,39 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
-import org.xmlpull.v1.XmlSerializer
+import org.w3c.dom.Document
+import org.w3c.dom.Element
+import org.w3c.dom.Node
 import java.io.StringReader
-import java.io.StringWriter
+import javax.xml.XMLConstants
+import javax.xml.parsers.DocumentBuilderFactory
+import org.xml.sax.InputSource
 
+/**
+ * XML helpers exposed to plugins as `Platform.xml.*`.
+ *
+ * Ported from Android, where parsing went through `org.xmlpull.v1.XmlPullParser` (kxml2) and
+ * serialisation through `XmlSerializer`. The desktop JDK has neither, and this project already uses
+ * JDK XML for the TTML lyric document, so the pull parser is replaced by a namespace-unaware DOM
+ * (`DocumentBuilderFactory`). The tree model, the query/mutation semantics and the JSON shapes are
+ * unchanged; only [parse] and [serialize] differ.
+ *
+ * Two deliberate deviations, both confined to how a document is written back out:
+ *
+ * 1. Serialisation is done by [writeNode] instead of `XmlSerializer`. No XML declaration is emitted
+ *    (the Android code never called `startDocument()` either), empty elements are written as
+ *    `<tag />`, and `&`, `<`, `>`, `\r` (and in attribute values also `"`, `\n`, `\t`) are escaped
+ *    as entity or character references. Plugins only re-parse what they get back, so whitespace and
+ *    declaration details are not load-bearing.
+ * 2. A `DOCTYPE` declaration is retained but never resolved: external general/parameter entities and
+ *    external DTD loading are switched off, so a document carrying a doctype cannot reach the
+ *    filesystem or the network through this API.
+ * 3. Attribute order changes. Xerces (the JDK's DOM parser) hands back attributes ordered by
+ *    qualified name, where Android's XmlPullParser reported them in document order. Both the query
+ *    results and the serialised document are consumed by re-parsing, so order is not load-bearing —
+ *    but it is not byte-identical to Android either, and [HostXmlApiTest] pins the order that is
+ *    actually produced.
+ */
 object HostXmlApi {
 
     fun getRootAttributes(xml: String): JsonObject {
@@ -118,53 +145,50 @@ object HostXmlApi {
     }
 
     private fun parse(xml: String): XmlNode {
-        val parser = XmlPullParserFactory.newInstance().newPullParser()
-        parser.setInput(StringReader(xml))
+        val document = parseDocument(xml)
+        val root = document.documentElement ?: return XmlNode.element("root")
+        return toXmlNode(root)
+    }
 
-        val stack = ArrayDeque<XmlNode>()
-        var root: XmlNode? = null
+    private fun parseDocument(xml: String): Document {
+        val factory = DocumentBuilderFactory.newInstance()
+        // Secure processing plus no external entity/DTD resolution: plugins supply this XML.
+        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false)
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        factory.isExpandEntityReferences = false
+        // Android's XmlPullParser has namespace processing off by default, so qualified names keep
+        // their prefix and attribute names are compared verbatim — mirror that.
+        factory.isNamespaceAware = false
+        return factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
+    }
 
-        while (true) {
-            when (parser.eventType) {
-                XmlPullParser.START_TAG -> {
-                    val node = XmlNode.element(parser.name)
+    private fun toXmlNode(element: Element): XmlNode {
+        val node = XmlNode.element(element.nodeName)
 
-                    for (i in 0 until parser.attributeCount) {
-                        val prefix = parser.getAttributePrefix(i)
-                        val name = parser.getAttributeName(i)
-                        val attrName = if (!prefix.isNullOrBlank()) "$prefix:$name" else name
-                        node.attributes[attrName] = parser.getAttributeValue(i)
-                    }
-
-                    if (stack.isEmpty()) {
-                        root = node
-                    } else {
-                        stack.last().children += node
-                    }
-
-                    stack.addLast(node)
-                }
-
-                XmlPullParser.TEXT, XmlPullParser.CDSECT -> {
-                    val text = parser.text.orEmpty()
-                    if (text.isNotEmpty() && stack.isNotEmpty()) {
-                        stack.last().children += XmlNode.text(text)
-                    }
-                }
-
-                XmlPullParser.END_TAG -> {
-                    if (stack.isNotEmpty()) {
-                        stack.removeLast()
-                    }
-                }
-
-                XmlPullParser.END_DOCUMENT -> break
-            }
-
-            parser.next()
+        val attributes = element.attributes
+        for (index in 0 until attributes.length) {
+            val attribute = attributes.item(index)
+            node.attributes[attribute.nodeName] = attribute.nodeValue.orEmpty()
         }
 
-        return root ?: XmlNode.element("root")
+        var child: Node? = element.firstChild
+        while (child != null) {
+            when (child.nodeType) {
+                Node.ELEMENT_NODE -> node.children += toXmlNode(child as Element)
+
+                Node.TEXT_NODE, Node.CDATA_SECTION_NODE -> {
+                    val text = child.nodeValue.orEmpty()
+                    if (text.isNotEmpty()) {
+                        node.children += XmlNode.text(text)
+                    }
+                }
+            }
+            child = child.nextSibling
+        }
+
+        return node
     }
 
     private fun parseFragment(fragment: String): List<XmlNode> {
@@ -172,35 +196,56 @@ object HostXmlApi {
         return parse(wrapped).children
     }
 
-    private fun serialize(node: XmlNode): String {
-        val writer = StringWriter()
-        val serializer = XmlPullParserFactory.newInstance().newSerializer()
+    private fun serialize(node: XmlNode): String = buildString { writeNode(node, this) }
 
-        serializer.setOutput(writer)
-        writeNode(serializer, node)
-        serializer.flush()
-
-        return writer.toString()
-    }
-
-    private fun writeNode(serializer: XmlSerializer, node: XmlNode) {
+    private fun writeNode(node: XmlNode, out: StringBuilder) {
         when (node.type) {
-            XmlNodeType.Text -> {
-                serializer.text(node.text.orEmpty())
-            }
+            XmlNodeType.Text -> out.appendEscapedText(node.text.orEmpty())
 
             XmlNodeType.Element -> {
-                serializer.startTag("", node.name.orEmpty())
+                val name = node.name.orEmpty()
+                out.append('<').append(name)
 
-                node.attributes.forEach { (name, value) ->
-                    serializer.attribute("", name, value)
+                node.attributes.forEach { (attributeName, value) ->
+                    out.append(' ').append(attributeName).append("=\"")
+                    out.appendEscapedAttributeValue(value)
+                    out.append('"')
                 }
 
-                node.children.forEach { child ->
-                    writeNode(serializer, child)
+                if (node.children.isEmpty()) {
+                    out.append(" />")
+                } else {
+                    out.append('>')
+                    node.children.forEach { child -> writeNode(child, out) }
+                    out.append("</").append(name).append('>')
                 }
+            }
+        }
+    }
 
-                serializer.endTag("", node.name.orEmpty())
+    private fun StringBuilder.appendEscapedText(value: String) {
+        for (character in value) {
+            when (character) {
+                '&' -> append("&amp;")
+                '<' -> append("&lt;")
+                '>' -> append("&gt;")
+                '\r' -> append("&#13;")
+                else -> append(character)
+            }
+        }
+    }
+
+    private fun StringBuilder.appendEscapedAttributeValue(value: String) {
+        for (character in value) {
+            when (character) {
+                '&' -> append("&amp;")
+                '<' -> append("&lt;")
+                '>' -> append("&gt;")
+                '"' -> append("&quot;")
+                '\n' -> append("&#10;")
+                '\r' -> append("&#13;")
+                '\t' -> append("&#9;")
+                else -> append(character)
             }
         }
     }

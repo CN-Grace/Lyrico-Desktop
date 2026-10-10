@@ -15,6 +15,11 @@ import java.util.concurrent.TimeUnit
  * builds its real URL, sends a real request over a real socket and parses a real response — only the
  * server is local. That is a stronger test than a mocked repository, and the JDK's own HTTP server
  * means it costs no new dependency.
+ *
+ * The plugin host API takes a URL instead of a client, so the plugin tests address this server
+ * directly (`http://127.0.0.1:$port/...`) and never need [client]. For them the fixture records the
+ * whole request — method, headers and body — and [respondBytes] can answer with opaque bytes, which
+ * is what `Platform.http.postBytes` returns to a plugin as Base64.
  */
 class LocalGitHubServer {
 
@@ -23,6 +28,9 @@ class LocalGitHubServer {
 
     /** Paths (with query string) the server was actually asked for, in order. */
     val requestedPaths = mutableListOf<String>()
+
+    /** Every request the server received, in order, with its method, headers and body. */
+    val requests = mutableListOf<RecordedRequest>()
 
     val port: Int
         get() = server.address.port
@@ -39,13 +47,24 @@ class LocalGitHubServer {
 
     /** Answers requests for [path] (query string excluded) with [body] and [status]. */
     fun respond(path: String, body: String, status: Int = 200): LocalGitHubServer {
-        responses[path] = Response(status, body, delayMillis = 0)
+        responses[path] = Response(status, body.toByteArray(), "application/json", delayMillis = 0)
+        return this
+    }
+
+    /** Answers with bytes that are not valid UTF-8, which a plugin reads as Base64. */
+    fun respondBytes(
+        path: String,
+        body: ByteArray,
+        status: Int = 200,
+        contentType: String = "application/octet-stream",
+    ): LocalGitHubServer {
+        responses[path] = Response(status, body, contentType, delayMillis = 0)
         return this
     }
 
     /** Answers so slowly that a client with a short read timeout gives up. */
     fun respondSlowly(path: String, body: String, delayMillis: Long): LocalGitHubServer {
-        responses[path] = Response(200, body, delayMillis)
+        responses[path] = Response(200, body.toByteArray(), "application/json", delayMillis)
         return this
     }
 
@@ -70,11 +89,17 @@ class LocalGitHubServer {
 
     private fun handle(exchange: HttpExchange) {
         val path = exchange.requestURI.path
-        requestedPaths += if (exchange.requestURI.query.isNullOrEmpty()) {
-            path
-        } else {
-            "$path?${exchange.requestURI.query}"
-        }
+        // The raw query, not the decoded one: this is what the client actually asked for, and the
+        // percent-encoding is part of what a plugin's URL building has to get right.
+        val rawQuery = exchange.requestURI.rawQuery
+        val pathWithQuery = if (rawQuery.isNullOrEmpty()) path else "$path?$rawQuery"
+        requestedPaths += pathWithQuery
+        requests += RecordedRequest(
+            method = exchange.requestMethod,
+            path = pathWithQuery,
+            headers = exchange.requestHeaders.entries.associate { it.key to it.value.toList() },
+            body = exchange.requestBody.readBytes(),
+        )
 
         val response = responses[path]
         try {
@@ -86,19 +111,39 @@ class LocalGitHubServer {
             if (response.delayMillis > 0) {
                 Thread.sleep(response.delayMillis)
             }
-            val bytes = response.body.toByteArray()
-            exchange.responseHeaders.add("Content-Type", "application/json")
-            exchange.sendResponseHeaders(response.status, bytes.size.toLong())
-            exchange.responseBody.use { it.write(bytes) }
+            exchange.responseHeaders.add("Content-Type", response.contentType)
+            exchange.sendResponseHeaders(response.status, response.body.size.toLong())
+            exchange.responseBody.use { it.write(response.body) }
         } catch (_: Exception) {
             // The client hung up (the timeout test): nothing left to answer.
         }
     }
 
+    /** A request the fixture received; [headers] is keyed the way the JDK normalises header names. */
+    data class RecordedRequest(
+        val method: String,
+        val path: String,
+        val headers: Map<String, List<String>>,
+        val body: ByteArray,
+    ) {
+        fun header(name: String): String? = headers.entries
+            .firstOrNull { it.key.equals(name, ignoreCase = true) }
+            ?.value
+            ?.firstOrNull()
+
+        override fun equals(other: Any?): Boolean =
+            other is RecordedRequest && method == other.method && path == other.path &&
+                headers == other.headers && body.contentEquals(other.body)
+
+        override fun hashCode(): Int =
+            ((method.hashCode() * 31 + path.hashCode()) * 31 + headers.hashCode()) * 31 + body.contentHashCode()
+    }
+
     private data class Response(
         val status: Int,
-        val body: String,
-        val delayMillis: Long
+        val body: ByteArray,
+        val contentType: String,
+        val delayMillis: Long,
     )
 
     private companion object {

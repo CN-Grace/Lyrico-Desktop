@@ -1,6 +1,6 @@
 package com.lonx.lyrico.plugin.source
 
-import android.util.Log
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.model.entity.SourcePluginEntity
 import com.lonx.lyrico.data.model.entity.capabilities
 import com.lonx.lyrico.data.model.entity.displayName
@@ -144,7 +144,7 @@ class PluginSearchSourceManager(
                 relatedId = plugin.id
             )
         }.onFailure { logThrowable ->
-            Log.w(TAG, "Failed to write plugin source build log", logThrowable)
+            PlatformLog.w(TAG, "Failed to write plugin source build log", logThrowable)
         }
     }
 

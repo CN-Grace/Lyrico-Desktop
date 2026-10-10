@@ -1,8 +1,7 @@
 package com.lonx.lyrico.plugin.runtime
 
-import android.util.Base64
-import android.util.Log
-import androidx.annotation.Keep
+import com.lonx.lyrico.utils.logging.PlatformLog
+import java.util.Base64
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -28,7 +27,22 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
-@Keep
+
+/**
+ * The `Platform.*` host API a plugin script can call: i18n, app/runtime info, a file-backed cache,
+ * crypto, base64, byte and compression helpers, HTTP, XML and logging.
+ *
+ * Instantiated once per plugin runtime and invoked from JavaScript through the JNI bridge, which
+ * resolves [call] by name and signature `(String, String) -> String` — that signature is part of the
+ * native contract and must not change.
+ *
+ * Ported from Android with three changes:
+ *
+ * - `android.util.Base64` → `java.util.Base64` (see [BASE64_ENCODER]/[BASE64_DECODER] for the flag
+ *   mapping; the audit of every call site is recorded there).
+ * - `android.util.Log` → [PlatformLog].
+ * - `@androidx.annotation.Keep` dropped (no R8 on the desktop build; see [QuickJsNative]).
+ */
 class QuickJsHostApi(
     private val appInfo: HostAppInfo = HostAppInfo(),
     private val runtimeInfo: HostRuntimeInfo = HostRuntimeInfo(),
@@ -49,6 +63,25 @@ class QuickJsHostApi(
     }
     private companion object {
         const val CACHE_LOG_TAG = "PlatformPluginCache"
+
+        /**
+         * Equivalent of Android's `Base64.encodeToString(bytes, Base64.NO_WRAP)`: the JDK's basic
+         * encoder emits no line breaks, so the output is byte-identical to the Android build.
+         */
+        private val BASE64_ENCODER: Base64.Encoder = Base64.getEncoder()
+
+        /**
+         * Equivalent of Android's `Base64.decode(text, Base64.DEFAULT)`, which every decode site in
+         * this file used. Android's `DEFAULT` **decoder** tolerates line breaks, so the JDK's MIME
+         * decoder (which ignores anything outside the base64 alphabet) is the matching replacement.
+         *
+         * The mirror-image trap is absent here: Android's `DEFAULT` **encoder** would wrap at 76
+         * characters, but no encode site in this file passed `DEFAULT` — they all passed `NO_WRAP`.
+         */
+        private val BASE64_DECODER: Base64.Decoder = Base64.getMimeDecoder()
+
+        /** Equivalent of `URL_SAFE or NO_WRAP or NO_PADDING`: URL-safe alphabet, no padding. */
+        private val BASE64_URL_ENCODER: Base64.Encoder = Base64.getUrlEncoder().withoutPadding()
     }
 
     fun call(name: String, payloadJson: String): String {
@@ -118,59 +151,47 @@ class QuickJsHostApi(
             )
 
             "base64.encodeText" -> text(
-                Base64.encodeToString(
-                    payload.string("text").toByteArray(Charsets.UTF_8),
-                    Base64.NO_WRAP
-                )
+                BASE64_ENCODER.encodeToString(payload.string("text").toByteArray(Charsets.UTF_8))
             )
 
             "base64.decodeText" -> text(
                 String(
-                    Base64.decode(payload.string("base64"), Base64.DEFAULT),
+                    BASE64_DECODER.decode(payload.string("base64")),
                     Charsets.UTF_8
                 )
             )
 
             "base64.dropBytes" -> text(
-                Base64.encodeToString(
-                    Base64.decode(payload.string("base64"), Base64.DEFAULT)
+                BASE64_ENCODER.encodeToString(BASE64_DECODER.decode(payload.string("base64"))
                         .drop(payload.intOrNull("count") ?: 0)
-                        .toByteArray(),
-                    Base64.NO_WRAP
-                )
+                        .toByteArray())
             )
 
             "base64.decodeBytes" -> bytes(
-                Base64.decode(payload.string("base64"), Base64.DEFAULT)
+                BASE64_DECODER.decode(payload.string("base64"))
             )
 
             "base64.encodeBytes" -> text(
-                Base64.encodeToString(payload.bytes("bytes"), Base64.NO_WRAP)
+                BASE64_ENCODER.encodeToString(payload.bytes("bytes"))
             )
 
             "base64.encodeUrlText" -> text(
-                Base64.encodeToString(
-                    payload.string("text").toByteArray(Charsets.UTF_8),
-                    Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
-                )
+                BASE64_URL_ENCODER.encodeToString(payload.string("text").toByteArray(Charsets.UTF_8))
             )
 
             "base64.decodeUrlText" -> text(
                 String(
-                    Base64.decode(fromBase64Url(payload.string("base64Url")), Base64.DEFAULT),
+                    BASE64_DECODER.decode(fromBase64Url(payload.string("base64Url"))),
                     Charsets.UTF_8
                 )
             )
 
             "base64.encodeUrlBytes" -> text(
-                Base64.encodeToString(
-                    payload.bytes("bytes"),
-                    Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
-                )
+                BASE64_URL_ENCODER.encodeToString(payload.bytes("bytes"))
             )
 
             "base64.decodeUrlBytes" -> bytes(
-                Base64.decode(fromBase64Url(payload.string("base64Url")), Base64.DEFAULT)
+                BASE64_DECODER.decode(fromBase64Url(payload.string("base64Url")))
             )
 
             "base64.toUrl" -> text(
@@ -189,13 +210,10 @@ class QuickJsHostApi(
             )
 
             "bytes.xorBase64" -> text(
-                Base64.encodeToString(
-                    xor(
-                        bytes = Base64.decode(payload.string("base64"), Base64.DEFAULT),
+                BASE64_ENCODER.encodeToString(xor(
+                        bytes = BASE64_DECODER.decode(payload.string("base64")),
                         key = payload.bytes("key")
-                    ),
-                    Base64.NO_WRAP
-                )
+                    ))
             )
 
             "compression.inflateBytesToText" -> text(
@@ -203,7 +221,7 @@ class QuickJsHostApi(
             )
 
             "compression.inflateBase64ToText" -> text(
-                inflate(Base64.decode(payload.string("base64"), Base64.DEFAULT))
+                inflate(BASE64_DECODER.decode(payload.string("base64")))
             )
 
             /*
@@ -310,17 +328,17 @@ class QuickJsHostApi(
                 )
             )
             "log.debug" -> {
-                Log.d(payload.logTag(), payload.string("message"))
+                PlatformLog.d(payload.logTag(), payload.string("message"))
                 text("")
             }
 
             "log.warn" -> {
-                Log.w(payload.logTag(), payload.string("message"))
+                PlatformLog.w(payload.logTag(), payload.string("message"))
                 text("")
             }
 
             "log.error" -> {
-                Log.e(payload.logTag(), payload.string("message"))
+                PlatformLog.e(payload.logTag(), payload.string("message"))
                 text("")
             }
 
@@ -411,7 +429,7 @@ class QuickJsHostApi(
     }
 
     private fun logCache(message: String) {
-        Log.d(CACHE_LOG_TAG, message)
+        PlatformLog.d(CACHE_LOG_TAG, message)
     }
 
     private fun executeHttp(
@@ -471,7 +489,7 @@ class QuickJsHostApi(
             }
 
             val bodyBase64 = if (binaryResponse) {
-                Base64.encodeToString(responseBytes, Base64.NO_WRAP)
+                BASE64_ENCODER.encodeToString(responseBytes)
             } else {
                 ""
             }
@@ -496,7 +514,7 @@ class QuickJsHostApi(
     private fun JsonObject.requestBodyBytes(): ByteArray {
         val bodyBase64 = string("bodyBase64")
         if (bodyBase64.isNotBlank()) {
-            return Base64.decode(bodyBase64, Base64.DEFAULT)
+            return BASE64_DECODER.decode(bodyBase64)
         }
 
         val bodyBytes = this["bodyBytes"] as? JsonArray
@@ -517,10 +535,7 @@ class QuickJsHostApi(
     }
 
     private fun aesEcbPkcs5EncryptBase64(text: String, key: String): String {
-        return Base64.encodeToString(
-            aesEcbPkcs5Encrypt(text, key),
-            Base64.NO_WRAP
-        )
+        return BASE64_ENCODER.encodeToString(aesEcbPkcs5Encrypt(text, key))
     }
 
     private fun aesEcbPkcs5Encrypt(text: String, key: String): ByteArray {
@@ -535,7 +550,7 @@ class QuickJsHostApi(
         val secretKey = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "AES")
         cipher.init(Cipher.DECRYPT_MODE, secretKey)
         return String(
-            cipher.doFinal(Base64.decode(base64, Base64.DEFAULT)),
+            cipher.doFinal(BASE64_DECODER.decode(base64)),
             Charsets.UTF_8
         )
     }
@@ -653,12 +668,22 @@ class QuickJsHostApi(
 
 data class HostAppInfo(
     val name: String = "Lyrico",
-    val packageName: String = "com.lonx.lyrico",
+    val packageName: String = DEFAULT_PACKAGE_NAME,
     val versionName: String = "0.0.0",
     val versionCode: Long = 0,
     val buildType: String = "unknown",
     val debug: Boolean = false
 ) {
+
+    companion object {
+        /**
+         * The Android application id, kept unchanged on desktop: it is what an installed plugin saw
+         * in `app.info`, so a plugin branching on it keeps working after the port. (The `app.userAgent`
+         * string does not include it — see [buildDefaultUserAgent].)
+         */
+        const val DEFAULT_PACKAGE_NAME: String = "com.lonx.lyrico"
+    }
+
     fun toJsonObject(): JsonObject {
         return buildJsonObject {
             put("name", name)

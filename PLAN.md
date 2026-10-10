@@ -706,6 +706,110 @@ rail/bar 的判据是宽度，而无头测试的根尺寸由测试框架决定�
 `python scripts/port-frontier.py` → java 树 **162 个文件 / 0 陈旧副本 / 65 可搬 / 97 被挡**（上一批 165 / 0 / 66 / 99）。
 本批的 3 个文件原来都在 java 树里，随本批删除。
 
+### P5 施工批次（插件/QuickJS：运行时 + 源层，2026-10-10）
+
+P5 的顺序由用户裁决：**插件/QuickJS 先做，批量引擎第二**；ReplayGain 的 PCM 解码按 §5 的方案 A（捆绑 ffmpeg
+sidecar）留给后面的批次。本批（记作 **C5a**）只做「运行时 + i18n + 宿主 API + 源层 + 安装器 + DI」，取证全部是
+**无头真基建测试**（真 DLL、真 zip、真文件系统、真 HTTP、真 Room），因此**不出窗口截图**；5 个搜索 viewmodel 与
+搜索页留到 C5b，那批才需要真窗口取证。
+
+#### 1. 搬了什么（`git mv`，19 个文件离开 java 树：16 主 + 3 测试）
+
+| 层 | 文件 |
+| --- | --- |
+| runtime | `QuickJsNative`、`QuickJsRuntime`、`QuickJsHostApi`、`HostApiRegistry`、`HostXmlApi`、`PluginJsRuntime` |
+| i18n | `PluginLocales`、`PluginStrings` |
+| source | `PluginJsonParser`、`PluginScriptModels`、`ScriptSearchSource`、`ScriptSearchSourceFactory`、`PluginSearchSourceManager`、`SearchSourceProvider`、`SourcePluginInstaller` |
+| 附加叶子 | `data/model/plugin/PluginMetadataField`、`domain/SearchSourceConfigApplier`、`utils/PluginFieldPostProcessor`、`utils/SourceConfigDependencyEvaluator` |
+| 测试 | `plugin/i18n/PluginStringsTest`、`plugin/source/PluginJsonParserTest`、`utils/PluginFieldPostProcessorTest` |
+
+搬完 `./gradlew :lyrico-app:compileKotlin` 一次通过；`ui/components/plugin/PluginIcon.kt` 是插件家族里唯一留下的
+文件，它是 UI，归 C5b。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **QuickJS 加载**：`System.loadLibrary` → `NativeLibraryLoader.load(QuickJsNative.QUICKJS_NG)`（`"quickjs-ng"`），
+   三个 `@Keep` 注解**直接删掉**（桌面没有 R8 收缩，为一个注解引依赖不值）。
+2. **Base64**：`android.util.Base64` → `java.util.Base64`。映射表在三处调用点各写一次：
+   `NO_WRAP` → `getEncoder()`；`URL_SAFE or NO_WRAP or NO_PADDING` → `getUrlEncoder().withoutPadding()`；
+   decode 的 `DEFAULT` → `getMimeDecoder()`。三个调用点用 `build/tmp-probe/port-base64.py` 机械核对过，不靠眼睛。
+3. **`HostXmlApi` 从 kxml2/XmlPull 重写为 JDK DOM**：桌面构建里**没有** xmlpull/kxml2 依赖（先例是已搬的
+   `TtmlDocumentFormat`，用的就是 `DocumentBuilderFactory` + `org.w3c.dom` + `org.xml.sax.InputSource`）。4 个操作
+   （`findElements`/`getRootAttributes`/`attrsMatch`/`replaceChildrenByAttr`）的输出形状逐字保留，三处偏差已在
+   KDoc 与本批测试里钉住：不再输出 XML 声明；空元素写成 `<tag />`；**属性顺序由 Xerces 决定（按限定名字典序）**。
+4. **`PluginLocales` 重写**：Android 版依赖 `Context` + `LocaleList`，桌面版同 FQN 改为 `object`，内部是
+   `MutableStateFlow(systemPreferences())`，`systemPreferences()` 取 `Locale.getDefault().toLanguageTag()`；
+   `initialize()` / `update(List<String>)` / `update(Locale)` 三个入口保持同名。它是**进程全局**的，测试必须还原。
+5. **`AppDirectories` 增两个目录**：`pluginInstallRoot = <data>/plugins/sources`、`pluginCacheDir = <cache>/plugin_cache`。
+6. **`QuickJsHostApi`**：`HostAppInfo` 的伴生常量补上 `DEFAULT_PACKAGE_NAME = "com.lonx.lyrico"`（Android 版取自
+   `BuildConfig`）。
+7. **日志**：`android.util.Log` → `PlatformLog`（一处一行等价替换，不做整文件重排）。
+8. **DI**：`di/DesktopAppModule.kt` 新增 `// ---- plugins` 段，源层与安装器的构造依赖（`Json`、`AppLogRepository`、
+   目录）全部接上，`SourcePluginInstaller` 与 `PluginSearchSourceManager` 都是单例（后者 `AutoCloseable`）。
+
+#### 3. 取证（新增 9 类 137 项；另有 3 类 25 项从 java 树搬入）
+
+| 测试类 | 项数 | 验什么 |
+| --- | --- | --- |
+| `QuickJsRuntimeTest` | 17 | **真 DLL**：`eval`、`call` 的 JSON 往返、脚本异常、宿主 API、缓存 TTL、超时、内存上限、关闭后的运行时、两个运行时并存 |
+| `HostXmlApiTest` | 17 | 4 个操作 + 属性顺序规则 + 转义 + 往返 + CDATA + XXE 加固 |
+| `QuickJsHostApiTest` | 31 | 走 JNI 入口 `call(name, payloadJson)`：base64/URL/xor/压缩/加密/缓存/日志/HTTP/XML/i18n/未知操作 |
+| `PluginLocalesTest` | 6 | 偏好来源、`update`、`Locale.ROOT` → `"en"`；还原进程全局 |
+| `SourcePluginInstallerTest` | 29 | 真 zip 的安装/更新/降级/限额/路径confine（含 zip-slip）/**逐条错误文案** |
+| `PluginSearchSourceManagerTest` | 11 | 每类型过滤与排序、缓存复用与失效、`invalidate`、entry 丢失的跳过与上报、locale 改名的重发 |
+| `PluginSourceEndToEndTest` | 5 | **全链路**：真 zip → 安装 → Room 行 → 读 `manifest.json` → `includeDirs` 拼接 → 真 QuickJS → `Platform.http.getText` → 真回环 HTTP → 解析成 `SongSearchResult`；含翻页、502 错误路径、未声明能力不触脚本、lyrics 候选 |
+| `SearchSourceConfigApplierTest` | 6 | 真 DataStore：配置按 id 落到源上、无配置给空、多源各给各的、后加入的源也会被配上、改设置会重发、取消 Job 后不再应用 |
+| `SourceConfigDependencyEvaluatorTest` | 9 | 条件表达式真值表（含空 `and`=真、空 `or`=假）+ 文档里的 manifest JSON 反序列化 |
+
+共享夹具：`plugin/support/PluginSandbox.kt`（真 `TestLibrary` + 真安装器 + 真文件系统 + zip 构造器，
+`install(manifestJson, script, extra, enabled)` 直接落一个可用的插件）；`LocalGitHubServer` 从「更新检查专用」
+泛化成通用回环 HTTP 夹具（记录 method/带原始 query 的 path/headers/body，可按路径响应）；`RecordingAppLogRepository`
+增加 `entries`（`log()`）记录。
+
+**全量：77 类 / 709 项 / 708 执行 + 1 门控跳过 / 0 失败**（上一批基线 65 类 / 553 项）。
+
+#### 4. 这批实测出来的坑（写下来是因为都会再踩）
+
+1. **zip 夹具的参数错位**。`rawArchive("manifest.json", "source.js", manifest, script)` 这种「名字、内容、名字、内容」
+   的写法把内容传进了名字槽，一次搞出 20 个假失败。修法不是「仔细点」，而是**改 API 形状**：
+   `pluginArchive(manifestJson, script, extra)` 把 `"manifest.json"`/`"source.js"` 写死在函数体里，调用点**没地方**
+   传错；只有目录形状/zip-slip 这类要自己控名字的场景才用 `rawArchive(name, content)`。
+2. **安装器限额在实例上，不在 session 上**。`prepareImport` 用一个带小限额的安装器、再用默认安装器
+   `installPrepared`，限额就静默失效——生产里安装器是单例所以碰不到，只有测试会踩。测试里必须**同一个实例**跑完两半。
+3. **JNI 的 `call` 返回 `JS_JSONStringify(result)`**：JS 函数返回**字符串**会被 JSON 引号包住（`"hi world"`），
+   只有返回对象/数组才是裸 JSON。夹具里的脚本函数所以写成 `() => ([...])`（带括号）。
+4. **`isEnabledAnywhere = metadataEnabled || lyricsEnabled || coverEnabled`，不含主开关 `enabled`**。所以「关一个类型」
+   不会让插件从 `getSources()` 消失，要三个都关；而且关≠卸载（行还在）。
+5. **`http.getText` 在 4xx/5xx 上不抛**——它返回响应体。错误路径只能靠**插件脚本自己抛**（例如 `JSON.parse` 一个
+   HTML 体），本批的错误用例就是这么构造的。
+6. **`SupervisorJob` 上 `join()` 永不返回**。测试里写「取消后不再生效」时，我本能地 `scope.coroutineContext.job.join()`，
+   而一个独立的 `SupervisorJob` 永远不会终止，于是整个测试套挂死 15 分钟。正确写法是 `job.cancelAndJoin()`
+   （join 被取消的那个 Job）。
+7. **`MutableStateFlow` 相同值不重发**。用 `.value = listOf(sameInstance)` 想模拟「列表重发」是**不会**触发的
+   （StateFlow 做过 `equals` 去重）。改成「用户改了设置 → 设置流重发 → combine 重发」，这也更接近真实场景。
+8. **`PluginConfigDependency` 的 JSON 形状是 `{"and":{"conditions":[...]}}` / `{"not":{"condition":{...}}}`**，
+   不是 `{"and":[...]}`。文档（`docs/plugins/manifest.md`）就是这么写的，作者序列化器也这么实现——是我第一版测试
+   猜错了形状。已经把文档里的样例直接搬进测试。
+9. **别把 Gradle 输出接进管道**。`./gradlew ... | grep ...` 在构建结束后**不会**因为构建结束而返回：守护进程持有
+   从客户端继承的 stdout，管道 EOF 迟迟不来，shell 会话就一直挂着（本批因此白等了两个 15 分钟超时）。改成
+   `> build/tmp-probe/run.log 2>&1` 再 grep，`--tests` 过滤过的运行也不会漏掉失败信息。
+
+#### 5. 这批的用户可见缺口（如实记录）
+
+1. **插件管理页与搜索页仍未注册**：本批只做到「源能被安装、能被构建、真能联网搜出结果」，用户在界面上**还看不到
+   任何插件**——那是 C5b（5 个搜索 viewmodel + `SearchResultsScreen`/`SearchLyricsScreen`/`SearchCoverScreen` +
+   插件管理页 + 真窗口取证）。所以这批的成果只在测试里可见。
+2. 本批不碰 ReplayGain 与批量任务（§5 方案 A 留给后面的批次），也不碰 `SettingsScreen`/`LocalSearchScreen`
+   （仍只有路由没有界面）。
+3. `HostXmlApi` 的三个偏差是**有意保留**的：XML 声明不再输出、空元素写成 `<tag />`、属性按限定名排序。插件的
+   `attrsMatch` 是子集匹配、不依赖顺序，所以行为无差异，但**字节级不一致**这件事必须写在这里而不是假装没有。
+
+#### 6. 前沿
+
+`python scripts/port-frontier.py` → java 树 **143 个文件 / 0 陈旧副本 / 61 可搬 / 82 被挡**（上一批 162 / 0 / 65 / 97）。
+本批的 19 个文件原来都在 java 树里，随本批删除；插件家族只剩 `ui/components/plugin/PluginIcon.kt`（C5b）。
+被挡的大头仍是批量任务引擎（`worker/BatchTaskWorker.kt`、各 `worker/processor/*`）与 SAF/URI 家族。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
@@ -735,11 +839,19 @@ rail/bar 的判据是宽度，而无头测试的根尺寸由测试框架决定�
 
 按 §4 排期，sorting 菜单属于 P4 的 screens 批次，所以这条等接 UI 时一并裁决；在那之前保持逐字对齐（A）。
 
-**ReplayGain 的 PCM 解码方案**（Android 端 `ReplayGainScanner.kt` 用 `MediaExtractor`+`MediaCodec`，桌面无等价物）：
+**ReplayGain 的 PCM 解码方案**（Android 端 `ReplayGainScanner.kt` 用 `MediaExtractor`+`MediaCodec`，桌面无等价物）—— ✅ **已裁决：方案 A**（2026-10-10，用户选择）：捆绑 ffmpeg sidecar。以下为当初的选项留档：
 
 - **A. 捆绑 ffmpeg**（sidecar `ffmpeg.exe` 经 stdin/stdout 管道喂 f32le，或 JavaCPP `ffmpeg-platform` 直接调 libav*）：覆盖全部格式（含 APE/AIFF/DSF/Opus），需要额外约 50–150 MB 二进制与 LGPL/GPL 许可声明；与现有 `ebur128` JNI 对接最直接。
 - **B. 自带解码源码**（dr_libs + stb_vorbis + libopus 等）：体积小、无外部许可包袱，但**覆盖不全**（APE/AAC/DSF 缺），需要为缺失格式降级。
 - **C. 解析声道响度仅走 TagLib 已读标签 + 跳过无解码格式**：最省事，但功能不对齐，与「全功能对齐」目标冲突。
+
+**方案 A 的落地约束（2026-10-10 随裁决记录）**：「测响度」这一半不需要新原生代码——`ebur128.dll` 与它的 JNI 桥（`lyrico-app/src/main/cpp/ebur128.cpp`，导出 `initNative`/`processDirectNative`/`getLoudnessNative`/`getPeakNative`/`getMultipleLoudnessNative`）已在 P1 构建完成，对应的 Kotlin 侧 `utils/LibEbuR128.kt` 是现成的可搬叶子。缺的只是「把音频解成 PCM」。按方案 A，这一半用 sidecar `ffmpeg.exe` 经管道喂 f32le。三项已知代价必须一并处理、不得静默省略：
+
+1. **体积**：发布包多一个 50–150 MB 的二进制。本机 PATH 上**没有** ffmpeg，要自己取一个 Windows 构建放进随包分发的目录（与 `taglib.dll`/`ebur128.dll`/`quickjs-ng.dll` 同一布局）。
+2. **许可**：取到的构建若是 GPL 版（含 libx264 等）会把整个应用拖进 GPL 传染，**优先取 LGPL 构建**，并把声明加进「开源许可」页（`OpenSourceLicenceScreen`，本身是 frontier 可搬项）。
+3. **进程管理**：每文件起一次进程有启动开销（批量任务需考虑复用与并发上限），另有路径失效、程序拒绝参数、管道写满导致死锁三条错误路径都要有明确处理与测试。
+
+另：找不到 ffmpeg 时降级为「跳过该文件并如实报错」，不得静默假成功——`ReplayGainScanner` 的桌面版多一个「外部进程」依赖，是**有意引入**，在 P5 的 ReplayGain 批次里验证。
 
 **「播放 / 用其它程序打开」在 Windows 上如何落地**（`PlaybackRepository`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：只走系统默认关联程序，删除按包名指定与选择器两条路径，`java.awt.Desktop` 经 `DesktopOpener` 接缝注入。以下为当初的选项留档：
 

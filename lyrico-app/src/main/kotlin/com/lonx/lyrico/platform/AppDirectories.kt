@@ -61,11 +61,21 @@ data class AppDirectories(
     /** Cached cover art extracted from tags. */
     val coverCacheDir: File get() = File(cacheDir, "covers")
 
+    /**
+     * Where installed source plugins live, one folder per plugin id. Mirrors Android's
+     * `File(context.filesDir, "plugins/sources")`; the path is recorded per plugin in the database,
+     * so a user who moves the data folder keeps the rows and only re-imports the zips.
+     */
+    val pluginInstallRoot: File get() = File(root, "plugins/sources")
+
+    /** Working directory for the plugin host API's `cache.*` calls (Android: `cacheDir/plugin_cache`). */
+    val pluginCacheDir: File get() = File(cacheDir, "plugin_cache")
+
     /** Creates the data folder and the cache folders. Called once, before the DI graph is built. */
     fun prepare(): AppDirectories {
         // Every folder the app opens by path is created here, so nothing downstream has to depend on
         // OkHttp's or the image loader's own directory handling (Android got these from `Context`).
-        listOf(root, cacheDir, httpCacheDir, coverCacheDir).forEach { it.mkdirs() }
+        listOf(root, cacheDir, httpCacheDir, coverCacheDir, pluginCacheDir).forEach { it.mkdirs() }
         return this
     }
 

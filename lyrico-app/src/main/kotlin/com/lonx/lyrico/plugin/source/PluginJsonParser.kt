@@ -1,6 +1,6 @@
 package com.lonx.lyrico.plugin.source
 
-import android.util.Log
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.data.model.lyrics.LyricsAgentEntry
 import com.lonx.lyrico.data.model.lyrics.LyricsLine
 import com.lonx.lyrico.data.model.lyrics.LyricsCandidateResult
@@ -23,6 +23,11 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 
+/**
+ * Parses the JSON a plugin script returns into the app's result models.
+ *
+ * Ported from Android unchanged apart from the logger: `android.util.Log` became [PlatformLog].
+ */
 class PluginJsonParser(
     private val json: Json
 ) {
@@ -251,7 +256,7 @@ class PluginJsonParser(
         val rawBodyDur = obj.string("bodyDur", "body_dur").orEmpty()
         val bodyDur = rawBodyDur.takeIf(TtmlTime::isValid).orEmpty()
         if (rawBodyDur.isNotBlank() && bodyDur.isEmpty()) {
-            Log.w(METADATA_TAG, "bodyDur 不是有效的 TTML 时间表达式，已丢弃")
+            PlatformLog.w(METADATA_TAG, "bodyDur 不是有效的 TTML 时间表达式，已丢弃")
         }
 
         if (originalLines.isEmpty()) {
@@ -542,7 +547,7 @@ private fun JsonArray?.parseMetadataElements(): List<LyricsMetadataElement> {
                 if (valid) {
                     node
                 } else {
-                    Log.w(
+                    PlatformLog.w(
                         METADATA_TAG,
                         "metadata 元素 \"songwriters\" 结构不符合 AMLL 规范（应为 songwriters 包裹带文本的 songwriter children），已丢弃"
                     )
@@ -551,7 +556,7 @@ private fun JsonArray?.parseMetadataElements(): List<LyricsMetadataElement> {
             }
 
             in META_NAMES_DUPLICATED -> {
-                Log.w(
+                PlatformLog.w(
                     METADATA_TAG,
                     "metadata 元素 \"${node.name}\" 已由 structured 协议专门字段承载（translated/romanization/agents），请勿在 metadata 中重复提供，已丢弃"
                 )
@@ -572,7 +577,7 @@ private fun JsonObject.parseMetadataElement(): LyricsMetadataElement? {
     if (prefix.isNotEmpty() && prefix != "ttm" && prefix != "itunes" && prefix != "xml" &&
         namespace.isNullOrBlank()
     ) {
-        Log.w(METADATA_TAG, "metadata 元素 \"$name\" 带前缀但未提供 namespace URI，无法写回合法 XML，已丢弃")
+        PlatformLog.w(METADATA_TAG, "metadata 元素 \"$name\" 带前缀但未提供 namespace URI，无法写回合法 XML，已丢弃")
         return null
     }
     val attributes = this["attributes"] as? JsonObject

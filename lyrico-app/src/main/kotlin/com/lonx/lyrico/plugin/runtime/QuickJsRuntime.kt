@@ -1,8 +1,12 @@
 package com.lonx.lyrico.plugin.runtime
 
-import androidx.annotation.Keep
-
-@Keep
+/**
+ * A QuickJS runtime with the `Platform.*` host API installed, plus the crash guards Android applied:
+ * a memory limit, a stack limit and an interrupt deadline that aborts a runaway script.
+ *
+ * Ported from Android unchanged apart from the dropped `@androidx.annotation.Keep` (no R8 on the
+ * desktop build; see [QuickJsNative]).
+ */
 class QuickJsRuntime(
     memoryLimitBytes: Long = DEFAULT_MEMORY_LIMIT_BYTES,
     stackSizeBytes: Long = DEFAULT_STACK_SIZE_BYTES,
