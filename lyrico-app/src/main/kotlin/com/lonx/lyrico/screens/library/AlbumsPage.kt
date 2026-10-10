@@ -1,6 +1,5 @@
 package com.lonx.lyrico.screens.library
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,14 +20,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.AlbumSortBy
 import com.lonx.lyrico.data.model.AlbumSortInfo
 import com.lonx.lyrico.data.model.entity.AlbumEntity
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.album_grid_columns_format
+import com.lonx.lyrico.resources.album_list_title
+import com.lonx.lyrico.resources.cd_search
+import com.lonx.lyrico.resources.cd_sort
+import com.lonx.lyrico.resources.dialog_delete_album_content
+import com.lonx.lyrico.resources.dialog_delete_album_title
+import com.lonx.lyrico.resources.empty_albums_title
+import com.lonx.lyrico.resources.empty_library_index_summary
+import com.lonx.lyrico.resources.pull_to_refresh
+import com.lonx.lyrico.resources.refresh
+import com.lonx.lyrico.resources.refresh_success
+import com.lonx.lyrico.resources.refreshing
+import com.lonx.lyrico.resources.release_to_refresh
+import com.lonx.lyrico.resources.song_count
+import com.lonx.lyrico.resources.sort_ascending
+import com.lonx.lyrico.resources.sort_descending
+import com.lonx.lyrico.screens.SECTIONS_ASC
+import com.lonx.lyrico.screens.SECTIONS_DESC
 import com.lonx.lyrico.ui.components.bar.AlphabetSideBar
 import com.lonx.lyrico.ui.components.bar.rememberAlphabetSideBarScrollController
 import com.lonx.lyrico.ui.components.base.YesNoDialog
@@ -37,25 +52,24 @@ import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
 import com.lonx.lyrico.ui.components.library.AlbumActionBottomSheet
 import com.lonx.lyrico.ui.components.library.AlbumGridItem
-import com.lonx.lyrico.ui.components.library.AlbumReplayGainProgressBottomSheet
 import com.lonx.lyrico.ui.components.library.LibraryEmptyState
+import com.lonx.lyrico.ui.components.library.LibraryScrollbar
 import com.lonx.lyrico.ui.components.library.LocalLibraryBottomContentPadding
 import com.lonx.lyrico.ui.components.library.libraryOverlayInsets
 import com.lonx.lyrico.ui.components.library.libraryScrollbarOverlay
 import com.lonx.lyrico.ui.components.library.rememberAlbumGridTextStyle
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
+import com.lonx.lyrico.ui.navigation.AlbumDetailDestination
+import com.lonx.lyrico.ui.navigation.LocalSearchDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.ui.navigation.SettingsDestination
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.AlbumActionsViewModel
 import com.lonx.lyrico.viewmodel.AlbumLibraryViewModel
 import com.lonx.lyrico.viewmodel.SortOrder
-import com.ramcosta.composedestinations.generated.destinations.AlbumDetailDestination
-import com.ramcosta.composedestinations.generated.destinations.LocalSearchDestination
-import com.ramcosta.composedestinations.generated.destinations.SettingsDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import my.nanihadesuka.compose.InternalLazyVerticalGridScrollbar
-import my.nanihadesuka.compose.ScrollbarSelectionMode
-import my.nanihadesuka.compose.ScrollbarSettings
-import org.koin.androidx.compose.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -65,28 +79,52 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-private val SECTIONS_ASC = listOf("0") + ('A'..'Z').map { it.toString() } + listOf("#")
-private val SECTIONS_DESC = SECTIONS_ASC.asReversed()
-
+/**
+ * The library's albums tab: a grid of album cards with the letter index on the trailing edge.
+ *
+ * The port keeps the page's structure and every user-visible string, and drops three Android
+ * mechanisms:
+ *
+ * * **`InternalLazyVerticalGridScrollbar`** (Android-only library) became [LibraryScrollbar]'s
+ *   `LazyGridState` overload. The range-selection mode that library offered is gone with it, the same
+ *   reduction `SongsPage` documents.
+ * * **`Toast` for the action results** became a Miuix [SnackbarHost], which is how every other ported
+ *   screen reports a message; the messages themselves (`album_delete_success`, `no_player_found`,
+ *   `unknown_error`) are the Android ones, resolved through `UiMessage.resolve()`.
+ * * **`LocalContext`**, which existed only to build the share `Intent` and to make the `Toast`.
+ *
+ * The ReplayGain row and its progress sheet are absent, not stubbed: see
+ * `ui/components/library/AlbumActionBottomSheet.kt` and `viewmodel/AlbumActionsViewModel.kt` for
+ * why, and `PLAN.md` for the P5 entry.
+ *
+ * [sectionIndexMap] is the one place this page differs from `SongsPage` beyond the container type: a
+ * grid needs the index to land on the first row that *contains* the section, so the stored position
+ * is snapped back by `index % columns` instead of being the item's own index.
+ *
+ * Clicking a card navigates to `AlbumDetailDestination`, whose screen comes in a later batch; the
+ * route is declared and unregistered, so the navigator logs the miss rather than crashing (see
+ * `Destinations.kt`).
+ */
 @Composable
 fun AlbumsPage(
-    navigator: DestinationsNavigator,
-    modifier: Modifier = Modifier
+    navigator: Navigator,
+    modifier: Modifier = Modifier,
 ) {
     val viewModel: AlbumLibraryViewModel = koinViewModel()
     val albumActionsViewModel: AlbumActionsViewModel = koinViewModel()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
-    val albumActionsUiState by albumActionsViewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val sortInfo by viewModel.sortInfo.collectAsStateWithLifecycle()
@@ -96,16 +134,13 @@ fun AlbumsPage(
     val topBarBackdrop = rememberBarBlurBackdrop()
     val gridState = rememberLazyGridState()
     val alphabetScrollController = rememberAlphabetSideBarScrollController(gridState)
-    val context = LocalContext.current
     var selectedAlbum by remember { mutableStateOf<AlbumEntity?>(null) }
     var showAlbumActionSheet by remember { mutableStateOf(false) }
     var showDeleteAlbumDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(albumActionsViewModel, context) {
+    LaunchedEffect(albumActionsViewModel) {
         albumActionsViewModel.events.collect { message ->
-            message.asString(context)?.let { text ->
-                Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
-            }
+            message.resolve()?.let { text -> snackbarHostState.showSnackbar(text) }
         }
     }
 
@@ -128,17 +163,18 @@ fun AlbumsPage(
     }
     val enableIndex = albums.isNotEmpty() && sortInfo.sortBy.supportsIndex
     val refreshTexts = listOf(
-        stringResource(R.string.pull_to_refresh),
-        stringResource(R.string.release_to_refresh),
-        stringResource(R.string.refreshing),
-        stringResource(R.string.refresh_success)
+        stringResource(Res.string.pull_to_refresh),
+        stringResource(Res.string.release_to_refresh),
+        stringResource(Res.string.refreshing),
+        stringResource(Res.string.refresh_success)
     )
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             BlurredTopBar(backdrop = topBarBackdrop) {
                 SmallTopAppBar(
-                    title = stringResource(R.string.album_list_title, albums.size),
+                    title = formattedStringResource(Res.string.album_list_title, albums.size),
                     color = Color.Transparent,
                     modifier = Modifier,
                     scrollBehavior = topAppBarScrollBehavior,
@@ -155,7 +191,7 @@ fun AlbumsPage(
                         IconButton(onClick = { navigator.navigate(LocalSearchDestination) }) {
                             Icon(
                                 imageVector = MiuixIcons.Search,
-                                contentDescription = stringResource(R.string.cd_search)
+                                contentDescription = stringResource(Res.string.cd_search)
                             )
                         }
                         OverlayIconDropdownMenu(
@@ -169,7 +205,7 @@ fun AlbumsPage(
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Sort,
-                                contentDescription = stringResource(R.string.cd_sort)
+                                contentDescription = stringResource(Res.string.cd_sort)
                             )
                         }
                     }
@@ -189,12 +225,12 @@ fun AlbumsPage(
                         .fillMaxSize()
                 ) {
                     LibraryEmptyState(
-                        title = stringResource(R.string.empty_albums_title),
-                        summary = stringResource(R.string.empty_library_index_summary),
+                        title = stringResource(Res.string.empty_albums_title),
+                        summary = stringResource(Res.string.empty_library_index_summary),
                         modifier = Modifier.align(Alignment.Center),
                         action = {
                             TextButton(
-                                text = stringResource(R.string.refresh),
+                                text = stringResource(Res.string.refresh),
                                 onClick = { viewModel.refreshSongs() },
                                 colors = MiuixButtonDefaults.textButtonColorsPrimary()
                             )
@@ -237,8 +273,8 @@ fun AlbumsPage(
                             AlbumGridItem(
                                 albumName = album.name,
                                 summary = buildAlbumSummary(
-                                    songCountText = stringResource(
-                                        R.string.song_count,
+                                    songCountText = formattedStringResource(
+                                        Res.string.song_count,
                                         album.songCount
                                     ),
                                     year = album.year
@@ -260,7 +296,7 @@ fun AlbumsPage(
                     }
                 }
                 if (!enableIndex) {
-                    InternalLazyVerticalGridScrollbar(
+                    LibraryScrollbar(
                         state = gridState,
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
@@ -269,12 +305,6 @@ fun AlbumsPage(
                                 extraTop = 12.dp,
                                 extraBottom = 12.dp,
                             ),
-                        settings = ScrollbarSettings.Default.copy(
-                            alwaysShowScrollbar = true,
-                            selectionMode = ScrollbarSelectionMode.Full,
-                            thumbUnselectedColor = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                            thumbSelectedColor = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                        ),
                     )
                 }
                 if (enableIndex) {
@@ -301,7 +331,6 @@ fun AlbumsPage(
         AlbumActionBottomSheet(
             show = showAlbumActionSheet,
             albumName = album.name,
-            isCalculatingReplayGain = albumActionsUiState.isCalculatingAlbumReplayGain,
             onDismissRequest = { showAlbumActionSheet = false },
             onDismissFinished = {
                 if (!showAlbumActionSheet && !showDeleteAlbumDialog) {
@@ -310,23 +339,19 @@ fun AlbumsPage(
             },
             onShare = {
                 showAlbumActionSheet = false
-                albumActionsViewModel.shareAlbum(context, album.id)
+                albumActionsViewModel.shareAlbum(album.id)
             },
             onDelete = {
                 showAlbumActionSheet = false
                 showDeleteAlbumDialog = true
-            },
-            onCalculateReplayGain = {
-                showAlbumActionSheet = false
-                albumActionsViewModel.calculateAlbumReplayGain(album.id)
             }
         )
 
         YesNoDialog(
-            title = stringResource(R.string.dialog_delete_album_title),
+            title = stringResource(Res.string.dialog_delete_album_title),
             show = showDeleteAlbumDialog,
-            summary = stringResource(
-                R.string.dialog_delete_album_content,
+            summary = formattedStringResource(
+                Res.string.dialog_delete_album_content,
                 album.songCount,
                 album.name
             ),
@@ -341,13 +366,6 @@ fun AlbumsPage(
             }
         )
     }
-
-    AlbumReplayGainProgressBottomSheet(
-        uiState = albumActionsUiState,
-        onDismissRequest = albumActionsViewModel::closeAlbumReplayGainProgressDialog,
-        onDismissFinished = albumActionsViewModel::clearAlbumReplayGainProgressDialog,
-        onAbort = albumActionsViewModel::cancelAlbumReplayGain
-    )
 }
 
 private fun buildAlbumSummary(
@@ -368,7 +386,7 @@ private fun albumGridColumnsDropdownEntry(
     return DropdownEntry(
         items = listOf(2, 3, 4).map { count ->
             DropdownItem(
-                text = stringResource(R.string.album_grid_columns_format, count),
+                text = formattedStringResource(Res.string.album_grid_columns_format, count),
                 selected = columns == count,
                 onClick = { onColumnsChange(count) }
             )
@@ -390,9 +408,9 @@ private fun albumSortDropdownEntry(
                 summary = if (isSelected) {
                     stringResource(
                         if (sortInfo.order == SortOrder.ASC) {
-                            R.string.sort_ascending
+                            Res.string.sort_ascending
                         } else {
-                            R.string.sort_descending
+                            Res.string.sort_descending
                         }
                     )
                 } else {

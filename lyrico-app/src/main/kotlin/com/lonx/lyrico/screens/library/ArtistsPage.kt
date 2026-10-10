@@ -21,13 +21,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.ArtistSortBy
 import com.lonx.lyrico.data.model.ArtistSortInfo
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.artist_list_title
+import com.lonx.lyrico.resources.cd_search
+import com.lonx.lyrico.resources.cd_sort
+import com.lonx.lyrico.resources.empty_artists_title
+import com.lonx.lyrico.resources.empty_library_index_summary
+import com.lonx.lyrico.resources.pull_to_refresh
+import com.lonx.lyrico.resources.refresh
+import com.lonx.lyrico.resources.refresh_success
+import com.lonx.lyrico.resources.refreshing
+import com.lonx.lyrico.resources.release_to_refresh
+import com.lonx.lyrico.resources.sort_ascending
+import com.lonx.lyrico.resources.sort_descending
+import com.lonx.lyrico.screens.SECTIONS_ASC
+import com.lonx.lyrico.screens.SECTIONS_DESC
 import com.lonx.lyrico.ui.components.CoverCandidate
 import com.lonx.lyrico.ui.components.artist.ArtistListItem
 import com.lonx.lyrico.ui.components.bar.AlphabetSideBar
@@ -36,21 +48,21 @@ import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
 import com.lonx.lyrico.ui.components.library.LibraryEmptyState
+import com.lonx.lyrico.ui.components.library.LibraryScrollbar
 import com.lonx.lyrico.ui.components.library.LocalLibraryBottomContentPadding
 import com.lonx.lyrico.ui.components.library.libraryOverlayInsets
 import com.lonx.lyrico.ui.components.library.libraryScrollbarOverlay
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
+import com.lonx.lyrico.ui.navigation.ArtistDetailDestination
+import com.lonx.lyrico.ui.navigation.LocalSearchDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.ui.navigation.SettingsDestination
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.ArtistLibraryViewModel
 import com.lonx.lyrico.viewmodel.SortOrder
-import com.ramcosta.composedestinations.generated.destinations.ArtistDetailDestination
-import com.ramcosta.composedestinations.generated.destinations.LocalSearchDestination
-import com.ramcosta.composedestinations.generated.destinations.SettingsDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import my.nanihadesuka.compose.InternalLazyVerticalGridScrollbar
-import my.nanihadesuka.compose.ScrollbarSelectionMode
-import my.nanihadesuka.compose.ScrollbarSettings
-import org.koin.androidx.compose.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -66,16 +78,30 @@ import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-private val SECTIONS_ASC = listOf("0") + ('A'..'Z').map { it.toString() } + listOf("#")
-private val SECTIONS_DESC = SECTIONS_ASC.asReversed()
-
+/**
+ * The library's artists tab: a grid of artist rows that becomes two columns past 600.dp of width.
+ *
+ * The port is a straight one apart from the same three replacements `AlbumsPage` documents
+ * (`InternalLazyVerticalGridScrollbar` -> [LibraryScrollbar], `Toast` -> nothing here because the
+ * page has no actions that report, and `koinViewModel()` from Koin's Compose artifact instead of the
+ * Android one), plus the `Uri` removal in the cover candidates:
+ * `candidate.uri.toUri()` became the plain path string, because desktop cover candidates are
+ * filesystem paths.
+ *
+ * The column count stays **local state**, exactly as on Android: the artist grid is the one list in
+ * the app whose density is derived from the window (`BoxWithConstraints`, 600.dp breakpoint) rather
+ * than from a saved setting, so `ArtistLibraryViewModel` has no `gridColumns` and `SettingsRepository`
+ * has no artist equivalent of `albumGridColumns`. That asymmetry is inherited, not introduced.
+ *
+ * Clicking a row navigates to `ArtistDetailDestination`, whose screen comes in a later batch; the
+ * route is declared and unregistered, so the navigator logs the miss (see `Destinations.kt`).
+ */
 @Composable
 fun ArtistsPage(
-    navigator: DestinationsNavigator,
+    navigator: Navigator,
     modifier: Modifier = Modifier
 ) {
     val viewModel: ArtistLibraryViewModel = koinViewModel()
@@ -110,16 +136,17 @@ fun ArtistsPage(
     }
     val enableIndex = artists.isNotEmpty() && sortInfo.sortBy.supportsIndex
     val refreshTexts = listOf(
-        stringResource(R.string.pull_to_refresh),
-        stringResource(R.string.release_to_refresh),
-        stringResource(R.string.refreshing),
-        stringResource(R.string.refresh_success)
+        stringResource(Res.string.pull_to_refresh),
+        stringResource(Res.string.release_to_refresh),
+        stringResource(Res.string.refreshing),
+        stringResource(Res.string.refresh_success)
     )
     Scaffold(
+        modifier = modifier.fillMaxSize(),
         topBar = {
             BlurredTopBar(backdrop = topBarBackdrop) {
                 SmallTopAppBar(
-                    title = stringResource(R.string.artist_list_title, artists.size),
+                    title = formattedStringResource(Res.string.artist_list_title, artists.size),
                     color = Color.Transparent,
                     modifier = Modifier,
                     scrollBehavior = topAppBarScrollBehavior,
@@ -136,7 +163,7 @@ fun ArtistsPage(
                         IconButton(onClick = { navigator.navigate(LocalSearchDestination) }) {
                             Icon(
                                 imageVector = MiuixIcons.Search,
-                                contentDescription = stringResource(R.string.cd_search)
+                                contentDescription = stringResource(Res.string.cd_search)
                             )
                         }
                         OverlayIconDropdownMenu(
@@ -146,7 +173,7 @@ fun ArtistsPage(
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Sort,
-                                contentDescription = stringResource(R.string.cd_sort)
+                                contentDescription = stringResource(Res.string.cd_sort)
                             )
                         }
                     }
@@ -166,12 +193,12 @@ fun ArtistsPage(
                         .fillMaxSize()
                 ) {
                     LibraryEmptyState(
-                        title = stringResource(R.string.empty_artists_title),
-                        summary = stringResource(R.string.empty_library_index_summary),
+                        title = stringResource(Res.string.empty_artists_title),
+                        summary = stringResource(Res.string.empty_library_index_summary),
                         modifier = Modifier.align(Alignment.Center),
                         action = {
                             TextButton(
-                                text = stringResource(R.string.refresh),
+                                text = stringResource(Res.string.refresh),
                                 onClick = { viewModel.refreshSongs() },
                                 colors = MiuixButtonDefaults.textButtonColorsPrimary()
                             )
@@ -220,12 +247,14 @@ fun ArtistsPage(
                                         .orEmpty()
                                         .map { candidate ->
                                             CoverCandidate(
-                                                uri = candidate.uri.toUri(),
+                                                uri = candidate.uri,
                                                 lastUpdate = candidate.lastModified
                                             )
                                         },
                                     onClick = {
-                                        navigator.navigate(ArtistDetailDestination(artistId = artist.id))
+                                        navigator.navigate(
+                                            ArtistDetailDestination(artistId = artist.id)
+                                        )
                                     }
                                 )
                             }
@@ -233,17 +262,11 @@ fun ArtistsPage(
                     }
                 }
                 if (!enableIndex) {
-                    InternalLazyVerticalGridScrollbar(
+                    LibraryScrollbar(
                         state = gridState,
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .libraryScrollbarOverlay(paddingValues = paddingValues),
-                        settings = ScrollbarSettings.Default.copy(
-                            alwaysShowScrollbar = true,
-                            selectionMode = ScrollbarSelectionMode.Full,
-                            thumbUnselectedColor = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                            thumbSelectedColor = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                        ),
                     )
                 }
                 if (enableIndex) {
@@ -281,9 +304,9 @@ private fun artistSortDropdownEntry(
                 summary = if (isSelected) {
                     stringResource(
                         if (sortInfo.order == SortOrder.ASC) {
-                            R.string.sort_ascending
+                            Res.string.sort_ascending
                         } else {
-                            R.string.sort_descending
+                            Res.string.sort_descending
                         }
                     )
                 } else {

@@ -171,6 +171,7 @@ class DesktopAppModuleTest {
         // catches a view model whose constructor arguments drifted from the module.
         val viewModels = listOf(
             koin.get<com.lonx.lyrico.viewmodel.AppLogViewModel>(),
+            koin.get<com.lonx.lyrico.viewmodel.AlbumActionsViewModel>(),
             koin.get<com.lonx.lyrico.viewmodel.AlbumLibraryViewModel>(),
             koin.get<com.lonx.lyrico.viewmodel.ArtistLibraryViewModel>(),
             koin.get<com.lonx.lyrico.viewmodel.LocalSearchViewModel>(),
@@ -181,7 +182,7 @@ class DesktopAppModuleTest {
             koin.get<com.lonx.lyrico.viewmodel.SongSelectionViewModel>(),
         )
 
-        assertEquals(9, viewModels.size)
+        assertEquals(10, viewModels.size)
         viewModels.forEach { assertNotNull(it) }
     }
 }

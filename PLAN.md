@@ -519,6 +519,79 @@ CJK 路径的编码器是**自己重写的**（`encodeNavRouteArgument`）：Nav
 
 下一批：`AlbumsPage` + `ArtistsPage`（含它们的 viewmodel 已就绪），然后 `LibraryHomeScreen` 三 tab 外壳 + 起始路由改回 `library_home`。
 
+### P4 的 UI 轨道（曲库三 tab 的前两个：专辑页与艺人页，2026-10-10）
+
+#### 1. 搬了什么
+
+| 新文件（kotlin 树） | 来源（java 树，随本批删除） | 改动 |
+| --- | --- | --- |
+| `screens/library/AlbumsPage.kt` | 同名 | 见 §2 |
+| `screens/library/ArtistsPage.kt` | 同名 | 见 §2 |
+| `viewmodel/AlbumActionsViewModel.kt` | 同名 | ReplayGain 行/进度弹层砍掉（§2.3） |
+| `ui/components/library/AlbumGridItem.kt` | 同名 | 去掉 `LocalContext`/`Toast` |
+| `ui/components/library/AlbumActionBottomSheet.kt` | 同名 | 去掉 ReplayGain 入口 |
+| `ui/components/artist/ArtistListItem.kt` | 同名 | `Uri` → 路径字符串，见 §2.4 |
+
+另外：`LibraryScrollbar` 增加 `LazyGridState` 重载（专辑网格用），`Destinations` 声明
+`AlbumDetailDestination` / `ArtistDetailDestination`（**声明但不注册**，与 Settings/LocalSearch 同一策略），
+`DesktopAppModule` 注册 `AlbumActionsViewModel`（共 12 个 viewmodel）。
+
+#### 2. 四处适配决策
+
+1. **滚动条**：Android 用的 `InternalLazyVerticalGridScrollbar`（第三方库）桌面没有，换成 `LibraryScrollbar`
+   的 `LazyGridState` 重载 —— 即 Compose Desktop 自带 `VerticalScrollbar` + `rememberScrollbarAdapter(state)`。
+   踩到的坑写在 `LibraryScrollbar.kt` 里：`v2.LazyGridScrollbarAdapter` 是 Kotlin `internal`，不能直接构造；
+   而 `rememberScrollbarAdapter` 的 v1/v2 两个重载**在 Kotlin 源码里同名**（v2 只是 `@JvmName` 混淆成
+   `rememberScrollbarAdapter2`），靠参数类型（`LazyGridState`）选中 v2。
+2. **A-Z 侧栏对网格的吸附**：网格里一个字母的起点必须是「包含该字母的第一行」，所以存的索引要按
+   `index % columns` 回退到行首，不能像 `SongsPage` 那样直接用条目索引。
+3. **ReplayGain 整块不搬，且不留空壳**：Android 的专辑操作弹层里那一行依赖 `ReplayGainProcessor`/
+   worker/`MediaMetadataRetriever`，桌面这批还没有等价链路，所以弹层只有「分享（在资源管理器中定位）」
+   与「删除」两项，`AlbumActionsViewModel` 也只有这两个入口。写进 P5 缺口。
+4. **封面候选 `Uri` → 文件路径字符串**：`ArtistListItem` 的 `CoverCandidate` 原本要 `Uri`，桌面直接用
+   绝对路径（与 `CoverRequest` 同一套约定），去掉了 `LocalContext`。
+
+#### 3. 两个真失败（都不是「重跑就好」）
+
+1. **单夹具的测试全在 30s 超时，三夹具的能过**。不是并发或时序问题：`bladeenc.mp3`（TagLib 自带样例）
+   **没有 album / artist 标签**，而扫描器不会给「无专辑标签的歌」建专辑行 —— 于是那些测试其实在测空网格。
+   修法是让测试自己写标签：新增 `screens/library/TaggedAudioFixtures.kt`，用真的 `AudioTagRepository`
+   （`Overwrite` 模式）把 Title/Artist/Album/AlbumArtist 写进临时库里的副本，并断言 `AudioTagWriteResult.Success`。
+   这条坑值得记：**TagLib 夹具的「标签」是数据，不是测试的输入约定**。
+2. **Windows 上的 DataStore 写失败**：全量跑时 `saveAlbumGridColumns` 抛
+   `IOException: Unable to rename ...\settings.preferences_pb.tmp to ...\settings.preferences_pb`。
+   原因是测试用 `waitUntil { runBlocking { settings.albumSortInfo.first() } }` 轮询设置，而**每次都 `first()`
+   等于每次重新订阅，每次订阅都会让 DataStore 去读一遍文件**；帧循环 ~16ms 一次，读正好和点击触发的写挨在
+   一起，Windows 下「删旧文件再改名」就被打开着的句柄挡住。改为 `SettingsFlowWatcher`（只订阅一次，
+   判据读内存标志位），既没这个竞态，也更接近界面自己的行为。
+
+顺带记两条 Miuix / 页面行为，都是这批的断言逼出来的：
+
+- 专辑卡片的一行摘要不是「`2 songs`」而是页面自己的 `buildAlbumSummary`（`歌曲数` + 空格 + `年份`，年份非空才拼），
+  所以断言要按页面的规则拼出期望值，再比对**整条摘要**（这样既钉住格式化，也不会因为年份就红）。
+- `OverlayIconDropdownMenu` 选完一项**不自动收起**（它用 `summary` 表示选中），再点一次排序图标反而把它收起 ——
+  所以「列数」入口就在同一个已展开的菜单里，测试不该再点一次。
+
+#### 4. 取证（新增 3 类 14 项；全量 64 类 548 项，547 执行 + 1 门控跳过，0 失败 0 错误）
+
+| 测试类 | 项数 | 钉住的东西 |
+| --- | --- | --- |
+| `screens/library/AlbumsPageTest` | 6 | 真 Koin + 真扫描 + 真 Room + 真网格：卡片数与「每张卡片的摘要」（含占位符不得上屏）；长按 → 弹层 → 确认 → **文件真的被删、行真的消失、标题与 snackbar 按真计数重渲**；排序菜单字段齐全且选择落进设置流；点卡片请求 `album_detail` 路由（带参数）；空态 + 刷新按钮 |
+| `screens/library/ArtistsPageTest` | 4 | 同上，外加艺人行两行摘要 `%1$d albums · %2$d songs` 必须被替换（`%1$d` 原样上屏的断言单独一条）；空态；点行进 `artist_detail`；排序菜单 |
+| `viewmodel/AlbumActionsViewModelTest` | 4 | 真文件 + 真 Room 的删除（文件、索引、`album_delete_success(deleted, total)` 的参数列表）；分享把专辑每一首都交给 `FileRevealRepository`；文件已不在时折叠成 `no_player_found`；空专辑不碰 Explorer。分享用记录的假实现，因为真的会弹出资源管理器窗口 |
+
+#### 5. 这批的用户可见缺口
+
+1. 专辑/艺人的 **ReplayGain** 两项动作没有（§2.3）。
+2. 专辑详情页、艺人详情页只有路由，没有界面 —— 本轮仍点到日志。
+3. 还是没有外壳：专辑、艺人两个 tab 只能靠 `AlbumsPageTest`/`ArtistsPageTest` 各自挂一个 `NavHost` 访问，
+   真正的三 tab 外壳是下一批。
+
+#### 6. 前沿
+
+`python scripts/port-frontier.py` → java 树 **165 个文件 / 0 陈旧副本 / 66 可搬 / 99 被挡**。
+本批的 6 个文件原来都在 java 树里，随本批删除（与之前几批 `git mv` 的净效果一致）。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
@@ -588,7 +661,7 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **`stringResource` 的两个坑（本仓已踩，勿回退）**：
   1. **带参数的 `stringResource` / `getString` 不走 `String.format`**：CMP 的实现是 `replaceWithArgs` + 正则 `%(\d+)\$[ds]`，只认位置参数。本仓 20 条字符串用普通 `%d`/`%s`/`%.2f`，所以主源码里禁止直接写 `stringResource(res, args)` / `getString(res, args)`，一律走 `formattedStringResource` / `formattedString`（`StringFormattingGuardTest` 会把违规的 `file:line` 报出来）。**不要**为了迁就库去改字符串：字符串必须与 Android 逐字一致，而且 `%.2f`/宽度/精度在库的模型里根本表达不出来。
   2. **多行 XML body 的缩进不会被去掉**（`\n` 转义会被正确转成换行）。aapt2 去掉的是「首尾带换行的那段空白」，行内尾空格是故意的（`Task Type: ` 后面拼值）。所以 Compose 资源里的 `<string>` body 一律写成一行；`ComposeStringResourcesTest` 会检查。
-- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；P4 各批（状态层、浏览/搜索 viewmodel、剩余 viewmodel、UI 地基、UI 轨道、选择与操作面板、独立歌曲页）之后，全量现为 **534 项（533 执行 + 1 门控跳过）0 失败 0 错误、61 个测试类**，按包可核对：data 203 · viewmodel 130 · utils 117 · ui 33 · domain 20 · platform 13 · screens 12 · di 5 · probe 1；其中 UI 轨道 25 项 = 封面 7 + 歌曲列表 11 + 壳 7，选择与操作面板 69 项，独立歌曲页 7 项 + 导航 5 项 + 字符串格式化 9 项，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9** + 独立歌曲页全链路 7 + 导航 5（原 2）+ 字符串格式化（守卫 2 + helper 3 + 资源 XML 4）+ 开发库播种 1（门控跳过））。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
+- **P3 复现命令（数据层）**：`./gradlew :lyrico-app:test`（P3 收口时 **243 项 0 失败**；P4 各批（状态层、浏览/搜索 viewmodel、剩余 viewmodel、UI 地基、UI 轨道、选择与操作面板、独立歌曲页、专辑页与艺人页）之后，全量现为 **548 项（547 执行 + 1 门控跳过）0 失败 0 错误、64 个测试类**，按包可核对：data 203 · viewmodel 134 · utils 117 · ui 33 · screens 22 · domain 20 · platform 13 · di 5 · probe 1；其中 UI 轨道 25 项 = 封面 7 + 歌曲列表 11 + 壳 7，选择与操作面板 69 项，独立歌曲页 7 项 + 导航 5 项 + 字符串格式化 9 项，专辑页 6 项 + 艺人页 4 项 + 专辑操作 viewmodel 4 项，见 P4 节）：库读写/FTS/raw query/重开持久化/schema 保真 8 项 + 歌曲库 11 + 库索引 7 + 本地搜索 11 + mapper 5 + 标签读写 7 + 拼音排序键 7 + 歌词解码链 59（原 Android 测试整体搬迁：管道 31/列排序 18/编码器 10）+ 设置层 4 + 应用日志 6 + 路径模型 6 + 壳 3 + 扫描器 9 + 扫描端到端集成 9 + 文件重命名/删除 13 + 自定义标签键 12 + 插件表 15 + GitHub 贡献者 7 + 更新检查 12 + 批量任务 23 + **播放转发 9** + 独立歌曲页全链路 7 + 导航 5（原 2）+ 字符串格式化（守卫 2 + helper 3 + 资源 XML 4）+ 开发库播种 1（门控跳过））。测试任务注入的系统属性：`lyrico.schema.dir` / `lyrico.android.schema.dir`（schema 比对）、`lyrico.audiotag.fixtures.dir`（音频夹具，指向 `lyrico-audiotag/src/main/cpp/taglib/tests/data`），换机器无需改测试代码。
 - **测试数据层两处易踩的 Room 语义（已踩中并写进测试注释，勿凭直觉改）**：
   1. `@Upsert` 在撞唯一索引时回退为 `UPDATE ... WHERE id = ?`，所以**实体必须带上已存行的主键**才会真正更新；`id = 0` 的重复 upsert 是静默 no-op（扫描器因此先读 `existingId = dbInfo?.id ?: 0L`）。`SongLibraryRepositoryTest` 两个用例各钉一半。
   2. `artist` 标签的默认分隔符集合里 `;`/`,`/`/` 是**启用**的，而 `&`、` feat. ` 是**禁用**的；`Earth, Wind & Fire` 靠内置 no-split 名单才不被逗号劈开。`LibraryIndexRepositoryTest` 同时钉住两种行为。

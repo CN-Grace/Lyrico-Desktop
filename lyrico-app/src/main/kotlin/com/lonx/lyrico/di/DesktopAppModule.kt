@@ -53,6 +53,7 @@ import com.lonx.lyrico.utils.LibraryScanManager
 import com.lonx.lyrico.utils.LibraryScanManagerImpl
 import com.lonx.lyrico.utils.UpdateManager
 import com.lonx.lyrico.utils.UpdateManagerImpl
+import com.lonx.lyrico.viewmodel.AlbumActionsViewModel
 import com.lonx.lyrico.viewmodel.AlbumDetailViewModel
 import com.lonx.lyrico.viewmodel.AlbumLibraryViewModel
 import com.lonx.lyrico.viewmodel.AppLogViewModel
@@ -202,6 +203,7 @@ fun desktopAppModule(directories: AppDirectories) = module {
 
     viewModel { AppLogViewModel(get(), get()) }
     viewModel { AlbumLibraryViewModel(get(), get(), get()) }
+    viewModel { AlbumActionsViewModel(get(), get(), get()) }
     viewModel { ArtistLibraryViewModel(get(), get(), get()) }
     viewModel { LocalSearchViewModel(get(), get(), get()) }
     viewModel { ArtistSplitSettingsViewModel(get(), get()) }

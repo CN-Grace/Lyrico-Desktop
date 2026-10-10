@@ -1,8 +1,5 @@
 package com.lonx.lyrico.ui.components.artist
 
-
-import android.annotation.SuppressLint
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,21 +13,35 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lonx.audiotag.model.AudioPictureType
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.entity.ArtistEntity
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.album_song_count
 import com.lonx.lyrico.ui.components.CoverCandidate
 import com.lonx.lyrico.ui.components.cover.CoverImage
+import com.lonx.lyrico.utils.formattedStringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@SuppressLint("DefaultLocale")
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * One artist row: portrait cover, name, and the "N albums · M songs" summary.
+ *
+ * Three things changed from the Android original:
+ *
+ * * `stringResource(R.string.album_song_count, ...)` became [formattedStringResource]. Both
+ *   placeholders in that string are positional (`%1$d` / `%2$d`), so the library's own vararg
+ *   formatting would in fact have worked here -- the helper is used anyway so the port has exactly
+ *   one way to format a resource, and the guard test that enforces it has no exceptions to know
+ *   about.
+ * * `CoverCandidate(uri = candidate.uri.toUri())` became a plain [String]: desktop cover candidates
+ *   are filesystem paths (`ui/components/CoverRequest.kt`), not `content://` URIs.
+ * * `@SuppressLint("DefaultLocale")` is gone. It existed because Android lint flags locale-sensitive
+ *   `String.format`; nothing in this file formats a number itself any more.
+ */
 @Composable
 fun ArtistListItem(
     artist: ArtistEntity,
@@ -88,8 +99,8 @@ fun ArtistListItem(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(
-                            R.string.album_song_count,
+                        text = formattedStringResource(
+                            Res.string.album_song_count,
                             artist.albumCount,
                             artist.songCount
                         ),

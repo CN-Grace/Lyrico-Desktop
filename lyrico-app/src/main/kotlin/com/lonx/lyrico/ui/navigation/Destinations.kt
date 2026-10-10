@@ -106,6 +106,33 @@ data class EditMetadataDestination(val songFileUri: String) : NavDirection {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Not ported yet. `AlbumsPage` and `ArtistsPage` navigate to these two, exactly as the Android pages
+// did. Both screens arrive in a later batch; until then the navigator logs the miss.
+// ---------------------------------------------------------------------------------------------
+
+/** One album's detail screen. Reached by tapping a card in the albums grid. */
+data class AlbumDetailDestination(val albumId: Long) : NavDirection {
+    override val route: String get() = "$BASE/$albumId"
+
+    companion object {
+        const val ARG_ALBUM_ID = "albumId"
+        const val BASE = "album_detail"
+        const val PATTERN = "$BASE/{$ARG_ALBUM_ID}"
+    }
+}
+
+/** One artist's detail screen. Reached by tapping a row in the artists list. */
+data class ArtistDetailDestination(val artistId: Long) : NavDirection {
+    override val route: String get() = "$BASE/$artistId"
+
+    companion object {
+        const val ARG_ARTIST_ID = "artistId"
+        const val BASE = "artist_detail"
+        const val PATTERN = "$BASE/{$ARG_ARTIST_ID}"
+    }
+}
+
 /**
  * Percent-encodes one route argument, matching the navigation library's own encoder.
  *
@@ -121,7 +148,8 @@ data class EditMetadataDestination(val songFileUri: String) : NavDirection {
  * and everything else is `%XX` of its UTF-8 bytes, so a CJK file name survives too.
  *
  * Delete this once the metadata editor is ported and the route can be asserted end to end.
- */internal fun encodeNavRouteArgument(value: String): String {
+ */
+internal fun encodeNavRouteArgument(value: String): String {
     val bytes = value.toByteArray(Charsets.UTF_8)
     val encoded = StringBuilder(bytes.size)
     for (byte in bytes) {
