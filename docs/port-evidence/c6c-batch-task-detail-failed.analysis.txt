@@ -1,0 +1,38 @@
+file: docs\port-evidence\c6c-batch-task-detail-failed.png
+size: 1166x773
+distinct_colours: 621  most_common_share: 0.683  text_pixels: 7547
+accent_blue_pixels: 173  accent_warm_pixels: 169
+top_colours: (247, 247, 247)=615155, (255, 255, 255)=273103, (102, 102, 102)=1653, (0, 0, 0)=962
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                          +.++++.                                           +
+  # ++                                        .#+++#+.                                           +
+  # .++.....                                                                                     +
+  # #+#+#+++                                                                                     +
+  # .++..... .+.+ +                                                                              +
+  # .#....                                                                                       +
+  #                                                                                              +
+  #               +.                             ##.                            +++              +
+  #                                                                                              +
+  # +++##+#++##                                                                                  +
+  #  .+++.....+++....+....+..+.....+..+...+ .....+..+.....++..++++                               +
+  # .++. ... .+ +                                                                                +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.
+compare_with: docs\port-evidence\c6c-batch-task-detail.png
+changed_pixels: 10341 (1.15% of the window)

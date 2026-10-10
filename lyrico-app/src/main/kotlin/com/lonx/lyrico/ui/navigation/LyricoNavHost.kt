@@ -16,6 +16,8 @@ import androidx.navigation.navArgument
 import androidx.savedstate.SavedState
 import androidx.savedstate.read
 import com.lonx.lyrico.screens.AppLogScreen
+import com.lonx.lyrico.screens.BatchTaskDetailScreen
+import com.lonx.lyrico.screens.BatchTaskListScreen
 import com.lonx.lyrico.screens.LibraryHomeScreen
 import com.lonx.lyrico.screens.PluginConfigScreen
 import com.lonx.lyrico.screens.PluginManagerScreen
@@ -41,7 +43,9 @@ import androidx.compose.foundation.layout.fillMaxSize
  * the default of [startDestination], so a bare `LyricoNavHost()` boots the shipped entry screen, and a
  * test that wants to start elsewhere (e.g. straight on the app log) passes the route in.
  * `app_logs` stays registered; local search and the metadata editor are still declared-only and are
- * registered by the batches that port their screens.
+ * registered by the batches that port their screens. The batch task list and detail (`batch_task_list`,
+ * `batch_task_detail/{taskId}`) were registered by C6c, the first pair of routes that navigate to each
+ * other inside the ported graph.
  *
  * ### Dev start route
  *
@@ -142,6 +146,24 @@ fun LyricoNavHost(
                         controller = navController,
                         route = SearchCoverDestination.BASE,
                     ),
+                )
+            }
+            composable(BatchTaskListDestination.ROUTE) {
+                BatchTaskListScreen(navigator = navigator)
+            }
+            composable(
+                route = BatchTaskDetailDestination.PATTERN,
+                // A path argument, so required rather than optional: the route only matches with a
+                // non-empty segment, and the repository never generates an empty task id.
+                arguments = listOf(
+                    navArgument(BatchTaskDetailDestination.ARG_TASK_ID) { type = NavType.StringType }
+                ),
+            ) { entry ->
+                BatchTaskDetailScreen(
+                    taskId = entry.arguments
+                        .readOptionalString(BatchTaskDetailDestination.ARG_TASK_ID)
+                        .orEmpty(),
+                    navigator = navigator,
                 )
             }
             composable(PluginManagerDestination.ROUTE) {

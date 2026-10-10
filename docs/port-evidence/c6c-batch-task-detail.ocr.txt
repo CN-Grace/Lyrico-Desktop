@@ -1,0 +1,13 @@
+file: docs/port-evidence/c6c-batch-task-detail.png
+engine: zh-Hans-CN
+lines: 10
+  y=10 x=31 :: Lyrico 1 ℃ 〔 g503f85 〕
+  y=103 x=29 :: 进 度 ： 4 / 4
+  y=126 x=29 :: 哥 0 司 匹 配 《 成 功
+  y=145 x=29 :: 成 功 2 ] 实 败 ： 0 跳 0 ：
+  y=164 x=29 :: 耗 时 ： O.Os
+  y=286 x=29 :: 2 亻 &b.wav
+  y=49 x=543 :: 任 务 详 情
+  y=308 x=30 :: H WibeCoding\03-fiHLyrico-Desktap\lyriC0-app\build\demo-libraryNfi*•1* 屈 目 芨 \ 240jw “
+  y=372 x=29 :: 1 朋 友 ． mp3
+  y=394 x=30 :: H WibeCoding\03-fiHLyrico-Desktap\lyriC0-app\build\demo-libraryNfi*•1* 屈 目 芨 \ 1 朋 友 mp3

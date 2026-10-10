@@ -1,0 +1,12 @@
+file: docs/port-evidence/c6c-batch-task-detail-failed.png
+engine: zh-Hans-CN
+lines: 9
+  y=10 x=31 :: Lyrico 1 ℃ 〔 g503f85 〕
+  y=103 x=29 :: 进 度 ： 4 / 4
+  y=126 x=29 :: 哥 0 司 匹 配 《 成 功
+  y=145 x=29 :: 成 功 2 ] 实 败 ： 0 跳 0 ：
+  y=164 x=29 :: 耗 时 ： O.Os
+  y=286 x=29 :: 1 September.ogg
+  y=49 x=543 :: 任 务 详 情
+  y=308 x=30 :: H WibeCoding\03-fi*\Lyrico-Desktap\lyriC0-app\build\demo-library\Earth, Wlnd & Fire _ September\1 September.ogg
+  y=326 x=29 :: 际 签 写 入 荚 枚 眼 不 足

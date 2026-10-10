@@ -243,6 +243,42 @@ data class PluginConfigDestination(val pluginId: String) : NavDirection {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Ported in C6c: the batch task history and one task's detail.
+//
+// Android reached the list from the settings screen's "task history" row; `SettingsScreen` is still
+// in the Android tree, so the shipped entry point does not exist yet and the dev start-route override
+// (`-Dlyrico.start.route=batch_task_list`, see `LyricoNavHost`) is how the real-window evidence is
+// taken. Both routes are registered, so the list's own "open one task" navigation -- and the detail
+// screen's "open one item's metadata" navigation -- are real hops inside the ported graph.
+// ---------------------------------------------------------------------------------------------
+
+/** The batch task history list. Reached from the settings screen once that screen is ported. */
+class BatchTaskListDestination : NavDirection {
+    override val route: String = ROUTE
+
+    companion object {
+        const val ROUTE = "batch_task_list"
+    }
+}
+
+/**
+ * One batch task's detail, with its items split by status.
+ *
+ * `taskId` is a path argument (the repository generates UUID-shaped ids, so an empty segment cannot
+ * occur) and it is the *only* thing the route carries: the screen's view model takes it as a Koin
+ * parameter, exactly as the Android screen did through `koinViewModel { parametersOf(taskId) }`.
+ */
+data class BatchTaskDetailDestination(val taskId: String) : NavDirection {
+    override val route: String get() = "$BASE/${encodeNavRouteArgument(taskId)}"
+
+    companion object {
+        const val ARG_TASK_ID = "taskId"
+        const val BASE = "batch_task_detail"
+        const val PATTERN = "$BASE/{$ARG_TASK_ID}"
+    }
+}
+
 /**
  * Percent-encodes one route argument, matching the navigation library's own encoder.
  *

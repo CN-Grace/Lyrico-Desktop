@@ -84,6 +84,8 @@ import com.lonx.lyrico.viewmodel.AlbumLibraryViewModel
 import com.lonx.lyrico.viewmodel.AppLogViewModel
 import com.lonx.lyrico.viewmodel.ArtistLibraryViewModel
 import com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel
+import com.lonx.lyrico.viewmodel.BatchTaskDetailViewModel
+import com.lonx.lyrico.viewmodel.BatchTaskListViewModel
 import com.lonx.lyrico.viewmodel.CharacterMappingViewModel
 import com.lonx.lyrico.viewmodel.CoverSearchViewModel
 import com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel
@@ -318,6 +320,16 @@ fun desktopAppModule(directories: AppDirectories) = module {
     viewModel { CharacterMappingViewModel(get()) }
     viewModel { EditFieldSettingsViewModel(get(), get(), get(), get()) }
     viewModel { (albumId: Long) -> AlbumDetailViewModel(libraryIndexRepository = get(), albumId = albumId) }
+    // Same shape as `AlbumDetailViewModel` above: the id travels as a Koin parameter, which is what
+    // `koinViewModel(parameters = { parametersOf(taskId) })` in `BatchTaskDetailScreen` supplies.
+    viewModel { (taskId: String) ->
+        BatchTaskDetailViewModel(
+            taskId = taskId,
+            batchTaskRepository = get(),
+            batchTaskScheduler = get(),
+        )
+    }
+    viewModel { BatchTaskListViewModel(get(), get()) }
     viewModel { SongListViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { SongSelectionViewModel(get(), get(), get(), get(), get()) }
     viewModel { SearchViewModel(get(), get(), get(), get()) }

@@ -22,24 +22,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.BatchTaskStatus
 import com.lonx.lyrico.data.model.BatchTaskType
 import com.lonx.lyrico.data.model.entity.BatchTaskEntity
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.action_close
+import com.lonx.lyrico.resources.batch_match_duration_format
+import com.lonx.lyrico.resources.batch_match_stat_format
+import com.lonx.lyrico.resources.batch_task_clear_message
+import com.lonx.lyrico.resources.batch_task_clear_title
+import com.lonx.lyrico.resources.batch_task_delete_message
+import com.lonx.lyrico.resources.batch_task_delete_selected_message
+import com.lonx.lyrico.resources.batch_task_delete_title
+import com.lonx.lyrico.resources.batch_task_filter_all
+import com.lonx.lyrico.resources.batch_task_filter_status
+import com.lonx.lyrico.resources.batch_task_filter_type
+import com.lonx.lyrico.resources.batch_task_list_title
+import com.lonx.lyrico.resources.batch_task_no_tasks
+import com.lonx.lyrico.resources.batch_task_status_label
+import com.lonx.lyrico.resources.batch_task_type_label
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.common_delete
+import com.lonx.lyrico.resources.confirm
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
+import com.lonx.lyrico.ui.navigation.BatchTaskDetailDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.BatchTaskListViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.BatchTaskDetailDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -51,6 +68,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -61,10 +79,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@Destination<RootGraph>(route = "batch_task_list")
 @Composable
 fun BatchTaskListScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: BatchTaskListViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -102,7 +119,7 @@ fun BatchTaskListScreen(
     }
 
     WindowDialog(
-        title = stringResource(R.string.batch_task_delete_title),
+        title = stringResource(Res.string.batch_task_delete_title),
         show = showDeleteDialog,
         onDismissRequest = {
             showDeleteDialog = false
@@ -116,12 +133,12 @@ fun BatchTaskListScreen(
         Column {
             Text(
                 text = if (pendingDeleteTaskIds.size > 1) {
-                    stringResource(
-                        R.string.batch_task_delete_selected_message,
+                    formattedStringResource(
+                        Res.string.batch_task_delete_selected_message,
                         pendingDeleteTaskIds.size
                     )
                 } else {
-                    stringResource(R.string.batch_task_delete_message)
+                    stringResource(Res.string.batch_task_delete_message)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 color = MiuixTheme.colorScheme.onBackground
@@ -132,7 +149,7 @@ fun BatchTaskListScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = {
                         showDeleteDialog = false
                         selectedTaskId = null
@@ -140,7 +157,7 @@ fun BatchTaskListScreen(
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = {
                         if (pendingDeleteTaskIds.isNotEmpty()) {
                             viewModel.deleteTasks(pendingDeleteTaskIds)
@@ -160,13 +177,13 @@ fun BatchTaskListScreen(
     }
 
     WindowDialog(
-        title = stringResource(R.string.batch_task_clear_title),
+        title = stringResource(Res.string.batch_task_clear_title),
         show = showClearDialog,
         onDismissRequest = { showClearDialog = false }
     ) {
         Column {
             Text(
-                text = stringResource(R.string.batch_task_clear_message),
+                text = stringResource(Res.string.batch_task_clear_message),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -175,12 +192,12 @@ fun BatchTaskListScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = { showClearDialog = false },
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = {
                         viewModel.deleteTasks(deletableFilteredTaskIds)
                         selectedTaskIds = emptySet()
@@ -200,14 +217,14 @@ fun BatchTaskListScreen(
                 SmallTopAppBar(
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
-                    title = stringResource(R.string.batch_task_list_title),
+                    title = stringResource(Res.string.batch_task_list_title),
                     navigationIcon = {
                         IconButton(
                             onClick = { navigator.popBackStack() }
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Back,
-                                contentDescription = stringResource(R.string.action_back)
+                                contentDescription = stringResource(Res.string.action_back)
                             )
                         }
                     },
@@ -223,7 +240,7 @@ fun BatchTaskListScreen(
                         ) {
                             Icon(
                                 MiuixIcons.Delete,
-                                contentDescription = stringResource(R.string.batch_task_clear_title),
+                                contentDescription = stringResource(Res.string.batch_task_clear_title),
                                 tint = if (canClearFinishedTasks) {
                                     MiuixTheme.colorScheme.error
                                 } else {
@@ -254,8 +271,8 @@ fun BatchTaskListScreen(
             item {
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     WindowDropdownPreference(
-                        title = stringResource(R.string.batch_task_filter_type),
-                        items = listOf(stringResource(R.string.batch_task_filter_all)) + typeItems.map {
+                        title = stringResource(Res.string.batch_task_filter_type),
+                        items = listOf(stringResource(Res.string.batch_task_filter_all)) + typeItems.map {
                             stringResource(
                                 it
                             )
@@ -268,8 +285,8 @@ fun BatchTaskListScreen(
                         }
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.batch_task_filter_status),
-                        items = listOf(stringResource(R.string.batch_task_filter_all)) + statusItems.map {
+                        title = stringResource(Res.string.batch_task_filter_status),
+                        items = listOf(stringResource(Res.string.batch_task_filter_all)) + statusItems.map {
                             stringResource(
                                 it
                             )
@@ -286,7 +303,7 @@ fun BatchTaskListScreen(
             if (uiState.filteredTasks.isEmpty()) {
                 item {
                     Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                        BasicComponent(title = stringResource(R.string.batch_task_no_tasks))
+                        BasicComponent(title = stringResource(Res.string.batch_task_no_tasks))
                     }
                 }
             } else {
@@ -344,8 +361,10 @@ private fun BatchTaskCard(
                 if (isRunning) {
                     IconButton(onClick = onCancelClick) {
                         Icon(
-                            painter = painterResource(android.R.drawable.ic_menu_close_clear_cancel),
-                            contentDescription = stringResource(R.string.action_close),
+                            // `android.R.drawable.ic_menu_close_clear_cancel` does not exist here; the
+                            // Miuix icon set the rest of the port already uses has an equivalent X.
+                            imageVector = MiuixIcons.Close,
+                            contentDescription = stringResource(Res.string.action_close),
                             tint = MiuixTheme.colorScheme.error
                         )
                     }
@@ -353,7 +372,7 @@ private fun BatchTaskCard(
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             MiuixIcons.Delete,
-                            contentDescription = stringResource(R.string.common_delete),
+                            contentDescription = stringResource(Res.string.common_delete),
                             tint = MiuixTheme.colorScheme.error
                         )
                     }
@@ -374,21 +393,21 @@ private fun BatchTaskCard(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.batch_task_type_label) + typeLabel,
+                    text = stringResource(Res.string.batch_task_type_label) + typeLabel,
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(R.string.batch_task_status_label) + statusLabel,
+                    text = stringResource(Res.string.batch_task_status_label) + statusLabel,
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 if (task.status == BatchTaskStatus.SUCCEEDED || task.status == BatchTaskStatus.FAILED || task.status == BatchTaskStatus.CANCELLED) {
                     Text(
-                        text = stringResource(
-                            R.string.batch_match_stat_format,
+                        text = formattedStringResource(
+                            Res.string.batch_match_stat_format,
                             task.successCount,
                             task.failureCount,
                             task.skippedCount
@@ -406,8 +425,8 @@ private fun BatchTaskCard(
                 if (durationSecs != null) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = stringResource(
-                            R.string.batch_match_duration_format,
+                        text = formattedStringResource(
+                            Res.string.batch_match_duration_format,
                             durationSecs
                         ),
                         style = MiuixTheme.textStyles.body2,

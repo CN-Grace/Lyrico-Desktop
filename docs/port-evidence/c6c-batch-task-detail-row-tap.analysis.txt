@@ -1,0 +1,38 @@
+file: docs\port-evidence\c6c-batch-task-detail-row-tap.png
+size: 1166x773
+distinct_colours: 379  most_common_share: 0.613  text_pixels: 8319
+accent_blue_pixels: 173  accent_warm_pixels: 169
+top_colours: (247, 247, 247)=552636, (255, 255, 255)=253078, (235, 235, 235)=80823, (25, 25, 25)=2792
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                          +.++++.                                           +
+  # ++                                        .#+++#+.                                           +
+  # .++.....                                                                                     +
+  # #+#+#+++                                                                                     +
+  # .++..... .+.+ +                                                                              +
+  # .#....                                                                                       +
+  #                                                                                              +
+  #              +##                             ++.                            +++              +
+  #                                                                                              +
+  # ++#++++.                                                                                     +
+  #  ...+.....++.....+....+..+.....+..+..++. ++..+...                                            +
+  #                                                                                              +
+  # +++#+#++                                                                                     +
+  # .+...+++..++...++.+.+..+.++..+++.++.++.#.++..++.+.                                           +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.
+compare_with: docs\port-evidence\c6c-batch-task-detail.png
+changed_pixels: 86921 (9.64% of the window)

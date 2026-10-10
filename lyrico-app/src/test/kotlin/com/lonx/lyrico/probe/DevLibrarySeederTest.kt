@@ -1,8 +1,10 @@
 package com.lonx.lyrico.probe
 
 import com.lonx.lyrico.data.LyricoDatabase
+import com.lonx.lyrico.data.model.BatchTaskType
 import com.lonx.lyrico.data.model.entity.FolderEntity
 import com.lonx.lyrico.data.model.entity.SongEntity
+import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.song.tag.AudioTagFieldKey
 import com.lonx.lyrico.data.song.tag.AudioTagMutation
@@ -47,6 +49,11 @@ import kotlin.test.Test
  * exercises CJK rendering and the title-bar count.
  */
 class DevLibrarySeederTest {
+
+    private companion object {
+        /** A message the failure rows can carry into the capture. */
+        const val TAG_WRITE_ERROR = "标签写入失败：权限不足"
+    }
 
     private val fixtures = File(
         requireNotNull(System.getProperty("lyrico.audiotag.fixtures.dir")) { "fixtures dir property missing" }
@@ -98,6 +105,37 @@ class DevLibrarySeederTest {
                 songs.forEach {
                     println("SEED song uri=${it.uri} title=${it.title} artist=${it.artist} album=${it.album}")
                 }
+
+                // The batch task screens have no user-facing entry point yet, so the capture reaches
+                // them through the dev start route and needs rows in the history. The four shapes below
+                // cover the whole list-row vocabulary: a fresh task, a clean success, a partly failed
+                // one, and a task that failed outright. The "fresh" one is left QUEUED, which is what a
+                // just-created task looks like -- but note that no task survives an app start:
+                // `markOrphanedTasksFailed()` treats RUNNING *and* QUEUED as orphans and rewrites them to
+                // FAILED ("Task interrupted by system"), so the list window shows this row as failed
+                // rather than with a cancel icon. That rewrite is real behaviour and its appearance in
+                // the capture is the evidence for it; the live/cancel row is covered headlessly instead,
+                // because there is no way to create a task while the window is open.
+                val tasks = koin.get<BatchTaskRepository>()
+                val queued = tasks.createTask(BatchTaskType.MATCH_COVER, songs.take(2), null)
+                val clean = seedTask(tasks, BatchTaskType.EDIT_TAGS, songs.take(3), succeeded = 3)
+                val mixed = seedTask(
+                    tasks,
+                    BatchTaskType.MATCH_LYRICS,
+                    songs,
+                    succeeded = 2,
+                    failed = 1,
+                    skipped = 1,
+                )
+                val broken = seedTask(
+                    tasks,
+                    BatchTaskType.RENAME_FILES,
+                    songs.take(1),
+                    succeeded = 0,
+                    failed = 1,
+                    failing = true,
+                )
+                println("SEED batchTasks queued=$queued clean=$clean mixed=$mixed broken=$broken")
             } finally {
                 stopKoin()
             }
@@ -132,6 +170,33 @@ class DevLibrarySeederTest {
                 ),
             )
         }
+    }
+
+    /**
+     * A finished task whose counters come from real item rows, exactly as a worker would leave them.
+     *
+     * Items are addressed with the `<taskId>-<index>` scheme `createTask` assigns, and every status is
+     * written through the repository call the worker uses, so the list's stat line and the detail's
+     * three tabs are reading rows rather than injected numbers.
+     */
+    private suspend fun seedTask(
+        tasks: BatchTaskRepository,
+        type: BatchTaskType,
+        songs: List<SongEntity>,
+        succeeded: Int,
+        failed: Int = 0,
+        skipped: Int = 0,
+        failing: Boolean = false,
+    ): String {
+        val taskId = tasks.createTask(type, songs.take(succeeded + failed + skipped), null)
+        tasks.markRunning(taskId)
+        var index = 0
+        repeat(succeeded) { tasks.markItemSucceeded("$taskId-${index++}", null) }
+        repeat(failed) { tasks.markItemFailed("$taskId-${index++}", TAG_WRITE_ERROR) }
+        repeat(skipped) { tasks.markItemSkipped("$taskId-${index++}", null) }
+        tasks.updateProgressFromItems(taskId, currentFile = null)
+        if (failing) tasks.markFailed(taskId, TAG_WRITE_ERROR) else tasks.markSucceeded(taskId)
+        return taskId
     }
 
     /** The scan runs in the background, so poll the same query the songs page observes. */

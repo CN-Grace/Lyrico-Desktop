@@ -1053,6 +1053,130 @@ C6a 的三个处理器全部**自给自足**：要写什么由用户选的字段
 `python scripts/port-frontier.py` → java 树 **103 个文件 / 0 陈旧副本 / 48 可搬 / 55 被挡**（上一批 108 / 0 / 49 / 59）。批量任务链上还在被挡一侧的只剩 `BatchExportProcessor`（C6e）与 `ReplayGainProcessor` + `ReplayGainScanner` + `LibEbuR128`（C6d，ffmpeg 边车）。
 
 
+### P5 施工批次（批量任务历史：列表页 + 详情页 + 两条互跳路由，2026-10-11）
+
+C6a/C6b 让批量任务引擎真的跑起来了，但**用户界面一直缺着**：任务只能由测试建，进度只能从数据库里读。这批（**C6c**）搬的是
+「用户看批量任务时看到的东西」——任务历史列表（类型/状态筛选、多选删除、清空、取消）与单任务详情（进度头卡 + 成功/失败/跳过三个 tab + 点一行去元数据编辑器）。
+
+业务逻辑一行没改（两个 viewmodel 逐字搬入），真正新的是三件事：这是移植后**第一对互相跳转的已注册路由**（列表 → 详情 → 元数据编辑器）、
+这是**第一次出现「路径参数 + 参数化 viewmodel」**的组合，也是**第一次要在无头测试里对付 Miuix 的分页器与下拉筛选**——
+后两件事各自带来一个坑（见 §5），所以这批的重点不是「把代码搬到能编译」，而是证明**这两页在真窗口里长出来的东西**和**点击之后发生的事**都对。
+
+#### 1. 搬了什么（`git mv` 4 个文件；java 主树 103 → 99）
+
+| 层 | 文件 | 行数 |
+| --- | --- | --- |
+| 页面 | `screens/BatchTaskListScreen` | 439 |
+| 页面 | `screens/BatchTaskDetailScreen` | 258 |
+| viewmodel | `viewmodel/BatchTaskListViewModel` | 91 |
+| viewmodel | `viewmodel/BatchTaskDetailViewModel` | 30 |
+
+另有 3 个**已有文件**的改动（不搬文件，但属于这批）：`di/DesktopAppModule.kt`（两个 viewmodel 的注册，其中一个带 Koin 参数）、
+`ui/navigation/Destinations.kt`（两个路由）、`ui/navigation/LyricoNavHost.kt`（两个 `composable(...)` 块 + 文档）。
+测试是**新写的**（java 树里没有对应的测试文件），共 2 类 17 项。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **资源：`R.string`（Int）→ Compose Resources 的 `Res.string`（类型化）**，每个字符串一个 import，两页的 import 块差异（列表 41 行、详情 25 行）
+   基本都是这个。**带格式参数的字符串必须换 `formattedStringResource`**：列表页 3 处（`batch_task_delete_selected_message`、`batch_match_stat_format`、
+   `batch_match_duration_format`）、详情页 3 处（后两个 + `batch_task_detail_progress`）。这条规则 C5a 已经踩过，这次只是同一条规则的第二次应用，
+   不再当"坑"记。
+2. **图标：`android.R.drawable.ic_menu_close_clear_cancel` 桌面侧不存在**。两页的"取消任务"X 换成 Miuix 的 `MiuixIcons.Close`（`imageVector =`）；
+   其余图标本来就是 Miuix 的，只有这一个借了 Android 系统资源。
+3. **路由：删 `@Destination<RootGraph>(route=...)`，常量搬进 `Destinations.kt`**：`BatchTaskListDestination.ROUTE = "batch_task_list"`、
+   `data class BatchTaskDetailDestination(taskId)`（`BASE` / `PATTERN = "batch_task_detail/{taskId}"`，`route` 走既有的 `encodeNavRouteArgument`）。
+   `taskId` 用**路径参数**而不用 query：仓储生成的 id 是 UUID 形状，空段不可能出现，所以 `NavType.StringType` + 必填段，非法路由直接不匹配。
+4. **导航器：`DestinationsNavigator` → 桌面自己的 `Navigator`**（`navigate(方向对象)` / `popBackStack()`），跳转那两行逐字保留：
+   `navigator.navigate(BatchTaskDetailDestination(task.taskId))` 与 `navigator.navigate(EditMetadataDestination(item.songUri))`。
+5. **两个 viewmodel 逐字搬入（`git diff` 0 行变更）**，它们只依赖仓储/调度器/`viewModelScope`，全是 C6a 就搬好的桌面契约——和 C6b 一样，
+   这是"契约早就搬完"的结论。新加的只有 DI 两行：`viewModel { BatchTaskListViewModel(get(), get()) }` 与
+   `viewModel { (taskId: String) -> BatchTaskDetailViewModel(taskId, get(), get()) }`；详情页取法**保持 Android 原样**
+   `koinViewModel(parameters = { parametersOf(taskId) })`（Koin 侧先例是 `AlbumDetailViewModel(albumId)`）。
+6. **`TaskDetailTab` 的 `labelRes` 类型从 `Int` 变 `StringResource`**（枚举自带 `R.string` 是不行的），这是唯一一处类型签名改动。
+
+#### 3. 无头取证（新增 2 类 17 项；全量 91 类 / 793 项 / 791 执行 + 2 门控跳过 / 0 失败 0 错误）
+
+| 测试类 | 项数 | 验什么 |
+| --- | --- | --- |
+| `screens/BatchTaskListScreenTest` | 10 | 真内存 Room + 真 Koin + 真 `LyricoNavHost`；筛选、多选删除、清空、取消，以及"点了要求去哪" |
+| `screens/BatchTaskDetailScreenTest` | 7 | 同上，加真 `HorizontalPager` 的三个 tab、取消写库、未知 id |
+
+两个类都**不给屏幕喂状态对象**：数据由 `seedFinished` / `seedRunning` 经真仓储写进真 Room，屏幕自己通过真 Koin 取 viewmodel。
+断言里带数据库副作用的都读回数据库（`taskDao().getTask(id)` 的 status 是 `CANCELLED`、被删的行 `getTask` 为 null），
+不只看界面消失。17 项的覆盖面：
+
+1. **出货导航图 + 真数据库渲染历史**（`LyricoNavHost(startDestination = BatchTaskListDestination())`）：标题、两条任务的类型行/状态行、进行中任务的 `0/1` 原始进度、
+   空状态卡片**不出现**——这一项覆盖的是 `batch_task_list` 的注册本身。
+2. **类型筛选收窄、选「全部」恢复**（真 `WindowDropdownPreference`，选完菜单关闭，断言按"重新打开"写）。
+3. **状态筛选收窄**（同上，换维度）。
+4. **进行中的任务给「取消」、已完成的给「删除」**（同一屏上的两个不同动作）。
+5. **删除对话框确认后数据库里那行真的没了**，且**对话中取消不会删**。
+6. **取消进行中的任务 → 数据库里状态变 `CANCELLED`**（调度器 `cancel` + `markCancelled`，在测试里是无害的空转）。
+7. **清空历史保留进行中的任务**（已完成的被删、活着的还在）。
+8. **点一行 → 要求详情路由**（`RecordingNavigator`，参数按 `data class` 相等比较，不比对字符串）。
+9. **返回箭头 → 要求 `popBackStack`**。
+10. **真导航图走一遍列表 → 详情**：点第一行之后，详情标题出现、`2/2` 进度出现、文件名出现、**列表标题消失**（上一栈项被降级为 CREATED，见 §5.1）、
+    返回图标只剩 1 个；点返回后列表回来、详情消失。
+11. 详情类 7 项：**头卡统计**（`4/4`、成功 2/失败 1/跳过 1、耗时行；只有活着的任务才给取消）、**每个 tab 只显示自己状态的 item**、
+    **空 tab 显示占位**、**取消活任务 → 数据库 `CANCELLED` 且图标消失**、**点一行 → 要求那个文件 URI 的元数据编辑器**、
+    **返回箭头 → 要求 `popBackStack`**、**数据库不认识的 id → 渲染空详情而不是崩**。
+
+#### 4. 真窗口取证（4 张图，各配 `.ocr.txt` / `.analysis.txt`）
+
+先给已有的 `probe/DevLibrarySeederTest`（`-Plyrico.seedDevLibrary=1`）加**真批量任务**：4 条覆盖列表行的全部词汇
+（等待中 / 成功 / 部分失败 / 失败），item 状态经 `markItemSucceeded` / `markItemFailed` / `markItemSkipped` 写，计数走 `updateProgressFromItems`，
+文件名/路径由 `createTask` 从真 `SongEntity` 抄——所以详情页那两行显示的是**真文件的真名字**。然后 `-Plyrico.start.route=<route>` 逐条启动 + 截图：
+
+| 图 | OCR 里能核对到的东西 |
+| --- | --- |
+| `c6c-batch-task-list.png` | 标题 `任务历史`、筛选行 `任务类型`、4 行任务的 `任务类型 …` / `运行状态 …` / `成功 n 失败：n 跳过：n` / `耗时 0.0s` / 时间戳 `2026-10-11 03:51:28`（4 行是 seeder 建的 4 条真任务） |
+| `c6c-batch-task-detail.png` | 标题 `任务详情`、`进度：4/4`、`歌词匹配 · 成功`、统计行、耗时行，tab 行三段文字，列表两行 `2 花心.wav` / `1 朋友.mp3` 及其完整路径（含 CJK 目录名） |
+| `c6c-batch-task-detail-failed.png` | 上面那张**点中排 tab 之后**的同一页：两行变成 `1 September.ogg` 及其路径 + **错误原文 `标签写入失败：权限不足`**（这条错误是 seeder 写进 item 的 `errorMessage`）；与上一张的像素差 10341（1.15%），全落在 tab 行与列表区 |
+| `c6c-batch-task-detail-row-tap.png` | 点中第一行之后的窗口：OCR 十行与 `c6c-batch-task-detail.png` **逐字相同**（`进度：4/4`、两行文件名都在原位），像素差 86921（9.64%）全部来自被点那一行的**悬停底色**（这张里 `(235,235,235)` 有 80823 个像素，对照图的 `top_colours` 里没有这个颜色）。同一进程的标准输出里有 `W/Navigator: No destination for route 'edit_metadata/H%3A%5C…%5C2%20%E8%8A%B1%E5%BF%83.wav'`——**元数据编辑器还没注册**，所以这一击的效果是"明确记录的退化"，不是崩溃也不是静默（见 §6.2） |
+
+关于第 4 张的**重做实验**（因为第一次取到 11 条同名警告，见 §5.5）：新起一次、同一路由，日志里先是 0 条，
+点一次 item 变 1 条、再点一次变 2 条、点空白区（600,600）不变——**1 次点击 = 1 次导航尝试**，与无头测试一致。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **Skiko 无头测试里，会触发导航的点击必须包在 `runOnUiThread { }` 里**。症状是"测试在 teardown 崩溃"：报错是 `closeScene` 抛
+   `IllegalStateException: State must be at least 'CREATED' to be moved to 'DESTROYED'`，而真正的异常被它盖住了。挖到底层是两件事叠加：
+   `SkikoComposeUiTest.performClick()` 把指针事件**同步派发在 JUnit 线程上**，而 `LifecycleRegistry.setCurrentState` 有主线程检查
+   （`NavBackStackEntry.setMaxLifecycle` → `enforceMainThreadIfNeeded`），于是 `navigate` **半途而废**：背栈项被压进去了但停在 `INITIALIZED`，
+   过渡从未开始，teardown 时那个项既没到 CREATED 也没法 DESTROY。修法是 `runOnUiThread { onNode(matcher).performClick() }`；
+   并且**不需要** `mainClock.advanceTimeBy`——第一次 `waitForIdle()` 就会把过渡走完。实测（probe，已删）：包起来之后背栈变 3 项，
+   详情 RESUMED、列表降为 CREATED，返回一击干净弹出、teardown 退出码 0。**不触发导航的点击不用包**（只写状态的那些是线程安全的），
+   但两类测试的工具函数统一包了，理由写在各自的 KDoc 里。
+2. **`HorizontalPager` 的 `beyondViewportPageCount = 1` 会组合相邻页**，所以"可见"和"存在"在详情页不是一回事：停在第一个 tab 时树里其实有
+   tab 0 和 tab 1 两页（都空时占位符有 **2** 个），而 `onNodeWithText` 取的是**第一个命中**——它可能是屏幕外那一页，于是 `assertIsDisplayed()`
+   假失败。两条对策：tab 断言写成"**任一命中都可见**"（对全部命中逐个试 `assertIsDisplayed`），而"未知 id"那项**直接把 2 这个数字当证据**
+   （它同时钉住了 `beyondViewportPageCount = 1` 的行为）。
+3. **`markOrphanedTasksFailed()` 把 QUEUED 也算孤儿**：seeder 故意留一条"等待中"的任务，窗口一打开它已经是 `FAILED`，错误信息是硬编码英文
+   `Task interrupted by system`（`c6c-batch-task-list.png` 里第 4 行 `封面匹配` 的状态就是它）。结论：**应用重启后不存在"活着的"批量任务**；
+   而批量任务链目前没有用户入口，也无法在窗口开着的时候新建任务——所以真窗口里**永远截不到"取消"按钮**，这一条只能由无头测试用真数据库钉。
+4. **取证脚本的杀进程过滤器必须锚定**（这条是我自己踩的）：`Get-Process | ? { $_.MainWindowTitle -like '*Lyrico*' } | Stop-Process -Force`
+   会命中**任何**标题里带 "Lyrico" 的窗口——这台机器上就是工作目录名带 Lyrico 的终端（`zap-oss`，标题 `… - Lyrico-Desktop`），
+   实测把终端本身杀了。正确写法是两条约束：`Get-Process -Name java,javaw | ? { $_.MainWindowTitle -match '^Lyrico ' }`（只扫 java/javaw + 标题**以** `Lyrico ` 开头）。
+5. **点击脚本在不同前台状态下投递次数不一致**：窗口不在前台时脚本会先点一次 OS 标题栏来激活（否则 `SetForegroundWindow` 会被系统拒绝），
+   那一次实测里日志出现 **11 条**路由缺失警告（覆盖全部 4 个 item），而"窗口已在前台"的重做实验是严格的 1 次点击 = 1 条。
+   11 条那次没能复现、也没能解释，所以**结论按重做实验写**，同时记下规则：取证点击前先确认窗口已在前台，异常次数不要当结论。
+
+#### 6. 这批的用户可见缺口（如实记录）
+
+1. **仍然没有入口**：Android 从设置页的"任务历史"行进来，`SettingsScreen` 还在 java 树，所以这两页目前只能由开发起始路由到达。
+2. **详情页点一行没有目标页**：`EditMetadataDestination` 只在 `Destinations.kt` 里声明、未注册，`NavControllerNavigator` 捕获
+   `IllegalArgumentException` 并写 `W/Navigator` 日志（真窗口实测到，见 §4 第 4 张图）。用户看到的是"点了没反应"——这是**明确的退化**，
+   不是崩溃，也不是静默（`NavigatorTest` 两侧都钉住了）。
+3. **真窗口里看不到"取消"按钮**（原因见 §5.3）：界面行为由无头测试 + 真数据库覆盖。
+4. **列表页没有"新建任务"入口**：`BatchEditScreen` / `BatchRenameScreen` 与那 7 个 bottom sheet 仍在 java 树，所以筛选、多选、删除、清空是真的，
+   但"发起批量任务"还不是。
+
+#### 7. 前沿
+
+`python scripts/port-frontier.py` → java 树 **99 个文件 / 0 陈旧副本 / 46 可搬 / 53 被挡**（上一批 103 / 0 / 48 / 55）。
+批量任务链上还在被挡一侧的只剩 `BatchExportProcessor`（C6e）与 `ReplayGainProcessor` + `ReplayGainScanner` + `LibEbuR128`（C6d，ffmpeg 边车）；
+界面侧剩 `BatchEditScreen` / `BatchRenameScreen` / `EditMetadataScreen` 与设置页那一片。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：

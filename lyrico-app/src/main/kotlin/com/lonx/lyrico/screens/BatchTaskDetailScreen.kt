@@ -17,20 +17,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.BatchTaskStatus
 import com.lonx.lyrico.data.model.entity.BatchTaskItemEntity
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.action_close
+import com.lonx.lyrico.resources.batch_match_duration_format
+import com.lonx.lyrico.resources.batch_match_stat_format
+import com.lonx.lyrico.resources.batch_task_detail_no_records
+import com.lonx.lyrico.resources.batch_task_detail_progress
+import com.lonx.lyrico.resources.batch_task_detail_title
+import com.lonx.lyrico.resources.batch_task_status_failed
+import com.lonx.lyrico.resources.batch_task_status_skipped
+import com.lonx.lyrico.resources.batch_task_status_succeeded
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
+import com.lonx.lyrico.ui.navigation.EditMetadataDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.BatchTaskDetailViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.EditMetadataDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -42,24 +51,26 @@ import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-enum class TaskDetailTab(val labelRes: Int) {
-    SUCCEEDED(R.string.batch_task_status_succeeded),
-    FAILED(R.string.batch_task_status_failed),
-    SKIPPED(R.string.batch_task_status_skipped)
+enum class TaskDetailTab(val labelRes: StringResource) {
+    SUCCEEDED(Res.string.batch_task_status_succeeded),
+    FAILED(Res.string.batch_task_status_failed),
+    SKIPPED(Res.string.batch_task_status_skipped)
 }
 
-@Destination<RootGraph>(route = "batch_task_detail")
 @Composable
 fun BatchTaskDetailScreen(
     taskId: String,
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
-    val viewModel: BatchTaskDetailViewModel = koinViewModel { parametersOf(taskId) }
+    // Android resolved the argument through the generated destination the same way; on desktop the
+    // parameter is read in `LyricoNavHost` and passed in, so the view model gets it identically.
+    val viewModel: BatchTaskDetailViewModel = koinViewModel(parameters = { parametersOf(taskId) })
     val task by viewModel.task.collectAsState()
     val items by viewModel.items.collectAsState()
     val topAppBarScrollBehavior = MiuixScrollBehavior()
@@ -71,14 +82,14 @@ fun BatchTaskDetailScreen(
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = stringResource(R.string.batch_task_detail_title),
+                title = stringResource(Res.string.batch_task_detail_title),
                 navigationIcon = {
                     IconButton(
                         onClick = { navigator.popBackStack() }
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Back,
-                            contentDescription = stringResource(R.string.action_back)
+                            contentDescription = stringResource(Res.string.action_back)
                         )
                     }
                 },
@@ -89,8 +100,10 @@ fun BatchTaskDetailScreen(
                             onClick = { viewModel.cancelTask() }
                         ) {
                             Icon(
-                                painter = painterResource(android.R.drawable.ic_menu_close_clear_cancel),
-                                contentDescription = stringResource(R.string.action_close),
+                                // `android.R.drawable.ic_menu_close_clear_cancel` has no desktop
+                                // equivalent; Miuix's `Close` is the X the rest of the port uses.
+                                imageVector = MiuixIcons.Close,
+                                contentDescription = stringResource(Res.string.action_close),
                                 tint = MiuixTheme.colorScheme.error
                             )
                         }
@@ -128,8 +141,8 @@ fun BatchTaskDetailScreen(
                         // 第二行：统计信息
                         append("\n")
                         append(
-                            stringResource(
-                                R.string.batch_match_stat_format,
+                            formattedStringResource(
+                                Res.string.batch_match_stat_format,
                                 t.successCount,
                                 t.failureCount,
                                 t.skippedCount
@@ -140,8 +153,8 @@ fun BatchTaskDetailScreen(
                         if (durationSecs != null) {
                             append("\n")
                             append(
-                                stringResource(
-                                    R.string.batch_match_duration_format,
+                                formattedStringResource(
+                                    Res.string.batch_match_duration_format,
                                     durationSecs
                                 )
                             )
@@ -149,7 +162,11 @@ fun BatchTaskDetailScreen(
                     }
                     
                     BasicComponent(
-                        title = stringResource(R.string.batch_task_detail_progress, t.current, t.total),
+                        title = formattedStringResource(
+                            Res.string.batch_task_detail_progress,
+                            t.current,
+                            t.total
+                        ),
                         summary = summary
                     )
                 }
@@ -197,7 +214,7 @@ fun BatchTaskDetailScreen(
                     if (filteredItems.isEmpty()) {
                         item {
                             Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                                BasicComponent(title = stringResource(R.string.batch_task_detail_no_records))
+                                BasicComponent(title = stringResource(Res.string.batch_task_detail_no_records))
                             }
                         }
                     } else {
