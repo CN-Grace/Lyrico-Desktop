@@ -214,6 +214,9 @@ class AlbumActionsViewModelTest {
 
         viewModel.deleteAlbum(albumId)
 
+        // Wait for the *files*, not for the rows: the row count reaches zero a moment before the last file is
+        // unlinked, so asserting the files right after the rows is what made this test time-sensitive.
+        awaitUntil(describe = { songs.count { Files.exists(Path.of(it.uri)) } }) { it == 0 }
         awaitUntil(describe = { storedSongCount() }, condition = { it == 0 })
         songs.forEach { song ->
             assertFalse(
@@ -316,7 +319,7 @@ class AlbumActionsViewModelTest {
 
     /** Polls [condition] until it holds, reporting [describe] if it never does. */
     private suspend fun <T> awaitUntil(
-        timeoutMillis: Long = 5_000L,
+        timeoutMillis: Long = 30_000L,
         describe: () -> T,
         condition: (T) -> Boolean,
     ) {

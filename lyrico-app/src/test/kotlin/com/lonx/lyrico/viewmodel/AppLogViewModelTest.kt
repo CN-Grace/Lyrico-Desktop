@@ -110,11 +110,11 @@ class AppLogViewModelTest {
 
         awaitUntil(describe = { viewModel.logRetentionOption.value }) { it == LogRetentionOption.NONE }
         awaitUntil(describe = { viewModel.logs.value.size }) { it == 0 }
-        assertEquals(
-            LogRetentionOption.NONE,
-            settings.logRetentionOption.first(),
-            "the choice is persisted, not just held in memory",
-        )
+        // Wait for the *stored* value, which is what this assertion is about: the in-memory flow above can be
+        // updated a moment before the DataStore write is visible to a fresh reader.
+        awaitUntil(describe = { runBlocking { settings.logRetentionOption.first() } }) {
+            it == LogRetentionOption.NONE
+        }
     }
 
     @Test

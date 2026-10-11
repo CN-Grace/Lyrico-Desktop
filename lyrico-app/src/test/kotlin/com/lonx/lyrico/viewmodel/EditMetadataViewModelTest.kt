@@ -990,7 +990,7 @@ class EditMetadataViewModelTest {
 
     /** Polls [condition] until it holds, reporting [describe] if it never does. */
     private suspend fun <T> awaitUntil(
-        timeoutMillis: Long = 5_000L,
+        timeoutMillis: Long = 30_000L,
         describe: () -> T,
         condition: (T) -> Boolean,
     ) {

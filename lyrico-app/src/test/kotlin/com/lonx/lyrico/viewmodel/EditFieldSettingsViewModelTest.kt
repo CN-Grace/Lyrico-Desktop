@@ -399,7 +399,9 @@ class EditFieldSettingsViewModelTest {
         // silently reports an empty library the day a caller does.
         viewModel.showFieldSongs(field("lyrics_offset"), component = true)
 
-        awaitState { !it.isLoadingSongs }
+        // Wait for the flag itself: `isLoadingSongs` drops in an earlier update than the failure flag, so
+        // waiting for "not loading" and then reading the flag is the same race this suite has hit elsewhere.
+        awaitState { !it.isLoadingSongs && it.songsLoadFailed }
         assertTrue(viewModel.uiState.value.songsLoadFailed)
         assertTrue(viewModel.uiState.value.songsWithField.isEmpty())
         assertTrue(viewModel.uiState.value.songsWithoutField.isEmpty())

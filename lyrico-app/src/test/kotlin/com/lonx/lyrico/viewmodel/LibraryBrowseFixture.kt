@@ -97,8 +97,12 @@ class RecordingLibraryScanManager : LibraryScanManager {
  * Waits for a condition that is produced by work on *real* dispatchers (Room/DataStore do real file
  * IO), so this polls instead of using virtual time. Prints the last observed value on timeout -- a
  * bare "condition not met" is not enough to debug a state flow.
+ *
+ * The default budget is 30 s: the work behind these waits is real IO, and the suite runs on a machine that
+ * is usually doing other things too, so the old 10 s budget produced failures that said nothing about the
+ * code. What is asserted is the *outcome*, never the speed (see PLAN's `## P6` section on test hygiene).
  */
-fun <T> awaitUntil(timeoutMillis: Long = 10_000L, describe: () -> T, condition: (T) -> Boolean) {
+fun <T> awaitUntil(timeoutMillis: Long = 30_000L, describe: () -> T, condition: (T) -> Boolean) {
     val deadline = System.nanoTime() + timeoutMillis * 1_000_000L
     var last: T = describe()
     while (System.nanoTime() < deadline) {

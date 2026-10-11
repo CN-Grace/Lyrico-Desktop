@@ -329,6 +329,16 @@ tasks.matching { it.name == "run" }.configureEach {
 }
 
 tasks.named<Test>("test") {
+    // A fresh JVM per test class.
+    //
+    // The suite shares a lot of process-wide state -- Koin's global context, Coil's singleton loader, and
+    // `Dispatchers.setMain` -- and the failure that kept appearing in a *different* class on every run was
+    // `IllegalStateException: Dispatchers.Main is used concurrently with setting it`: a class that leaves a
+    // coroutine behind (a view model scope that nothing clears, a collector nobody cancels) is still posting
+    // to Main while the *next* class sets or resets it, so the failure lands on an innocent class and never
+    // reproduces in isolation. Isolation is the fix that does not depend on every current and future test
+    // cleaning up perfectly. It costs wall-clock (about 4 min instead of 2 for the full suite).
+    forkEvery = 1
     val nativeDir = rootProject.layout.projectDirectory.dir("build/native/windows-x64").asFile.absolutePath
     systemProperty("lyrico.native.dir", nativeDir)
     // Where SchemaFidelityTest compares the generated desktop schema against the inherited one.

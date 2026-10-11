@@ -2598,7 +2598,7 @@ java 主树 31 → **26**（5 个：2 个本在前沿、3 个本在被挡）；�
 
 #### 5. 这批实测出来的坑（都会再踩）
 
-1. **`stringResource(res, args)` 的批量改名不能靠正则**：E-1 的教训（跨行正则改坏了文件）这次换成一个**括号/引号感知的小脚本**（`build/tmp-probe/format-calls.py`）：找到 `stringResource(` 后跳到配对的 `)`，只在**顶层有逗号**时替换，于是「单参数但跨行」的调用被正确放过。同一脚本把 `BatchEditScreen` 的 5 处与 `CharacterMappingScreen` 的 1 处各一次改对。
+1. **`stringResource(res, args)` 的批量改名不能靠正则**：E-1 的教训（跨行正则改坏了文件）这次换成一个**括号/引号感知的小脚本**（`scripts/format-calls.py`）：找到 `stringResource(` 后跳到配对的 `)`，只在**顶层有逗号**时替换，于是「单参数但跨行」的调用被正确放过。同一脚本把 `BatchEditScreen` 的 5 处与 `CharacterMappingScreen` 的 1 处各一次改对。
 2. **删 `BackHandler` 不能靠数括号**：它是 `BackHandler { … }`（尾随 lambda），从 `(` 开始配对括号只会删掉头部，留下一个孤立的 `if` 块 —— 报出来的是「顶层声明」语法错误。要连 lambda 体一起删。
 3. **`stringResource(id = …)` / `painterResource(id = …)` 是安卓形态**（本批各两处），Compose Resources 的这两个函数都没有 `id` 参数。
 4. **`internal` 是把纯函数暴露给测试的最轻手段**：不必引入接口或构造参数，也不要把它们挪出类（`toTaskConfig` 是成员扩展，测试里用 `with(viewModel()) { … }` 调用即可）。
@@ -2664,7 +2664,7 @@ java 主树 26 → **23**（3 个：`BatchEditViewModel` 与两个屏幕，都�
 1. **给接口加一个成员会让所有测试假体挂掉**：`DesktopOpener` 加 `browse` 之后，两个既有匿名实现当场编译不过；加成员前先 `grep "object : DesktopOpener"`，比等编译器告诉你便宜。
 2. **手维护的清单里不要凭印象写版本号**：本批初稿六个版本号是错的（我把 ffmpeg 写成 LGPL-2.1，而仓库自己的 `docs/third-party/ffmpeg-lgpl.md` 明写着 `--enable-version3` 即 LGPL v3）。正确做法是先找到权威文件（`libs.versions.toml` / 上游头文件 / `docs/third-party/`），找不到就写「bundled」之类的实话，不要编。
 3. **`my.nanihadesuka` 与 `MarkdownText` 都是安卓专用库**，端口各有替换（`LibraryScrollbar` 覆盖层、`MiuixMarkdownText`）；它们各自的使用形状不一样（一个包装列表、一个是兄弟覆盖层），别照着旧调用形状改。
-4. **`stringResource(res, args)` 的机械检查还是要靠守卫**：本批 `AboutScreen` 又有 2 处，`build/tmp-probe/format-calls.py` 一次改对。
+4. **`stringResource(res, args)` 的机械检查还是要靠守卫**：本批 `AboutScreen` 又有 2 处，`scripts/format-calls.py` 一次改对。
 
 #### 6. 用户可见缺口（如实记录）
 
@@ -2745,7 +2745,7 @@ C-1 发现这批文件时（见 #37-C-1 第 2 节）定下的规则是：**主�
 
 迁移是**机械**的：这 14 个文件**没有 import 任何安卓 API**（只有 `androidx.datastore` 这类跨平台的），所以脚本只做三件事 —— `org.junit.Test/Before/After/Ignore` → `kotlin.test.Test/BeforeTest/AfterTest/Ignore`、`org.junit.Assert.*` → `kotlin.test.*`、`assertArrayEquals` → `assertContentEquals`。测试用例本身逐字保持。
 
-第二处机械差异是**断言参数顺序**：JUnit4 是 `assertTrue("为什么", 条件)`，`kotlin.test` 是 `assertTrue(条件, "为什么")`。写了个括号/引号感知的转换脚本（`build/tmp-probe/swap-assert-args.py`），只在**第一个参数是字符串字面量**时把消息挪到最后，共处理 37 处。
+第二处机械差异是**断言参数顺序**：JUnit4 是 `assertTrue("为什么", 条件)`，`kotlin.test` 是 `assertTrue(条件, "为什么")`。写了个括号/引号感知的转换脚本（`scripts/swap-assert-args.py`），只在**第一个参数是字符串字面量**时把消息挪到最后，共处理 37 处。
 
 唯一需要**判断**的是 `BatchExportTaskConfigTest`：它断言 `destinationTreeUri` 能往返 —— 那是安卓 SAF 的字段，端口把它换成了 `destinationDirectory` 路径。按 C6e 定下的约定（`CONFIG_JSON` 用 `ignoreUnknownKeys`，好让安卓时代的任务行还能解开），两处断言改成「安卓时代的 JSON **能解开**、`concurrency` 保留、被忽略的字段不会变成目录」，并让测试用与生产同一份宽松 `Json`（初版用严格默认值，当场就被自己的测试教育了一次）。
 
@@ -2891,7 +2891,7 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 
 #### 5. 测试套件的时序敏感点（#42 的遗留部分）
 
-收口过程中修掉了五处「等 A 却断言 B」的竞态（`BatchTaskSchedulerTest` 两处、`SongSelectionViewModelTest`、`BatchMatchViewModelTest`，外加把该类的 5 个 10 秒等待放宽到 20 秒并写明理由）。审计脚本留在 `build/tmp-probe/audit-await-assert.py`：它会列出「`awaitUntil` 之后立刻断言另一个可观察量」的候选点，供后续逐个判断（多数候选其实是安全的）。**判据不变**：全量偶发挂一次且单独重跑通过，就是时序敏感；修法一律是等**要断言的那个条件**。
+这一节记录的「另一半」在 P6 §6e 里收口了：审计脚本列出 93 个候选、改掉 6 处真竞态，并修掉两个**系统性**根因 —— `Dispatchers.Main` 被跨类串用（`forkEvery = 1` 隔离，套件从约 1 分 35 秒变约 3 分 50 秒）与共享 Main 替身误用 `Dispatchers.Unconfined`（改成内联调度器）。**判据不变**：全量偶发挂一次且单独重跑通过，就是时序敏感；修法一律是等**要断言的那个条件**，而不是加大超时。
 
 #### 6. 后续可做（如果还要继续）
 
@@ -2941,6 +2941,48 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 理由：这份清单的第一版有**六个版本号是错的**（凭印象写的），而生成器让这类错误在对 Gradle 管理的组件上不可能再发生。
 
 全量：161 类 / 1288 项 / 0 失败 / 0 错误 / 4 门控跳过。
+
+#### 6e. 后续工作第 5 条：时序敏感断言的加固（查出三个机制，全部修掉）
+
+这一条本来只打算「按审计脚本逐条看看」，结果查出**三个彼此独立的机制**，而且每一个都是被 JVM 的错误信息点名的 —— 也就是说，之前那句「无根 flake」其实是「三根，只是每次都换了根」。
+
+**机制 ①：等弱信号就断言。** 审计脚本（`scripts/audit-await-assert.py`，本轮从 `build/tmp-probe/` 挪进版本库）列出 93 个「`awaitUntil` 之后立刻断言另一个可观察量」的候选；逐个看下来绝大多数**是安全的**（等的和断言的是同一次发射），真正要改的是 5 处：
+
+| 位置 | 等的 | 断言的 |
+|---|---|---|
+| `BatchTaskSchedulerTest` ×2 | 任务状态 `SUCCEEDED` | 日志条数（日志写在状态之后） |
+| `SongSelectionViewModelTest` | 「歌都没了」 | 选择模式已退出 |
+| `BatchMatchViewModelTest` | `currentTaskId != null` | `batchProgress`（后来那次发射才算出） |
+| `EditFieldSettingsViewModelTest` | `!isLoadingSongs` | `songsLoadFailed`（同一个状态对象的另一个字段，更晚才置位） |
+| `AlbumActionsViewModelTest` | 数据库行数归零 | 磁盘文件已删（最后一次 unlink 在行删除之后） |
+| `AppLogViewModelTest` | 内存里的保留策略 | DataStore 里落库的值 |
+
+修法一律是**等要断言的那个条件本身**（这也是本仓早就写在别处、只是没贯彻的约定）。另外把三处共享等待器的默认预算从 10 s / 5 s 提到 **30 s** 并写明理由：这些等待背后是真 IO，而套件常在机器做别的事时运行，旧的预算会产出「与代码无关」的失败。
+
+**机制 ②：`Dispatchers.Main` 跨类串用。** A/B 对照实验（同一份代码）：
+
+| 配置 | 结果 |
+|---|---|
+| 共享 JVM（Gradle 默认） | 3 次里 1 次失败，错误是 `IllegalStateException: Dispatchers.Main is used concurrently with setting it`，**挂在哪个类随机** |
+| `forkEvery = 1`（每类一个新 JVM） | **连跑 3 次全绿**（各约 3 分 50 秒；共享 JVM 约 1 分 35 秒） |
+
+机制清楚：某个类留下的协程（没人清的 `viewModelScope`、没人取消的收集器）在**下一个**类 `setMain` / `resetMain` 期间还在往 Main 上投递，于是失败落在无辜的类上、且单独跑永远不复现。隔离是唯一不依赖「每个现在和将来的测试都完美收尾」的修法；代价是**套件从约 1 分 35 秒变成约 3 分 50 秒**，写在 `build.gradle.kts` 的注释里，别处不要以为它是无成本的默认值。
+
+**机制 ③：共享的 Main 替身本身是错的（本轮最有价值的发现）。** `HeadlessMainDispatcher` 原来装的是 `Dispatchers.Unconfined`。它和 `viewModelScope` 用的 `Dispatchers.Main.immediate` 凑在一起会炸：
+
+```
+java.lang.UnsupportedOperationException: Dispatchers.Unconfined.dispatch function can only
+be used by the yield function. If you wrap Unconfined dispatcher in your code, make sure you
+properly delegate isDispatchNeeded and dispatch calls.
+```
+
+原因：`Unconfined` 的 `isDispatchNeeded()` 为 true（对 `TestMainDispatcher` 包装而言），于是 `immediate` 路径去调它的 `dispatch`，而那个 `dispatch` 存在的唯一目的就是抛这个异常。先试过换成 `UnconfinedTestDispatcher()` —— **同样抛**（`UnconfinedTestCoroutineDispatcher.dispatch`），因为测试调度器的 `isDispatchNeeded` 也是 true。最终做法是写一个**内联调度器**：`isDispatchNeeded() = false` + `dispatch { block.run() }`（`dispatch` 永远不会被走到，只是接口要求实现）。这样「没有自己的线程」这个关键性质保住了（lifecycle 的 `MainDispatcherChecker` 认可调用线程），而 `Main.immediate` 也不会再去 dispatch。
+
+这个 bug 的影响面正好解释了之前那些「莫名其妙」的失败：任何在那一刻跑 `viewModel` 的 `init` 的**屏幕测试**都可能中招（本轮的 `SettingsSubPagesTest` / `SettingsScreenTest` / `LibraryHomeScreenTest` 三个类各中过一次），而它与被测代码毫无关系。
+
+**顺带**：把四个一次性脚本从被 gitignore 的 `build/tmp-probe/` 挪进 `scripts/`（`audit-await-assert.py`、`format-calls.py`、`migrate-dead-tests.py`、`swap-assert-args.py`）—— 它们原先只写在 PLAN 的引用里，实际并不在版本库中。
+
+**验收**：`forkEvery = 1` + 内联调度器 + 六处断言加固之后，**连跑 3 次全量全绿**：161 类 / 1288 项 / 0 失败 / 0 错误 / 4 门控跳过（各约 3 分 50 秒）。
 
 #### 7. 这一版的结论
 
