@@ -1,11 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.annotation.SuppressLint
-import android.text.format.Formatter
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.layout.Arrangement
@@ -37,14 +31,94 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.BuildConfig
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.about_title
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.app_language
+import com.lonx.lyrico.resources.app_log_summary
+import com.lonx.lyrico.resources.app_log_title
+import com.lonx.lyrico.resources.artist_poster_folder_not_selected
+import com.lonx.lyrico.resources.artist_poster_folder_selected
+import com.lonx.lyrico.resources.artist_poster_folders
+import com.lonx.lyrico.resources.artist_separator
+import com.lonx.lyrico.resources.artist_separator_hint
+import com.lonx.lyrico.resources.artist_split_settings_summary
+import com.lonx.lyrico.resources.artist_split_settings_title
+import com.lonx.lyrico.resources.bar_blur
+import com.lonx.lyrico.resources.bar_blur_summary
+import com.lonx.lyrico.resources.batch_task_list_title
+import com.lonx.lyrico.resources.cache_item
+import com.lonx.lyrico.resources.cache_size_label
+import com.lonx.lyrico.resources.cache_total
+import com.lonx.lyrico.resources.calculating_cache
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.clear_cache
+import com.lonx.lyrico.resources.clear_cache_confirm
+import com.lonx.lyrico.resources.clear_songs
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.conversion_mode
+import com.lonx.lyrico.resources.conversion_mode_hint
+import com.lonx.lyrico.resources.edit_field_settings_summary
+import com.lonx.lyrico.resources.edit_field_settings_title
+import com.lonx.lyrico.resources.export_config
+import com.lonx.lyrico.resources.export_config_hint
+import com.lonx.lyrico.resources.floating_bar_effect
+import com.lonx.lyrico.resources.floating_bottom_bar
+import com.lonx.lyrico.resources.floating_bottom_bar_summary
+import com.lonx.lyrico.resources.folder_found
+import com.lonx.lyrico.resources.folder_ignored
+import com.lonx.lyrico.resources.folder_manage_hint
+import com.lonx.lyrico.resources.folder_manager
+import com.lonx.lyrico.resources.ignore_short_audio
+import com.lonx.lyrico.resources.import_config
+import com.lonx.lyrico.resources.import_config_hint
+import com.lonx.lyrico.resources.key_color
+import com.lonx.lyrico.resources.lyric_index_summary
+import com.lonx.lyrico.resources.lyric_index_title
+import com.lonx.lyrico.resources.lyric_mode
+import com.lonx.lyrico.resources.monet
+import com.lonx.lyrico.resources.non_lyrics_cleanup_rules_summary
+import com.lonx.lyrico.resources.non_lyrics_cleanup_rules_title
+import com.lonx.lyrico.resources.only_translation_if_available
+import com.lonx.lyrico.resources.only_translation_if_available_hint
+import com.lonx.lyrico.resources.plugin_manager_title
+import com.lonx.lyrico.resources.quickjs_test_description_summary
+import com.lonx.lyrico.resources.quickjs_test_title
+import com.lonx.lyrico.resources.remove_empty_lines
+import com.lonx.lyrico.resources.remove_empty_lines_hint
+import com.lonx.lyrico.resources.replay_gain_peak_mode_sample
+import com.lonx.lyrico.resources.replay_gain_peak_mode_true
+import com.lonx.lyrico.resources.replay_gain_target_custom_hint
+import com.lonx.lyrico.resources.replay_gain_target_invalid
+import com.lonx.lyrico.resources.replay_gain_target_preset_custom
+import com.lonx.lyrico.resources.replay_gain_target_preset_default
+import com.lonx.lyrico.resources.replay_gain_target_preset_ebu
+import com.lonx.lyrico.resources.replay_gain_target_preset_streaming
+import com.lonx.lyrico.resources.roma
+import com.lonx.lyrico.resources.roma_hint
+import com.lonx.lyrico.resources.search_limit
+import com.lonx.lyrico.resources.search_limit_tip
+import com.lonx.lyrico.resources.search_source_tab_style
+import com.lonx.lyrico.resources.section_appearance
+import com.lonx.lyrico.resources.section_backup
+import com.lonx.lyrico.resources.section_lyrics
+import com.lonx.lyrico.resources.section_other
+import com.lonx.lyrico.resources.section_scan
+import com.lonx.lyrico.resources.section_search
+import com.lonx.lyrico.resources.section_text_processing
+import com.lonx.lyrico.resources.settings_replay_gain_peak_mode
+import com.lonx.lyrico.resources.settings_replay_gain_target_loudness
+import com.lonx.lyrico.resources.settings_replay_gain_target_loudness_summary
+import com.lonx.lyrico.resources.settings_title
+import com.lonx.lyrico.resources.show_all_search_result_fields
+import com.lonx.lyrico.resources.show_all_search_result_fields_summary
+import com.lonx.lyrico.resources.theme_mode
+import com.lonx.lyrico.resources.translation
+import com.lonx.lyrico.resources.translation_hint
+import com.lonx.lyrico.BuildInfo
 import com.lonx.lyrico.data.model.AppLanguage
 import com.lonx.lyrico.data.model.ArtistSeparator
 import com.lonx.lyrico.data.model.ConversionMode
@@ -59,29 +133,31 @@ import com.lonx.lyrico.ui.components.base.YesNoBottomSheet
 import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
-import com.lonx.lyrico.ui.components.getSystemWallpaperColor
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
 import com.lonx.lyrico.ui.theme.KeyColors
 import com.lonx.lyrico.viewmodel.FolderManagerViewModel
 import com.lonx.lyrico.viewmodel.SettingsEvent
 import com.lonx.lyrico.viewmodel.SettingsViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.AboutDestination
-import com.ramcosta.composedestinations.generated.destinations.AppLogsDestination
-import com.ramcosta.composedestinations.generated.destinations.ArtistPosterFoldersDestination
-import com.ramcosta.composedestinations.generated.destinations.ArtistSplitSettingsDestination
-import com.ramcosta.composedestinations.generated.destinations.BatchTaskListDestination
-import com.ramcosta.composedestinations.generated.destinations.EditFieldSettingsDestination
-import com.ramcosta.composedestinations.generated.destinations.FolderManagerDestination
-import com.ramcosta.composedestinations.generated.destinations.LyricsCleanupRulesDestination
-import com.ramcosta.composedestinations.generated.destinations.PluginManagerDestination
-import com.ramcosta.composedestinations.generated.destinations.QuickjsTestDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.lonx.lyrico.platform.FileOpenPicker
+import com.lonx.lyrico.platform.FileSavePicker
+import com.lonx.lyrico.platform.rememberFileOpenPicker
+import com.lonx.lyrico.platform.rememberFileSavePicker
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.ui.navigation.AboutDestination
+import com.lonx.lyrico.ui.navigation.AppLogsDestination
+import com.lonx.lyrico.ui.navigation.ArtistPosterFoldersDestination
+import com.lonx.lyrico.ui.navigation.ArtistSplitSettingsDestination
+import com.lonx.lyrico.ui.navigation.BatchTaskListDestination
+import com.lonx.lyrico.ui.navigation.EditFieldSettingsDestination
+import com.lonx.lyrico.ui.navigation.FolderManagerDestination
+import com.lonx.lyrico.ui.navigation.LyricsCleanupRulesDestination
+import com.lonx.lyrico.ui.navigation.PluginManagerDestination
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.utils.FileSizeFormatter
+import com.lonx.lyrico.utils.formattedStringResource
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -93,6 +169,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.SliderDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
@@ -113,11 +191,13 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.window.WindowDialog
 
-@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
-@Destination<RootGraph>(route = "settings")
 fun SettingsScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator,
+    // Nullable for the reason `SongsPage` records: a composable default argument cannot call a
+    // composable, so the real pickers are built in the body and tests inject fakes here.
+    fileSavePicker: FileSavePicker? = null,
+    fileOpenPicker: FileOpenPicker? = null,
 ) {
     val settingsViewModel: SettingsViewModel = koinViewModel()
     val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
@@ -176,8 +256,8 @@ fun SettingsScreen(
         ConversionMode.entries.indexOf(conversionMode).coerceAtLeast(0)
     val searchSourceTabStyleItems = SearchSourceTabStyle.entries.map { stringResource(it.labelRes) }
     val replayGainPeakModeItems = listOf(
-        stringResource(R.string.replay_gain_peak_mode_sample),
-        stringResource(R.string.replay_gain_peak_mode_true)
+        stringResource(Res.string.replay_gain_peak_mode_sample),
+        stringResource(Res.string.replay_gain_peak_mode_true)
     )
     val selectedReplayGainPeakModeIndex = ReplayGainPeakMode.entries
         .indexOf(settingsUiState.replayGainPeakMode)
@@ -186,8 +266,6 @@ fun SettingsScreen(
         SearchSourceTabStyle.entries.indexOf(searchSourceTabStyle).coerceAtLeast(0)
 
     val floatingBarEffectItems = FloatingBarEffect.entries.map { stringResource(it.labelRes) }
-
-    val context = LocalContext.current
 
     val artistSeparators = remember {
         listOf(
@@ -201,73 +279,82 @@ fun SettingsScreen(
     val selectedArtistSeparatorIndex = artistSeparators.indexOf(artistSeparator).coerceAtLeast(0)
 
     LaunchedEffect(Unit) {
-        settingsViewModel.refreshCache(context)
+        settingsViewModel.refreshCache()
     }
 
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let { settingsViewModel.exportSettings(context, it) }
+    // 桌面端没有回调式的文件选择器：两个入口都是挂起调用，选完直接投给 ViewModel（与 `AppLogScreen`
+    // 导出日志、`ArtistPosterFoldersScreen` 选文件夹同一条路）。
+    val savePicker = fileSavePicker
+        ?: rememberFileSavePicker(title = stringResource(Res.string.export_config))
+    val openPicker = fileOpenPicker
+        ?: rememberFileOpenPicker(title = stringResource(Res.string.import_config))
+    fun exportSettings() {
+        scope.launch {
+            val defaultName = "lyrico_settings_backup_${System.currentTimeMillis()}.json"
+            val target = savePicker.pick(defaultName) ?: return@launch
+            settingsViewModel.exportSettings(target)
+        }
     }
 
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { settingsViewModel.importSettings(context, it) }
+    fun importSettings() {
+        scope.launch {
+            val source = openPicker.pick() ?: return@launch
+            settingsViewModel.importSettings(source)
+        }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
         settingsViewModel.events.collect { event ->
             when (event) {
                 is SettingsEvent.ShowToast -> {
-                    val text = event.message.asString(context)
-                    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                    // Android 的 Toast 换成 Miuix 的 Snackbar；文案在展示这一刻按当前语言解析。
+                    event.message.resolve()?.let { snackbarHostState.showSnackbar(it) }
                 }
             }
         }
     }
 
-    val calculatingText = stringResource(R.string.calculating_cache)
-    val confirmText = stringResource(R.string.clear_cache_confirm)
+    val calculatingText = stringResource(Res.string.calculating_cache)
+    val confirmText = stringResource(Res.string.clear_cache_confirm)
 
-    val cacheContent = remember(
-        settingsUiState.categorizedCacheSize,
-        settingsUiState.totalCacheSize
-    ) {
-        if (settingsUiState.categorizedCacheSize.isEmpty()) {
-            calculatingText
-        } else {
-            val details = settingsUiState.categorizedCacheSize
-                .map { (category, size) ->
-                    context.getString(
-                        R.string.cache_item,
-                        context.getString(category.labelRes),
-                        Formatter.formatFileSize(context, size)
-                    )
-                }
-                .joinToString(separator = "\n")
-
-            buildString {
-                append(confirmText)
-                append("\n\n")
-                append(details)
-                append("\n\n")
-                append(
-                    context.getString(
-                        R.string.cache_total,
-                        Formatter.formatFileSize(context, settingsUiState.totalCacheSize)
-                    )
+    // 这里原本有一个 `remember`：现在没有了，因为拼这段文案要调可组合的字符串解析（`stringResource` /
+    // `formattedStringResource`），而 `remember` 的 lambda 不是可组合的。几行字符串的重算远比为了缓存而
+    // 把语言/大小的依赖手工管网要便宜。
+    val cacheContent = if (settingsUiState.categorizedCacheSize.isEmpty()) {
+        calculatingText
+    } else {
+        val details = settingsUiState.categorizedCacheSize
+            .map { (category, size) ->
+                formattedStringResource(
+                    Res.string.cache_item,
+                    stringResource(category.labelRes),
+                    FileSizeFormatter.format(size)
                 )
             }
+            .joinToString(separator = "\n")
+
+        buildString {
+            append(confirmText)
+            append("\n\n")
+            append(details)
+            append("\n\n")
+            append(
+                formattedStringResource(
+                    Res.string.cache_total,
+                    FileSizeFormatter.format(settingsUiState.totalCacheSize)
+                )
+            )
         }
     }
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val topBarBackdrop = rememberBarBlurBackdrop(enabled = barBlurEnabled)
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             BlurredTopBar(backdrop = topBarBackdrop) {
                 SmallTopAppBar(
-                    title = stringResource(R.string.settings_title),
+                    title = stringResource(Res.string.settings_title),
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
                     navigationIcon = {
@@ -276,7 +363,7 @@ fun SettingsScreen(
                         ) {
                             Icon(
                                 MiuixIcons.Back,
-                                contentDescription = stringResource(R.string.action_back)
+                                contentDescription = stringResource(Res.string.action_back)
                             )
                         }
                     },
@@ -298,7 +385,7 @@ fun SettingsScreen(
         }
 
         WindowDialog(
-            title = stringResource(R.string.clear_cache),
+            title = stringResource(Res.string.clear_cache),
             show = showClearCacheDialog.value,
             onDismissRequest = { showClearCacheDialog.value = false }
         ) {
@@ -316,7 +403,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     TextButton(
-                        text = stringResource(R.string.cancel),
+                        text = stringResource(Res.string.cancel),
                         onClick = {
                             showClearCacheDialog.value = false
                         },
@@ -324,9 +411,9 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.width(20.dp))
                     TextButton(
-                        text = stringResource(R.string.confirm),
+                        text = stringResource(Res.string.confirm),
                         onClick = {
-                            settingsViewModel.clearCache(context)
+                            settingsViewModel.clearCache()
                             showClearCacheDialog.value = false
                         },
                         modifier = Modifier.weight(1f),
@@ -359,29 +446,23 @@ fun SettingsScreen(
             overscrollEffect = null,
         ) {
             item(key = "appearance"){
-                SmallTitle(text = stringResource(R.string.section_appearance))
+                SmallTitle(text = stringResource(Res.string.section_appearance))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                    val configuration = LocalConfiguration.current
-                    var selectedLanguageTag by remember(configuration) {
-                        mutableStateOf(
-                            AppCompatDelegate.getApplicationLocales()[0]?.toLanguageTag().orEmpty()
-                        )
-                    }
+                    // 语言是设置里的一条偏好（`app_language`），不是 AppCompat 的每应用语言：外壳
+                    // （`LyricoDesktopApp`）订阅同一条流，选中之后整个界面与零食条立刻换语言，不需要
+                    // 安卓那种「换语言 = 重建 activity」。
                     WindowDropdownPreference(
-                        title = stringResource(R.string.app_language),
+                        title = stringResource(Res.string.app_language),
                         items = AppLanguage.entries.map { stringResource(it.labelRes) },
-                        selectedIndex = AppLanguage.entries.indexOfFirst {
-                            it.languageTag == selectedLanguageTag
-                        }.coerceAtLeast(0),
+                        selectedIndex = AppLanguage.entries
+                            .indexOf(settingsUiState.appLanguage)
+                            .coerceAtLeast(0),
                         onSelectedIndexChange = { index ->
-                            selectedLanguageTag = AppLanguage.entries[index].languageTag
-                            AppCompatDelegate.setApplicationLocales(
-                                LocaleListCompat.forLanguageTags(selectedLanguageTag)
-                            )
+                            settingsViewModel.setAppLanguage(AppLanguage.entries[index])
                         }
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.theme_mode),
+                        title = stringResource(Res.string.theme_mode),
                         items = themeModeItems,
                         selectedIndex = selectedThemeModeIndex,
                         onSelectedIndexChange = { index ->
@@ -389,20 +470,20 @@ fun SettingsScreen(
                         }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.bar_blur),
-                        summary = stringResource(R.string.bar_blur_summary),
+                        title = stringResource(Res.string.bar_blur),
+                        summary = stringResource(Res.string.bar_blur_summary),
                         checked = barBlurEnabled,
                         onCheckedChange = settingsViewModel::setBarBlurEnabled,
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.floating_bottom_bar),
-                        summary = stringResource(R.string.floating_bottom_bar_summary),
+                        title = stringResource(Res.string.floating_bottom_bar),
+                        summary = stringResource(Res.string.floating_bottom_bar_summary),
                         checked = floatingBottomBarEnabled,
                         onCheckedChange = { settingsViewModel.setFloatingBottomBarEnabled(it) }
                     )
                     AnimatedVisibility(visible = floatingBottomBarEnabled) {
                         WindowDropdownPreference(
-                            title = stringResource(R.string.floating_bar_effect),
+                            title = stringResource(Res.string.floating_bar_effect),
                             items = floatingBarEffectItems,
                             selectedIndex = floatingBarEffect.ordinal,
                             onSelectedIndexChange = { index ->
@@ -413,7 +494,7 @@ fun SettingsScreen(
                         )
                     }
                     SwitchPreference(
-                        title = stringResource(R.string.monet),
+                        title = stringResource(Res.string.monet),
                         checked = monetEnable,
                         onCheckedChange = {
                             settingsViewModel.setMonetEnable(!monetEnable)
@@ -428,7 +509,10 @@ fun SettingsScreen(
                                 title = stringResource(keyColor.nameResId),
                                 icon = {
                                     val tintColor =
-                                        keyColor.color ?: getSystemWallpaperColor(context)
+                                        // 桌面端没有壁纸取色 / Material You（`getSystemWallpaperColor` 靠 Android S 的
+                                      // dynamicColorScheme），所以「默认」这一项回落到当前主题的 primary ——
+                                      // 本批唯一的行为偏差，记在 PLAN 的缺口里。
+                                      keyColor.color ?: MiuixTheme.colorScheme.primary
 
                                     Icon(
                                         painter = RoundedRectanglePainter(),
@@ -443,7 +527,7 @@ fun SettingsScreen(
                         WindowSpinnerPreference(
                             items = options,
                             selectedIndex = currentSelectedIndex,
-                            title = stringResource(R.string.key_color),
+                            title = stringResource(Res.string.key_color),
                             onSelectedIndexChange = {
                                 val selectedKeyColor = KeyColors[it]
                                 settingsViewModel.setKeyColor(selectedKeyColor)
@@ -454,48 +538,48 @@ fun SettingsScreen(
             }
 
             item(key = "scan"){
-                SmallTitle(text = stringResource(R.string.section_scan))
+                SmallTitle(text = stringResource(Res.string.section_scan))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     val folderSummary = if (totalFolders > 0) {
                         buildString {
-                            append(stringResource(R.string.folder_found, totalFolders))
+                            append(formattedStringResource(Res.string.folder_found, totalFolders))
                             if (ignoredFolders > 0) {
-                                append(stringResource(R.string.folder_ignored, ignoredFolders))
+                                append(formattedStringResource(Res.string.folder_ignored, ignoredFolders))
                             }
                         }
                     } else {
-                        stringResource(R.string.folder_manage_hint)
+                        stringResource(Res.string.folder_manage_hint)
                     }
                     ArrowPreference(
-                        title = stringResource(R.string.folder_manager),
+                        title = stringResource(Res.string.folder_manager),
                         summary = folderSummary,
-                        onClick = { navigator.navigate(FolderManagerDestination()) }
+                        onClick = { navigator.navigate(FolderManagerDestination) }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.artist_poster_folders),
+                        title = stringResource(Res.string.artist_poster_folders),
                         summary = stringResource(
                             if (artistPosterFolder == null) {
-                                R.string.artist_poster_folder_not_selected
+                                Res.string.artist_poster_folder_not_selected
                             } else {
-                                R.string.artist_poster_folder_selected
+                                Res.string.artist_poster_folder_selected
                             }
                         ),
-                        onClick = { navigator.navigate(ArtistPosterFoldersDestination()) }
+                        onClick = { navigator.navigate(ArtistPosterFoldersDestination) }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.ignore_short_audio),
+                        title = stringResource(Res.string.ignore_short_audio),
                         checked = ignoreShortAudio,
                         onCheckedChange = { settingsViewModel.setIgnoreShortAudio(it) }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.lyric_index_title),
-                        summary = stringResource(R.string.lyric_index_summary),
+                        title = stringResource(Res.string.lyric_index_title),
+                        summary = stringResource(Res.string.lyric_index_summary),
                         checked = settingsUiState.lyricIndexEnabled,
                         onCheckedChange = { settingsViewModel.setLyricIndexEnabled(it) }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.settings_replay_gain_target_loudness),
-                        summary = stringResource(R.string.settings_replay_gain_target_loudness_summary),
+                        title = stringResource(Res.string.settings_replay_gain_target_loudness),
+                        summary = stringResource(Res.string.settings_replay_gain_target_loudness_summary),
                         endActions = {
                             Text(
                                 text = formatLoudnessValue(settingsUiState.replayGainTargetLoudness),
@@ -507,7 +591,7 @@ fun SettingsScreen(
                         holdDownState = showRgTargetDialog.value
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.settings_replay_gain_peak_mode),
+                        title = stringResource(Res.string.settings_replay_gain_peak_mode),
                         items = replayGainPeakModeItems,
                         selectedIndex = selectedReplayGainPeakModeIndex,
                         onSelectedIndexChange = { index ->
@@ -520,14 +604,14 @@ fun SettingsScreen(
             }
 
             item(key = "search"){
-                SmallTitle(text = stringResource(R.string.section_search))
+                SmallTitle(text = stringResource(Res.string.section_search))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     ArrowPreference(
-                        title = stringResource(R.string.plugin_manager_title),
+                        title = stringResource(Res.string.plugin_manager_title),
                         onClick = { navigator.navigate(PluginManagerDestination()) }
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.search_source_tab_style),
+                        title = stringResource(Res.string.search_source_tab_style),
                         items = searchSourceTabStyleItems,
                         selectedIndex = selectedSearchSourceTabStyleIndex,
                         onSelectedIndexChange = { index ->
@@ -537,10 +621,10 @@ fun SettingsScreen(
                         }
                     )
                     SliderPreference(
-                        title = stringResource(R.string.search_limit),
+                        title = stringResource(Res.string.search_limit),
                         showKeyPoints = true,
                         valueText = tempSearchPageSize.intValue.toString(),
-                        summary = stringResource(R.string.search_limit_tip),
+                        summary = stringResource(Res.string.search_limit_tip),
                         valueRange = minSearchSize.toFloat()..maxSearchSize.toFloat(),
                         steps = maxSearchSize - minSearchSize - 1,
                         value = tempSearchPageSize.intValue.toFloat(),
@@ -553,8 +637,8 @@ fun SettingsScreen(
                         }
                     )
                     WindowDropdownPreference(
-                        title = stringResource(R.string.artist_separator),
-                        summary = stringResource(R.string.artist_separator_hint),
+                        title = stringResource(Res.string.artist_separator),
+                        summary = stringResource(Res.string.artist_separator_hint),
                         items = artistSeparatorItems,
                         selectedIndex = selectedArtistSeparatorIndex,
                         onSelectedIndexChange = { index ->
@@ -562,8 +646,8 @@ fun SettingsScreen(
                         }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.show_all_search_result_fields),
-                        summary = stringResource(R.string.show_all_search_result_fields_summary),
+                        title = stringResource(Res.string.show_all_search_result_fields),
+                        summary = stringResource(Res.string.show_all_search_result_fields_summary),
                         checked = showAllSearchResultFields,
                         onCheckedChange = settingsViewModel::setShowAllSearchResultFields
                     )
@@ -571,10 +655,10 @@ fun SettingsScreen(
             }
 
             item(key = "lyrics"){
-                SmallTitle(text = stringResource(R.string.section_lyrics))
+                SmallTitle(text = stringResource(Res.string.section_lyrics))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     WindowDropdownPreference(
-                        title = stringResource(R.string.lyric_mode),
+                        title = stringResource(Res.string.lyric_mode),
                         items = lyricFormatItems,
                         selectedIndex = selectedLyricFormatIndex,
                         onSelectedIndexChange = { index ->
@@ -582,21 +666,21 @@ fun SettingsScreen(
                         }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.roma),
-                        summary = stringResource(R.string.roma_hint),
+                        title = stringResource(Res.string.roma),
+                        summary = stringResource(Res.string.roma_hint),
                         checked = romaEnabled,
                         onCheckedChange = { settingsViewModel.setRomaEnabled(it) }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.translation),
-                        summary = stringResource(R.string.translation_hint),
+                        title = stringResource(Res.string.translation),
+                        summary = stringResource(Res.string.translation_hint),
                         checked = translationEnabled,
                         onCheckedChange = { settingsViewModel.setTranslationEnabled(it) }
                     )
                     AnimatedVisibility(visible = translationEnabled) {
                         SwitchPreference(
-                            title = stringResource(R.string.only_translation_if_available),
-                            summary = stringResource(R.string.only_translation_if_available_hint),
+                            title = stringResource(Res.string.only_translation_if_available),
+                            summary = stringResource(Res.string.only_translation_if_available_hint),
                             enabled = translationEnabled,
                             checked = onlyTranslationIfAvailable,
                             onCheckedChange = { settingsViewModel.setOnlyTranslationIfAvailable(it) }
@@ -606,11 +690,11 @@ fun SettingsScreen(
             }
 
             item(key = "text_processing"){
-                SmallTitle(text = stringResource(R.string.section_text_processing))
+                SmallTitle(text = stringResource(Res.string.section_text_processing))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     WindowDropdownPreference(
-                        title = stringResource(R.string.conversion_mode),
-                        summary = stringResource(R.string.conversion_mode_hint),
+                        title = stringResource(Res.string.conversion_mode),
+                        summary = stringResource(Res.string.conversion_mode_hint),
                         items = conversionModeItems,
                         selectedIndex = selectedConversionModeIndex,
                         onSelectedIndexChange = {
@@ -618,103 +702,92 @@ fun SettingsScreen(
                         },
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.remove_empty_lines),
-                        summary = stringResource(R.string.remove_empty_lines_hint),
+                        title = stringResource(Res.string.remove_empty_lines),
+                        summary = stringResource(Res.string.remove_empty_lines_hint),
                         checked = removeEmptyLines,
                         onCheckedChange = { settingsViewModel.setRemoveEmptyLines(it) }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.non_lyrics_cleanup_rules_title),
-                        summary = stringResource(R.string.non_lyrics_cleanup_rules_summary),
+                        title = stringResource(Res.string.non_lyrics_cleanup_rules_title),
+                        summary = stringResource(Res.string.non_lyrics_cleanup_rules_summary),
                         onClick = { navigator.navigate(LyricsCleanupRulesDestination()) }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.artist_split_settings_title),
-                        summary = stringResource(R.string.artist_split_settings_summary),
+                        title = stringResource(Res.string.artist_split_settings_title),
+                        summary = stringResource(Res.string.artist_split_settings_summary),
                         onClick = { navigator.navigate(ArtistSplitSettingsDestination()) }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.edit_field_settings_title),
-                        summary = stringResource(R.string.edit_field_settings_summary),
-                        onClick = { navigator.navigate(EditFieldSettingsDestination()) }
+                        title = stringResource(Res.string.edit_field_settings_title),
+                        summary = stringResource(Res.string.edit_field_settings_summary),
+                        onClick = { navigator.navigate(EditFieldSettingsDestination) }
                     )
                 }
             }
 
             item(key = "backup"){
-                SmallTitle(text = stringResource(R.string.section_backup))
+                SmallTitle(text = stringResource(Res.string.section_backup))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     ArrowPreference(
-                        title = stringResource(R.string.export_config),
-                        summary = stringResource(R.string.export_config_hint),
+                        title = stringResource(Res.string.export_config),
+                        summary = stringResource(Res.string.export_config_hint),
                         onClick = {
                             val currentTime = System.currentTimeMillis()
-                            exportLauncher.launch("lyrico_settings_backup_${currentTime}.json")
+                            exportSettings()
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.import_config),
-                        summary = stringResource(R.string.import_config_hint),
+                        title = stringResource(Res.string.import_config),
+                        summary = stringResource(Res.string.import_config_hint),
                         onClick = {
-                            importLauncher.launch(arrayOf("application/json"))
+                            importSettings()
                         }
                     )
                 }
             }
 
             item(key = "other"){
-                SmallTitle(text = stringResource(R.string.section_other))
+                SmallTitle(text = stringResource(Res.string.section_other))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     ArrowPreference(
-                        title = stringResource(R.string.batch_task_list_title),
+                        title = stringResource(Res.string.batch_task_list_title),
                         onClick = { navigator.navigate(BatchTaskListDestination()) }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.app_log_title),
-                        summary = stringResource(R.string.app_log_summary),
+                        title = stringResource(Res.string.app_log_title),
+                        summary = stringResource(Res.string.app_log_summary),
                         onClick = { navigator.navigate(AppLogsDestination()) }
                     )
-                    if (BuildConfig.DEBUG) {
-                        ArrowPreference(
-                            title = stringResource(R.string.quickjs_test_title),
-                            summary = stringResource(R.string.quickjs_test_description_summary),
-                            onClick = { navigator.navigate(QuickjsTestDestination()) }
-                        )
-                    }
-
-                    val cacheSummary = stringResource(
-                        R.string.cache_size_label,
-                        Formatter.formatFileSize(context, settingsUiState.totalCacheSize)
+                    // 安卓用 `android.text.format.Formatter`；桌面端是同一个 AOSP 算法的移植
+                    // （`FileSizeFormatter`），单位阈值与大小写由 `FileSizeFormatterTest` 钉住。
+                    val cacheSummary = formattedStringResource(
+                        Res.string.cache_size_label,
+                        FileSizeFormatter.format(settingsUiState.totalCacheSize)
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.clear_cache),
+                        title = stringResource(Res.string.clear_cache),
                         summary = cacheSummary,
                         onClick = { showClearCacheDialog.value = true },
                         holdDownState = showClearCacheDialog.value
                     )
-                    if (BuildConfig.DEBUG) {
+                    if (BuildInfo.DEBUG) {
                         ArrowPreference(
-                            title = stringResource(R.string.clear_songs),
+                            title = stringResource(Res.string.clear_songs),
                             onClick = {
                                 scope.launch {
-                                    val success = settingsViewModel.clearSongs()
-                                    if (success) {
-                                        Toast.makeText(context, "已清空数据库", Toast.LENGTH_SHORT)
-                                            .show()
+                                    // Toast -> Snackbar，和这一页的其它反馈走同一个 host。
+                                    val message = if (settingsViewModel.clearSongs()) {
+                                        "已清空数据库"
                                     } else {
-                                        Toast.makeText(
-                                            context,
-                                            "清空数据库失败",
-                                            Toast.LENGTH_SHORT
-                                        )
-                                            .show()
+                                        "清空数据库失败"
                                     }
+                                    snackbarHostState.showSnackbar(message)
                                 }
                             }
                         )
                     }
                     ArrowPreference(
-                        title = stringResource(R.string.about_title),
+                        title = stringResource(Res.string.about_title),
                         onClick = { navigator.navigate(AboutDestination()) }
                     )
                 }
@@ -743,9 +816,9 @@ private fun ReplayGainTargetLoudnessSheet(
 ) {
     val presets = remember { listOf(-23.0, -18.0, -14.0) }
     val presetLabels = listOf(
-        R.string.replay_gain_target_preset_ebu,
-        R.string.replay_gain_target_preset_default,
-        R.string.replay_gain_target_preset_streaming
+        Res.string.replay_gain_target_preset_ebu,
+        Res.string.replay_gain_target_preset_default,
+        Res.string.replay_gain_target_preset_streaming
     )
     var selectedPreset by remember(show, currentLoudness) {
         mutableDoubleStateOf(if (currentLoudness in presets) currentLoudness else presets.first())
@@ -794,7 +867,7 @@ private fun ReplayGainTargetLoudnessSheet(
                         )
                     }
                     RadioButtonPreference(
-                        title = stringResource(R.string.replay_gain_target_preset_custom),
+                        title = stringResource(Res.string.replay_gain_target_preset_custom),
                         selected = customSelected,
                         onClick = {
                             customSelected = true
@@ -815,14 +888,14 @@ private fun ReplayGainTargetLoudnessSheet(
                                 customText = it
                                 invalid = false
                             },
-                            label = stringResource(R.string.replay_gain_target_custom_hint),
+                            label = stringResource(Res.string.replay_gain_target_custom_hint),
                             maxLines = 1,
                             modifier = Modifier.fillMaxWidth()
                         )
                         if (invalid) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = stringResource(R.string.replay_gain_target_invalid),
+                                text = stringResource(Res.string.replay_gain_target_invalid),
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = MiuixTheme.colorScheme.error
                             )

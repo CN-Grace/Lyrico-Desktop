@@ -82,13 +82,11 @@ class LibraryHomeDestination : NavDirection {
 // Android graph declared these routes in.
 // ---------------------------------------------------------------------------------------------
 
-/** The settings screen. Reached from the songs page's navigation icon. */
-class SettingsDestination : NavDirection {
+/** The settings screen, registered in C3. Reached from the songs page's navigation icon and the rail. */
+data object SettingsDestination : NavDirection {
     override val route: String = ROUTE
 
-    companion object {
-        const val ROUTE = "settings"
-    }
+    const val ROUTE = "settings"
 }
 
 /** In-library search. Reached from the songs page's search icon. */
@@ -269,6 +267,32 @@ class PluginManagerDestination : NavDirection {
 
     companion object {
         const val ROUTE = "plugin_manager"
+    }
+}
+/** The lyrics-cleanup rules sub-page. Reached from the settings screen; its screen arrives with C4. */
+class LyricsCleanupRulesDestination : NavDirection {
+    override val route: String = ROUTE
+
+    companion object {
+        const val ROUTE = "lyrics_cleanup_rules"
+    }
+}
+
+/** The artist-split settings sub-page. Reached from the settings screen; its screen arrives with C4. */
+class ArtistSplitSettingsDestination : NavDirection {
+    override val route: String = ROUTE
+
+    companion object {
+        const val ROUTE = "artist_split_settings"
+    }
+}
+
+/** The about page (update check + licence list). Reached from the settings screen; screen arrives with F. */
+class AboutDestination : NavDirection {
+    override val route: String = ROUTE
+
+    companion object {
+        const val ROUTE = "about"
     }
 }
 

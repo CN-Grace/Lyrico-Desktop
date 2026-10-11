@@ -289,7 +289,7 @@ fun SongsPage(
                                 defaultWindowInsetsPadding = false,
                                 navigationIcon = {
                                     IconButton(
-                                        onClick = { navigator.navigate(SettingsDestination()) }
+                                        onClick = { navigator.navigate(SettingsDestination) }
                                     ) {
                                         Icon(
                                             imageVector = MiuixIcons.Settings,

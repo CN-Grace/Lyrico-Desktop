@@ -1,0 +1,21 @@
+file: build\tmp-probe\c37c3-settings-en.png
+engine: zh-Hans-CN
+lines: 18
+  y=10 x=31 :: Lyrico 1 ℃ 〔 52H7240
+  y=141 x=29 :: App language
+  y=196 x=29 :: Theme Mode
+  y=251 x=30 :: Blu
+  y=274 x=30 :: Enable blur e 0 0 n the top and bottom bars
+  y=325 x=30 :: Floating navigation bar
+  y=348 x=30 :: use 3 floating glass 巧 ar 0 n phones
+  y=400 x=30 :: Floating bar effect
+  y=458 x=30 :: Monet palette
+  y=507 x=29 :: Scan Settings
+  y=550 x=30 :: Folder Management
+  y=573 x=30 :: 1 folders faund
+  y=624 x=29 :: Artist poste folder
+  y=647 x=30 :: No falder selected
+  y=701 x=30 :: lgnore audio shorter than 60 seconds
+  y=759 x=30 :: L ICS indexin
+  y=50 x=547 :: Settings
+  y=198 x=1050 :: Light made

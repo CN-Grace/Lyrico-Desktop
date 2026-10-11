@@ -1,0 +1,36 @@
+file: docs\port-evidence\c37c3-poster-row.png
+size: 1166x773
+distinct_colours: 893  most_common_share: 0.860  text_pixels: 7039
+accent_blue_pixels: 162  accent_warm_pixels: 169
+top_colours: (247, 247, 247)=774921, (255, 255, 255)=116103, (25, 25, 25)=2261, (0, 0, 0)=936
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#++###++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                      ....   . ....                                   +. ++ +
+  # ++                                     +#+#+##+#++###                                  #+ ++ +
+  # .++.++... ..++.++....+...+++..++....++++                                                     +
+  #                          .                                                                   +
+  # +#+++++#++                                                                                   +
+  # ..+++.++.+.+.....+...++..+..                                                                 +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

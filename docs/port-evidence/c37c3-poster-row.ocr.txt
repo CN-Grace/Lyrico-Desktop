@@ -1,0 +1,8 @@
+file: build\tmp-probe\c37c3-poster-row.png
+engine: zh-Hans-CN
+lines: 5
+  y=10 x=31 :: Lyrico 1 ℃ 〔 52H7240
+  y=50 x=496 :: Artist poster folder
+  y=100 x=30 :: used when n 0 embedded paster is 引 熠 0 巳 new posters 俺 so added here
+  y=153 x=29 :: Choose fo der
+  y=176 x=29 :: Choose folder for reading and adding artist posters

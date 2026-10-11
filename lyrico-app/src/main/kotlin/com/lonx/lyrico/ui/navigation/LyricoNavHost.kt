@@ -20,6 +20,7 @@ import com.lonx.lyrico.screens.AppLogScreen
 import com.lonx.lyrico.screens.ArtistDetailScreen
 import com.lonx.lyrico.screens.ArtistPosterFoldersScreen
 import com.lonx.lyrico.screens.FolderManagerScreen
+import com.lonx.lyrico.screens.SettingsScreen
 import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
 import com.lonx.lyrico.screens.EditMetadataScreen
@@ -134,6 +135,9 @@ fun LyricoNavHost(
                     navigator = navigator,
                     artistId = entry.arguments.readLong(ArtistDetailDestination.ARG_ARTIST_ID),
                 )
+            }
+            composable(route = SettingsDestination.ROUTE) {
+                SettingsScreen(navigator = navigator)
             }
             composable(route = FolderManagerDestination.ROUTE) {
                 FolderManagerScreen(navigator = navigator)

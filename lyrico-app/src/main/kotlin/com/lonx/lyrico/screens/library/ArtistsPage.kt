@@ -152,7 +152,7 @@ fun ArtistsPage(
                     scrollBehavior = topAppBarScrollBehavior,
                     defaultWindowInsetsPadding = false,
                     navigationIcon = {
-                        IconButton(onClick = { navigator.navigate(SettingsDestination()) }) {
+                        IconButton(onClick = { navigator.navigate(SettingsDestination) }) {
                             Icon(
                                 imageVector = MiuixIcons.Settings,
                                 contentDescription = null

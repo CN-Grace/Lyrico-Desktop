@@ -2126,6 +2126,78 @@ java 主树 42 → **38**（搬走 2 + 作废 2）；前沿 **24 → 22**（两�
 
 算术：搬走的 2 个（`FolderManagerScreen` / `FolderManagerViewModel`）本在**被挡**名单，它们一走被挡就 18 → 16；作废的 2 个（`UriUtils` / `SafDocuments`）本在**前沿**，所以前沿 24 → 22。`SettingsScreen` 的阻塞列表从两项剩到一项（只剩 `PainterUtils.kt`），下一个切片 C-3 就是它。
 
+### P5 施工批次（#37-C-3：设置页（836 行）+ `settings` 路由 + 语言行接上 C-2 的接缝，2026-10-11）
+
+#### 1. 搬了什么（`git mv` 1 个 836 行 + 路由 + 三处调用点）
+
+| 动作 | 位置 |
+|---|---|
+| `git mv` | `screens/SettingsScreen.kt`（83 处 `R.string` 走机械迁移，其余手改） |
+| 路由注册 | `LyricoNavHost` 里 `SettingsDestination.ROUTE` -> `SettingsScreen(navigator)` |
+| 声明 | `Destinations.kt` 新增 `LyricsCleanupRulesDestination` / `ArtistSplitSettingsDestination` / `AboutDestination`（屏幕分别属于 C4 / F，按文件自带的「声明了但未注册」惯例先声明） |
+| 调用点 | `SongsPage` / `ArtistsPage` / `AlbumsPage` 的齿轮图标：`navigate(SettingsDestination())` → `navigate(SettingsDestination)`（对象不能用 `()` 调，见坑 5） |
+
+#### 2. 桌面化改写点（逐条）
+
+1. **语言行接上了 C-2 的接缝**：`LocalConfiguration` + `AppCompatDelegate.getApplicationLocales()/setApplicationLocales(LocaleListCompat)` 全部换成 `settingsUiState.appLanguage` + `settingsViewModel.setAppLanguage(...)`。写完之后不需要重建界面：外壳订阅同一条流，`ProvideAppLocale` 换掉资源环境，整页就连同零食条一起换语言（真窗口证据第 2 张）。
+2. **导出/导入从 SAF 换成两个选择器接缝**：`rememberLauncherForActivityResult(CreateDocument(OpenDocument))` → `rememberFileSavePicker` / `rememberFileOpenPicker`，两个入口都是挂起调用，选完直接投给 ViewModel（VM 的收参是 `File`，C-2 改的）。默认文件名里的时间戳改成点击那一刻取（安卓原本就在 `onClick` 里取）。
+3. **缓存文案：`Formatter` → `FileSizeFormatter`，并且不再用 `remember` 包**。安卓用 `context.getString(...)` + `android.text.format.Formatter`；桌面端用 `formattedStringResource` + `FileSizeFormatter`（同一个 AOSP 算法，单位阈值由 `FileSizeFormatterTest` 钉住）。原来的 `remember(...)` 去掉了：它的 lambda 不是可组合的，而拼这段文案要调 `stringResource`/`formattedStringResource`，几行字符串的重算比手工管网缓存依赖便宜。
+4. **`Toast` → Miuix `Snackbar`**：事件流收下来的 `UiMessage` 在展示这一刻 `resolve()`（所以语言切换后提示也跟着换），Scaffold 补上 `snackbarHost`。调试用的「已清空数据库 / 清空失败」两条从 `Toast` 改成同一个 host。
+5. **唯一的行为偏差：主题键色的「默认」项**。安卓用 `getSystemWallpaperColor(context)`（Android S 的 `dynamicColorScheme` 从壁纸取色，低版本回落到 Miuix primary）；桌面端没有壁纸 API，也不做 Material You，所以直接回落 `MiuixTheme.colorScheme.primary`。这是本批唯一“做不到”而非“换种写法”的地方，记在缺口里。
+6. **`BuildConfig.DEBUG` → `BuildInfo.DEBUG`**（2 处，调试区块）；**QuickJS 测试页那一行删掉**（它的屏幕属于 #38 的作废清单，调试闭卷子对桌面端没有对应物）；`koinViewModel` 换成多平台的 `org.koin.compose.viewmodel.koinViewModel`；`@Destination<RootGraph>` + `DestinationsNavigator` 换成路由注册 + 手写的 `Navigator`。
+7. **两个选择器参数是可空的**（`fileSavePicker` / `fileOpenPicker`），与 `SongsPage` 同一条理由：可组合函数的默认参数不能调可组合函数，所以真选择器在函数体里按需构造。
+
+#### 3. 无头取证（新增 1 类 7 项；全量 137 类 / 1163 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+`screens/SettingsScreenTest`（真 `NavHost` + 真 Koin 图 + 真设置存储 + 假选择器）：
+
+| 项 | 钉住的东西 |
+|---|---|
+| 选语言写进设置 | 驱动真的下拉框，然后读**存储**（不是 UiState）——读存储才意味着外壳也会看到 |
+| 启动前写入的语言就是行的选中项 | 行读的是存储而不是本地 `remember` |
+| 导出写出选择器返回的文件 | 真文件落盘、内容是备份、建议文件名是 `.json` |
+| 导入应用选择器返回的文件 | 用应用自己导出的备份，把语言从 zh-CN 改回 en |
+| 缓存行用格式化器报告大小 | 行的副标题走 `formattedStringResource` + `FileSizeFormatter`（空缓存读作 `0 B`） |
+| 文件夹管理行导航到已注册路由 | 用记录型 navigator 断言 `FolderManagerDestination` |
+| 页面渲染标题 | 最小烟雾 |
+
+全量：C-5 那节的 1156 → **1163**（+7）。注意 `StringFormattingGuardTest` 又抳住两处 `stringResource(res, args)`（扫面区里的文件夹统计），已改 `formattedStringResource`。
+
+#### 4. 真窗口取证（`docs/port-evidence/c37c3-*`，开发路由 `-Plyrico.start.route=settings`）
+
+| 文件 | 内容 | OCR 关键行 | 分析 |
+|---|---|---|---|
+| `c37c3-settings-zh.png` | 进页：中文界面，语言行「跟随系统」，主题行「浅色模式」，文件夹管理行「已发现 1 个文件夹」 | （中文行，引擎 zh-Hans-CN） | `VERDICT: OK` |
+| `c37c3-lang-dropdown.png` | 点开语言下拉：五个选项（跟随系统✓ / English / 简体中文 / 繁體中文（台灣）/ 繁體中文（香港）） | `y=234 x=958 :: English` | `VERDICT: OK` |
+| `c37c3-settings-en.png` | **点 English 之后**：整页换成英文（标题 Settings、App language = English、Scan Settings、Artist poster folder…） | `y=141 :: App language`、`y=507 :: Scan Settings`、`y=573 :: 1 folders faund`、`y=624 :: Artist poste folder` | `VERDICT: OK` |
+| `c37c3-poster-row.png` | 点「Artist poster folder」行：进入已搬的海报文件夹页，**仍是英文** | `y=50 :: Artist poster folder`、`y=176 :: Choose folder for reading and adding artist posters` | `VERDICT: OK` |
+
+这三步（选语言 → 整页换文 → 跳页后仍是新语言）就是 C-2+C-3 合起来要证的整条链；同一台机器、同一次进程，没重启、没重建窗口。顺便由证据看到一处存量 i18n 毛病：`folder_found` 在英文里读作 **"1 folders found"**（复数没做）。这不是本批引入（字符串逐字保持），但把观察记在这里。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **`performScrollTo()` 对 `LazyColumn` 没用**：未组合的行根本不是节点。`performScrollToNode` 又要求滚动容器唯一，而这一页里 `hasScrollAction()` 同时匹配列表和顶栏的 nested-scroll，所以测试改用「在 root 上 swipeUp 直到匹配出现」的有界循环。
+2. **`ComposeTimeoutException` 不是 `Exception`**：写诊断代码时 `catch (e: Exception)` 接不住它（得 `catch (e: Throwable)`），否则你只会看到原始超时信息、看不到自己加的上下文。
+3. **同一个 `Text` 既是行标题又是对话框标题时，节点数会变**：`exists()` 用「非空」就相对安全，`onNodeWithText(...)`（要求恰好一个）则会在对话框打开后报“找到两个”。
+4. **`data object` 不能用 `()` 调**：把 `navigate(X()` 写成对 `data object` 的调用会得到“unresolved reference”。端口里的惯例是：**屏幕已搬的路由用 `data object` + `navigate(X)`**（如 `EditMetadataScreen` 对 `EditFieldSettingsDestination`），**仅声明的用 `class` + `navigate(X())`**；两边混写时编译器会告诉你哪一个错了，但要知道该往哪边改。
+5. **`AppLanguage.entries` 的语言标签在测试里也得用 `stringResource` 取**：语言名是 `translatable="false"` 的，所以四个语言在任何 locale 下都一样 —— 这也让漏试能拿语言标签当稳的匹配串。
+6. **`remember` 不能包可组合调用**：拼接缓存文案要调 `stringResource`/`formattedStringResource`，原来那个 `remember(...)` 只能去掉；换成“每次组合重算几行文本”后，依赖（语言、大小）自然就正确了。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. **主题键色的「默认」不再跟随壁纸**（唯一的行为偏差，见改写点 5）：安卓 S+ 会用壁纸主色，桌面端固定用当前主题的 primary。真要补，得引入一套桌面端的取色机制，单独排期。
+2. **缓存确认框的内容没有无头断言**：这一项是真没做到 — 点击那一行后 `WindowDialog` 在测试里没打开（行可见、点击也到了，就是没有对话框），而同一页另一行 `ArrowPreference` 的导航是好的、海报页的对话框在自己的测试里也能断言。原因在本次切片内没查到，所以按「记而不是装」的原则记在这里；**清理本身的语义由 `SettingsViewModelTest` 覆盖**（三类目计量 + 清理相走后接缝）。
+3. **英文文案里的复数**（`1 folders found`）：存量字符串逐字保持的后果，要改就整批过一遍 i18n（与 B 片记的 `artist_poster_folder_unavailable` 同一类）。
+4. **调试区只剩一条「清空数据库」**：QuickJS 测试页那行删了（它的屏幕在 #38 的作废清单里）；剩下的两项 `BuildInfo.DEBUG` 行为与安卓一致。
+
+#### 7. 前沿（本批收口）
+
+java 主树 38 → **37**；前沿 22 → **22**；被挡 16 → **15**；陈旧副本 **0**。
+
+算术：`SettingsScreen` 本在**被挡**名单（阻塞它的是 `PainterUtils`），一搬走被挡就 16 → 15；它在被挡名单里而不在前沿，所以前沿不变。值得注意的是 `PainterUtils` 始终没被用上：`RoundedRectanglePainter` 在 kotlin 树里已经有一份（`ui/components/Painters.kt`），所以 C-3 靠“不再引用它”就解除了阻塞，它自己留给 #38。
+
+下一片 C-4 是三个设置子页（`EditFieldSettingsScreen` / `LyricsCleanupRulesScreen` / `ArtistSplitSettingsScreen`），三个都已在 C-3 里声明了路由，且都在前沿（它们的视图模型早就搬完了）。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
