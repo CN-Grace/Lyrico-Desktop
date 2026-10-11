@@ -1,0 +1,36 @@
+file: build\tmp-probe\c7-appimage.png
+size: 1166x773
+distinct_colours: 821  most_common_share: 0.777  text_pixels: 7057
+accent_blue_pixels: 5351  accent_warm_pixels: 163
+top_colours: (247, 247, 247)=699928, (255, 255, 255)=183347, (52, 130, 255)=4896, (25, 25, 25)=2267
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+++##++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  #        +.                                    ++.. ..                                   +. .+ +
+  #  ++    #+                                    +#++ ##                                   ++ ++ +
+  # +++                                                                                          +
+  # #++                                                                                          +
+  #  #                                                                                           +
+  # ##+                                                                                          +
+  # .++                                                                                          +
+  # +#+                                                                                          +
+  # ###                                                                                          +
+  # .++                                                                                          +
+  #                                                                                              +
+  #                                                                                              +
+  #                                             ++...+++++.                                      +
+  #                                       ..++ ..+#++.#+#+.. ++ .                                +
+  #                                       .. . .++.   ++..... ...                                +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

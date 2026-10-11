@@ -2799,14 +2799,20 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 
 启动器与说明是**仓库里的文件**（`lyrico-app/dist/Lyrico.bat`、`README.txt`）而不是从字符串字面量生成的：`.bat` 需要 CRLF，用户要能直接审阅这段文本。
 
-#### 2. 为什么不是 MSI / jpackage 的 app image
+#### 2. MSI / app image 起初失败的真因（原先写错了，这里更正）
 
-`compose.desktop` 里 `targetFormats(Msi, Exe)` 与 `appResourcesRootDir` **都配好了**，但这台机器上两条路都跑不通，原因分开记：
+第一版这一节把原因写成「Gradle 9 会在任务执行前创建 `@OutputDirectory`，而 jlink 拒绝已存在目录」。**这个判断是错的**，后续（PLAN §P6 的第 1 条后续工作）查出并修好了：
 
-1. **MSI/EXE 需要 WiX v3**：`./gradlew :lyrico-app:packageMsi` 会去下载/解压 WiX，而本机没有 WiX 工具集（`downloadWix` 是插件自带的那条路，试运行时 `:downloadWix SKIPPED`）。
-2. **`createDistributable` 在 Gradle 9 + Compose 1.12 下被 jlink 拒绝**：失败信息是 jlink 的「目录已存在」（`错误: 目录已存在：…\build\compose\tmp\main\runtime`）。原因是 **Gradle 9 会在任务执行前创建任务的 `@OutputDirectory`**，而 `jlink --output <dir>` 要求那个目录**不存在**；插件自身的类（`AbstractJLinkTask`）里没有删除该目录的代码（`javap` 查过），所以这条组合在本环境里必然失败。试过在 `createRuntimeImage` 上挂 `doFirst { deleteRecursively() }`，无效（插件在任务动作里又建了一次），改动没有保留。
+* **真因是编码**：jlink 用**平台默认字符集（本机 GBK）**读 `@args` 文件，而本仓路径含非 ASCII（`03-应用`），于是它算出的 `--output` 是一个**误码后的路径**——那个目录当然「已存在」（其实是另一个名字的目录，或它自己上一次留下的），于是报 `错误: 目录已存在`。三段插桩证明了它：`doFirst` 结束时输出目录确实**不存在**（`exists=false`），jlink 仍说已存在；把 `--output` 从参数文件挪到**命令行**（argv 由 JVM 以 Unicode 传递）后立刻成功。
+* 修正后 `createDistributable`（app image，自带 JVM，**用户无需装 Java**）与 `packageMsi`（140.1 MiB 的 `Lyrico-1.6.0.msi`）**都能构建**。
 
-两者都**不影响交付**：便携包用已安装的 JVM 跑（`Lyrico.bat` 里 `-cp "app\*"`），只要 Java 21+；`appResourcesRootDir` 的设置留着，将来若修好 jlink 那一条，MSI 会连带把同一批 native/ffmpeg 打进去。
+连带修掉的三处相关问题（都在 `lyrico-app/build.gradle.kts`）：
+
+1. **`--output` 走命令行**，参数文件只留模块与 strip 开关（`linkRuntimeImage`，替代插件那个被禁用的 `createRuntimeImage`；同时标记 `notCompatibleWithConfigurationCache`，因为参数文件在执行期写）。
+2. **`appResourcesRootDir` 的内容要按 `common/`（平台无关）+ 平台目录分层**：插件只拷 `common/*`，我第一版把 `native/`、`ffmpeg/`、notices 直接放在根，`prepareAppResources` 直接报 `NO-SOURCE`，静默丢掉整批资源。现在资源落在 `<image>/app/resources/...`。
+3. **开发用的绝对路径不能再进打包的 `.cfg`**：`jvmArgs` 里那个 `-Dlyrico.native.dir=<repo>/build/native/windows-x64` 会被 jpackage 原样写进 `.cfg`，启动器把其中的反斜杠当转义解成控制字符（反斜杠 n、反斜杠 t），于是报「找不到主类 `ativewindows-x64`」。打包应用本来就走相对探测，所以这条挪到了 `run` 任务。
+
+加载器也随之补了 **Compose app image 布局**的候选路径（`<app>/app/resources/native`、`<app>/app/resources/ffmpeg/<platform>`），并各加了一条测试钉住（`NativeLibrarySearchDirsTest`、`FfmpegSidecarTest` 的新用例）。
 
 #### 3. 真机验收（`docs/port-evidence/c7-portable-*`）
 
@@ -2817,6 +2823,8 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 | `c7-portable.png` + `.ocr.txt` + `.analysis.txt` | 应用窗口起来并渲染**首次运行的空白态**（`歌曲（0）`、rail 三项、`尚未添加文件夹` + 「添加文件夹」按钮），`VERDICT: OK`、767 种颜色、正文像素 7037 |
 | 启动日志（本次记录在 PLAN） | `数据目录=…\portable\Lyrico\data (便携模式)` —— 便携包把数据放在自己目录下；`[INFO] taglib: loaded native library from …\portable\Lyrico\native\taglib.dll` —— **打包布局下的原生库探测真的生效**（这是便携布局存在的理由）；`native OK` |
 | `c7-portable-package.txt` | 包清单：115.0 MiB、sha256、108 个文件项、`app/` 100 个 jar、native 三个 dll、ffmpeg + LICENSE.txt、启动器全文 |
+| `c7-appimage.png` + `.ocr.txt` + `.analysis.txt` | **app image**（`Lyrico.exe`，自带 JVM）实跑：`VERDICT: OK`、821 种颜色、正文像素 7057；启动日志 `native OK` + `taglib from <app>/app/resources/native/taglib.dll` |
+| `c7-packages.txt` | 两种打包产物的路径/大小/sha256 与两次实跑的日志要点；MSI 的**安装**未在本机执行（需要提权且会改动本机已安装程序），改为运行它包裹的同一个 app image（布局相同） |
 
 #### 4. 这批实测出来的坑（都会再踩）
 

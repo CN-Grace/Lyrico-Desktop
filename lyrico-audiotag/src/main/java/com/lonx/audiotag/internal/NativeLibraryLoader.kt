@@ -86,6 +86,11 @@ public object NativeLibraryLoader {
         // jpackage layout: <app>/native next to <app>/app/*.jar
         dirs.add(Paths.get("native"))
 
+        // Compose Desktop app image (`createDistributable` / an installed MSI): the project's own
+        // `appResourcesRootDir` contents are copied to <app>/app/resources, so that is where the
+        // libraries land unless an installer moves them to the root.
+        dirs.add(Paths.get("app", "resources", "native"))
+
         // Development layout: run from the repository, libraries in build/native/<platform>.
         val platformDir = "build/native/${platformTag()}"
         var dir: Path? = Paths.get("").toAbsolutePath()

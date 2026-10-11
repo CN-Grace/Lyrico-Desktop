@@ -1,0 +1,22 @@
+lyrico-app/build/compose/binaries/main/msi/Lyrico-1.6.0.msi
+  size_bytes: 146946780 (140.1 MiB)
+  sha256: 84d4901b13edf904b364f19c1f4bd1a4568eb9ba5529e274d729252be61880fc
+lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
+  size_bytes: 120560229 (115.0 MiB)
+  sha256: dea5fc49141ab36a80036c6191d8b188064ced7dd7729b8050fdd0809d92bd12
+
+app image (createDistributable): lyrico-app/build/compose/binaries/main/app/Lyrico
+  Lyrico.exe + runtime/ (bundled JVM) + app/*.jar + app/resources/{native,ffmpeg,THIRD_PARTY_NOTICES.md}
+
+launcher .cfg does NOT contain the development native path (verified: grep -c "native.dir" = 0)
+
+runs verified (both real windows, both loading the native library from the packaged layout):
+  app image: Lyrico.exe  -> "native OK", taglib from <app>/app/resources/native/taglib.dll, window "Lyrico 1.6.0"
+  portable : Lyrico.bat  -> "native OK", taglib from <app>/native/taglib.dll,               window "Lyrico 1.6.0"
+
+portable zip entries: 108, app/ jar count: 100
+portable zip native/ffmpeg: ffmpeg/windows-x64/LICENSE.txt, ffmpeg/windows-x64/ffmpeg.exe,
+  native/ebur128.dll, native/quickjs-ng.dll, native/taglib.dll
+
+not verified here: installing the MSI (needs elevation and would change this machine's installed
+programs); the app image it wraps was run instead, which exercises the same packaged layout.

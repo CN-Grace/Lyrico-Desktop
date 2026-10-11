@@ -116,6 +116,19 @@ class FfmpegSidecarTest {
     }
 
     @Test
+    fun `probes the compose desktop app image layout`() {
+        val probed = FfmpegSidecar.defaultSearchDirs().map { it.toString().replace('\\', '/') }
+
+        // `createDistributable`/an installed MSI copies `appResourcesRootDir/common/*` into
+        // `<app>/app/resources`, so the sidecar is one level deeper there than in the hand-made portable
+        // layout. The packaged image was verified to run with this probe (PLAN.md P6 #1).
+        assertTrue(
+            "expected the app image layout to be probed: $probed",
+            probed.any { it.contains("/app/resources/ffmpeg/") },
+        )
+    }
+
+    @Test
     fun `walks up from the working directory through both packaged layouts`() {
         val probed = FfmpegSidecar.defaultSearchDirs().map { it.toString().replace('\\', '/') }
         val workingDirectory = Path.of("").toAbsolutePath().normalize().toString().replace('\\', '/')

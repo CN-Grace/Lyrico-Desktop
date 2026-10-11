@@ -72,6 +72,10 @@ class FfmpegSidecar(
                 // Packaged layout: the installer copies that directory next to the launcher,
                 // keeping the platform tag (P6 copies build/ffmpeg verbatim).
                 dirs.add(dir.resolve("ffmpeg").resolve(platformDir))
+                // Compose Desktop app image: `appResourcesRootDir` contents are copied to
+                // <app>/app/resources, so the sidecar sits one level deeper there.
+                dirs.add(dir.resolve("app/resources/ffmpeg").resolve(platformDir))
+                dirs.add(dir.resolve("app/resources/ffmpeg"))
                 // Packaged layout without the tag, for an installer that flattens it.
                 dirs.add(dir.resolve("ffmpeg"))
                 dir = dir.parent

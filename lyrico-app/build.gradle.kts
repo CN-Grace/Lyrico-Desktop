@@ -97,20 +97,60 @@ tasks.withType<KotlinCompile>().configureEach {
     dependsOn(generateBuildInfo)
 }
 
-// `jlink --output <dir>` refuses to write into a directory that already exists, and Gradle 9 creates a
-// task's `@OutputDirectory` before the task runs -- so the runtime-image task has to remove the directory
-// again just before jlink is launched. `doFirst` runs last-registered-first, so this runs after Gradle's
-// own creation and before the plugin's jlink call. Remove it if a future Compose/Gradle pair drops the
-// eager creation (the symptom is a jlink error about the directory already existing).
-tasks.matching { it.name == "createRuntimeImage" }.configureEach {
+// The runtime image (jlink) is built here rather than by the Compose plugin's own `createRuntimeImage`,
+// which cannot work under Gradle 9: Gradle creates the task's declared output directory before the task
+// runs, the plugin re-creates it inside its own action, and `jlink --output` refuses a directory that
+// already exists. Deleting it from a `doFirst` does not help -- the plugin puts it back right before the
+// jlink process is launched (both verified with instrumentation; see PLAN.md P6 #1). Same tool, same module
+// list, invoked directly.
+val runtimeImageDir = layout.buildDirectory.dir("compose/tmp/main/runtime")
+val linkRuntimeImage by tasks.registering(Exec::class) {
+    description = "Builds the jlink runtime image that jpackage expects (replaces createRuntimeImage)."
+    notCompatibleWithConfigurationCache("jlink is invoked with an argument file written at execution time")
+    val argsFile = layout.buildDirectory.file("compose/tmp/linkRuntimeImage.args.txt")
+    // Deliberately *not* declared as an output: Gradle 9 creates a task's declared output directory before
+    // the task runs (and again after `doFirst`), and jlink refuses an existing `--output`. Nothing declares
+    // that directory as an input either, so the only cost is that this task always runs (~5 s).
+    val installation = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    val jlinkPath = installation.map { it.metadata.installationPath.file("bin/jlink").asFile.absolutePath }
     doFirst {
-        layout.buildDirectory.dir("compose/tmp/main/runtime").get().asFile.deleteRecursively()
+        val target = runtimeImageDir.get().asFile
+        target.deleteRecursively()
+        val args = argsFile.get().asFile
+        args.parentFile.mkdirs()
+        // The module set is what `:lyrico-app:suggestRuntimeModules` printed plus this app's own
+        // `nativeDistributions.modules(...)` declaration below -- keep the two in step if either changes.
+        args.writeText(
+            buildString {
+                // jlink's argument file is a list of arguments, so a module list needs the flag repeated
+                // (and quoted, like the plugin's own file does) -- one `--add-modules` followed by several
+                // names makes the extras positional arguments and jlink rejects them.
+                for (module in listOf("java.base", "java.desktop", "java.logging", "jdk.crypto.ec", "java.naming", "java.sql", "jdk.unsupported")) {
+                    appendLine("--add-modules")
+                    appendLine("\"" + module + "\"")
+                }
+                appendLine("--strip-debug")
+                appendLine("--no-header-files")
+                appendLine("--no-man-pages")
+                appendLine("--strip-native-commands")
+            },
+        )
+        // `--output` is passed on the command line rather than in the file: jlink reads an argument file with
+        // the platform's default charset (GBK here), so a non-ASCII path inside it (this repository lives
+        // under `03-应用`) is mis-decoded into a different directory -- which is why the plugin's own file
+        // failed with "directory already exists" for a directory that did not exist. The process arguments
+        // are passed as Unicode by the JVM, so the path survives.
+        commandLine(jlinkPath.get(), "@" + args.absolutePath, "--output", target.absolutePath)
     }
 }
+
+tasks.matching { it.name == "createRuntimeImage" }.configureEach { enabled = false }
 
 // jpackage reads the app resources through `prepareAppResources`, so that is the task that has to wait for
 // the staging copy (naming the packaging tasks themselves is not enough -- Gradle checks the direct reader).
 tasks.matching { it.name == "prepareAppResources" }.configureEach { dependsOn("stagePackaging") }
+tasks.matching { it.name in setOf("createDistributable", "packageMsi", "packageExe", "packageDistributionForCurrentOS") }
+    .configureEach { dependsOn("linkRuntimeImage") }
 
 // The desktop app runs on a non-ASCII project path; keep the sources/intermediate text encoding
 // explicit so that javac/kotlinc and any file IO agree with the GBK daemon setting in
@@ -235,6 +275,14 @@ compose.resources {
 
 // The UI test renders through the same Miuix theme as the app and additionally asserts that the
 // phase-1 native bridge loads in a plain JVM — so it needs the same lyrico.native.dir the app gets.
+// The development run gets the absolute native directory (the loader probes it first); the packaged app
+// must not, for the reason next to `jvmArgs` above.
+// (The Compose plugin creates `run` lazily, so it is matched by name and configured when it appears.)
+tasks.matching { it.name == "run" }.configureEach {
+    val nativeDir = rootProject.layout.projectDirectory.dir("build/native/windows-x64").asFile.absolutePath
+    (this as JavaExec).jvmArgs("-Dlyrico.native.dir=$nativeDir")
+}
+
 tasks.named<Test>("test") {
     val nativeDir = rootProject.layout.projectDirectory.dir("build/native/windows-x64").asFile.absolutePath
     systemProperty("lyrico.native.dir", nativeDir)
@@ -280,18 +328,21 @@ tasks.named<Test>("test") {
  * (`docs/third-party/ffmpeg-lgpl.md`).
  */
 val packagingDir = layout.buildDirectory.dir("packaging")
+// The Compose plugin looks at `appResourcesRootDir` while configuring its own resource task, so the
+// directory has to exist even before `stagePackaging` has run.
+packagingDir.get().asFile.mkdirs()
 tasks.register<Sync>("stagePackaging") {
     description = "Stages the native libraries and the ffmpeg sidecar for jpackage."
     into(packagingDir)
     from(rootProject.layout.projectDirectory.dir("build/native/windows-x64")) {
-        into("native")
+        into("common/native")
         include("*.dll")
     }
     from(rootProject.layout.projectDirectory.dir("build/ffmpeg/windows-x64")) {
-        into("ffmpeg/windows-x64")
+        into("common/ffmpeg/windows-x64")
         include("ffmpeg.exe", "LICENSE.txt")
     }
-    from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
+    from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md")) { into("common") }
 }
 
 /**
@@ -323,7 +374,9 @@ val portableDist by tasks.registering(Sync::class) {
         }
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(packagingDir) { into(".") }
+    // The staging directory is shaped for jpackage (`common/...`), but the portable layout has to match the
+    // runtime probes (<app>/native, <app>/ffmpeg/<platform>), so only `common`'s *contents* are copied.
+    from(packagingDir.map { it.dir("common") }) { into(".") }
     // The launcher and the readme are committed under `dist/` rather than written from string literals:
     // they are user-facing text, and a `.bat` needs its CRLF preserved.
     from(layout.projectDirectory.dir("dist"))
@@ -345,7 +398,11 @@ compose.desktop {
         // app; the loader resolves them through the lyrico.native.dir system property, defaulting to
         // the per-OS directory under build/native.
         val nativeDir = rootProject.layout.projectDirectory.dir("build/native/windows-x64").asFile.absolutePath
-        jvmArgs += listOf("-Dlyrico.native.dir=$nativeDir", "-Dlyrico.version=$version")
+        // Only the version goes into the packaged `.cfg`: an absolute Windows path in `jvmArgs` is written
+        // into that file verbatim and its backslashes are parsed as escapes by the launcher, which then
+        // cannot find the main class ("Could not find or load main class ativewindows-x64"). A packaged app
+        // resolves the libraries through the relative probes anyway, so the dev path belongs on `run`.
+        jvmArgs += listOf("-Dlyrico.version=$version")
 
         // The dev start-route override (`Main` -> `LyricoNavHost` -> `desktopStartDestination`) exists so
         // a screen with no in-app entry point yet can still be captured in the real window. Gradle's own
