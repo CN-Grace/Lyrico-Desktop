@@ -102,6 +102,7 @@ import com.lonx.lyrico.viewmodel.CharacterMappingViewModel
 import com.lonx.lyrico.viewmodel.CoverSearchViewModel
 import com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel
 import com.lonx.lyrico.viewmodel.EditMetadataViewModel
+import com.lonx.lyrico.viewmodel.FolderManagerViewModel
 import com.lonx.lyrico.viewmodel.LocalSearchViewModel
 import com.lonx.lyrico.viewmodel.LyricsSearchViewModel
 import com.lonx.lyrico.viewmodel.PluginViewModel
@@ -436,6 +437,19 @@ fun desktopAppModule(directories: AppDirectories) = module {
     }
     viewModel { SongListViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { SongSelectionViewModel(get(), get(), get(), get(), get()) }
+    // The folder manager and the settings screen both show folders, so the folder view model is part of
+    // this slice rather than of the folder-manager screen only. Every argument is named: three of these
+    // are repository-shaped and two are scopes, which is exactly the kind of list that compiles after a
+    // positional swap.
+    viewModel {
+        FolderManagerViewModel(
+            database = get(),
+            libraryScanManager = get(),
+            appScope = get(),
+            libraryIndexRepository = get(),
+            songLibraryRepository = get(),
+        )
+    }
     viewModel { SearchViewModel(get(), get(), get(), get()) }
     viewModel { LyricsSearchViewModel(get(), get(), get()) }
     viewModel { CoverSearchViewModel(get(), get(), get(), get()) }

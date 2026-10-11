@@ -1,0 +1,16 @@
+file: build\tmp-probe\c37c5-folder-songs.png
+engine: zh-Hans-CN
+lines: 13
+  y=10 x=31 :: Lyrico 1 ℃ 〔 5 3 〔 〕
+  y=106 x=29 :: 文 《 牛 夹 > demo-library >
+  y=108 x=222 :: 周 华 健 - 朋 友
+  y=135 x=29 :: O 个 艾 件 荚 《 2 首 曲
+  y=186 x=268 :: 文 件 荚 0
+  y=260 x=73 :: 周 华 儺 。 朋 友
+  y=324 x=73 :: 周 华 儺 。 朋 友
+  y=50 x=523 :: 周 华 健 - 朋 友
+  y=186 x=841 :: 歌 曲 （ 2 〕
+  y=243 x=1082 :: 住 03
+  y=261 x=1068 :: 128kbps
+  y=307 x=1082 :: 住 03
+  y=325 x=1072 :: 64kbps

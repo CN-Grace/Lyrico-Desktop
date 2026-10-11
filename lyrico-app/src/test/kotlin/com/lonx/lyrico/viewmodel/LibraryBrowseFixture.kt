@@ -65,7 +65,14 @@ class LibraryBrowseFixture {
  */
 class RecordingLibraryScanManager : LibraryScanManager {
 
-    override val state: StateFlow<LibraryScanState> = MutableStateFlow(LibraryScanState())
+    private val mutableState = MutableStateFlow(LibraryScanState())
+
+    override val state: StateFlow<LibraryScanState> = mutableState
+
+    /** Lets a test put the scanner into a state the view model has to surface (scanning/queued/error). */
+    fun emitScanState(state: LibraryScanState) {
+        mutableState.value = state
+    }
 
     data class ScanAllCall(val fullRescan: Boolean, val onSuccess: (suspend () -> Unit)?)
 

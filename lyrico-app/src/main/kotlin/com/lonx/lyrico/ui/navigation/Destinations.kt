@@ -174,6 +174,17 @@ data object ArtistPosterFoldersDestination : NavDirection {
     const val ROUTE = "artist_poster_folders"
 }
 
+/**
+ * The folder manager. Registered in C5: the screen is ported and its only Android entry point is a row
+ * in `SettingsScreen`, which arrives in C3 -- so until then the dev start-route override
+ * (`-Dlyrico.start.route=folder_manager`, see `LyricoNavHost`) is what makes it reachable.
+ */
+data object FolderManagerDestination : NavDirection {
+    override val route: String = ROUTE
+
+    const val ROUTE = "folder_manager"
+}
+
 // ---------------------------------------------------------------------------------------------
 // Ported in C5b: the plugin manager, the plugin config form, and the three search pages.
 //

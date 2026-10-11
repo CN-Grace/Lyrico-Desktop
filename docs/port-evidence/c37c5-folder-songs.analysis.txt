@@ -1,0 +1,36 @@
+file: docs\port-evidence\c37c5-folder-songs.png
+size: 1166x773
+distinct_colours: 508  most_common_share: 0.838  text_pixels: 7479
+accent_blue_pixels: 764  accent_warm_pixels: 141
+top_colours: (247, 247, 247)=755207, (255, 255, 255)=130677, (243, 243, 243)=2294, (25, 25, 25)=2261
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+#+##++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                        ..+.+ ..+                                        .+ +
+  # ++                                       +#+##..#++                                       ++ +
+  #                 ..... +.                                                                     +
+  # . ...+  +++.    +##++.##+                                                                    +
+  # .... . .#.++                                                                                 +
+  #                     ......                                         ++++.                     +
+  #                     ..+..                                          ++++.                     +
+  # +## ++.                                                                                    . +
+  #+### +..                                                                                    . +
+  #  +.                                                                                          +
+  #+### ##+                                                                                    + +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

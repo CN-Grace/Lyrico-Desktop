@@ -2042,6 +2042,90 @@ java 主树 44 → **42**；前沿 25 → **24**；被挡 19 → **18**；陈旧
 
 下一片 #37-C-3 是 `SettingsScreen`（836 行）。它现在被两个 java 树文件挡着：`ui/components/PainterUtils.kt`（`[ANDROID]`，在 #38 的作废清单里）和 `viewmodel/FolderManagerViewModel.kt`（C-5 才搬）。语言那一行的改写是确定的：`AppCompatDelegate.getApplicationLocales()[0]` → `uiState.appLanguage`，`setApplicationLocales(...)` → `settingsViewModel.setAppLanguage(...)`。
 
+### P5 施工批次（#37-C-5：文件夹管理页（视图模型 + 1312 行界面）+ 作废 UriUtils/SafDocuments，2026-10-11）
+
+顺序上 C-5 排在 C-3 前面，不是当初 `todo` 里的顺序，而是依赖逼出来的：`SettingsScreen` 的文件夹区直接 `koinViewModel()` 取 `FolderManagerViewModel`（前沿脚本把它列为 SettingsScreen 的两个阻塞之一），而 `FolderManagerViewModel` 自己又只等 `UriUtils`。先搬 C-5，C-3 的阻塞就只剩 `PainterUtils` 一个。
+
+#### 1. 搬了什么（`git mv` 2 个 + 路由 1 条 + 作废 2 个）
+
+| 动作 | 文件 |
+|---|---|
+| `git mv` | `viewmodel/FolderManagerViewModel.kt`（123 行，R0 改写量小） |
+| `git mv` | `screens/FolderManagerScreen.kt`（1312 行；26 处 `R.string` 走机械迁移，其余是手工縫合） |
+| 新路由 | `Destinations.kt` 的 `FolderManagerDestination` + `LyricoNavHost` 的注册 |
+| 作废 | `utils/UriUtils.kt`、`utils/SafDocuments.kt`（`git rm`） |
+
+作废这两个文件时机成熟了：C-5 之前 `UriUtils` 的最后一个消费者是 `FolderManagerScreen`/`FolderManagerViewModel`，SafDocuments 只剩它自己引用自己（`grep` 过两端，kotlin 树里只出现在 KDoc 注释中）。它们不是「被盖住的未搬代码」而是**被替换掉的机制**：桌面端选目录走 `DirectoryPicker`，拿到的就是路径，`DirectoryPicker` 的 KDoc 早就写着「`UriUtils` 因此根本没搬」。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **SAF 那一整套退场**：`rememberLauncherForActivityResult(OpenDocumentTree())` + `takePersistableUriPermission` + `UriUtils.getFileAbsolutePath` + `treeUri = uri.toString()` 全部换成 `rememberDirectoryPicker(title).pick()` 一次挂起调用，拿到 `File` 后 `viewModel.addFolder(path)`（VM 的 `addFolder` 也从 `(path, treeUri)` 变成只收 `path`）。
+2. **`Application` / `contentResolver` 从视图模型里消失**（`Application` 只用来拿 `contentResolver`）；删除文件夹时那句「释放持久化授权失败就 log.w」没有对应的失败可记，不是被吞掉了 —— 桌面端选目录不授予任何比进程活得更久的权限。
+3. **`BackHandler` 删掉**（和 `AlbumDetailScreen`/`LibraryHomeScreen` 同一条理由：桌面端没有系统返回手势）：菜单靠 `ExpandableFabMenu` 自己画的遮罩关，选择模式靠 `SongSelectionTopAppBar` 的关闭按钮退，回上一层靠面包屑。`PLAN.md` 把这处 UX 缺口记在这里，而不是用一个假手势藏起来。
+4. **`SongActionSheets` 的分享/复制改为显式传入**（桌面版把这两个动作拆到调用点：分享 = `selectionViewModel.share(listOf(song))`，复制 = `LocalClipboard` + `ClipEntry(StringSelection(text))`，与其它已搬的歌曲列表一致）；`batchShare` 换成 `share`（两条分享路径在桌面端都是「在资源管理器中显示」）。
+5. **加文件夹按钮补了 `contentDescription`**（安卓原文是 `null`，而同一页的排序图标就有 `cd_sort`）：图标按钮不能既读不出来也点不中，而测试要能命中它也得有个名字。
+6. **可空选择器参数**：`FolderManagerScreen(navigator, directoryPicker: DirectoryPicker? = null)`，函数体内 `?: rememberDirectoryPicker(...)` —— 和 `SongsPage` 一模一样的写法，理由也一样（可组合函数的默认参数不能调用可组合函数），这是测试能驱动「用户加了文件夹」的前提。
+
+#### 3. 顺手改掉的一个真 bug（路径分隔符）
+
+界面里有三处照安卓的字面写法取文件夹名字：
+
+```kotlin
+folder.path.substringAfterLast("/")   // 标题、行名、面包屑各一处
+```
+
+安卓的 SAF 路径是 `/` 分隔的，而桌面端存的是 **Windows 路径（反斜杠，见 `FolderDao.FOLDER_SEPARATOR`）**，所以这三处全部会把**整条路径**当名字显示出来 —— 文件夹标题会变成 `H:\VibeCoding\...\demo-library`。测试里那项「已存在的文件夹要能被列出」就是先挂在这里，改成 `File(path).name`（新增 `folderDisplayName` 并写了 KDoc）之后三处一起好。真窗口证据里 `demo-library` / `周华健 - 朋友` 这种短标题就是修好之后的形状（全路径退到副标题行）。
+
+同一批里同步修了四处 `stringResource(res, args)`：库自己的 vararg 格式化不会替换普通的 `%d`/`%s`（见 `formattedStringResource` 的 KDoc），`StringFormattingGuardTest` 在我把文件搬进来后立刻挂了。这批的四处都是安卓期就存在的写法，只是安卓树不在守卫的扫描范围里（只看 `src/main/kotlin`）。
+
+#### 4. 无头取证（新增 2 类 10 项；全量 136 类 / 1156 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+| 测试类 | 项 | 钉住的东西 |
+|---|---|---|
+| `viewmodel/FolderManagerViewModelTest` | 6 | 文件夹列表来自数据库且带上扫描状态；**删除文件夹会连子树一起删掉并剪索引**；**忽略是递归的**；「刷新这一个文件夹」向扫描器要的恰好是那个 id；「添加」只给路径（没有 tree uri 可给）；歌曲列表随选中文件夹与排序变化（排序断言先把 `titleSortKey` 真造出来，否则降序与升序在并列键上返回同一个顺序，测试会白过） |
+| `screens/FolderManagerScreenTest` | 4 | 真实 `NavHost` + 真 Koin 图 + 假 `DirectoryPicker`：选中的目录被**真扫描**（目录遍历 → TagLib → Room → 列表行）；取消选择不写任何东西；已存在的根目录不经选择器也会被列出（这一项就是分隔符 bug 的捕获网）；点进文件夹再切到「歌曲」页能看到里面的歌 |
+
+全量：上文 C-2 那节的 1146 → **1156** 项（+10），跳过仍 3。
+
+关于这次全量跑：搬完这一批后，连续两次全量各自掛了一项，而且**挂的不是同一个类** —— 第一次是 `ArtistPosterFoldersScreenTest`（“夹具目录必须可删”），第二次是 `BatchTaskSchedulerTest`（一个 10s 超时），两个类单独重跑都全绿。两次都能用一个机制解释，而且肇事的正是本批新增的测试：**DI 里那个 `CoroutineScope` 是一个 single，`stopKoin()` 不会取消它**。本批的屏幕测试会在它上面起一次真扫描，测试结束时临时目录被删，而扫描还在继续走已不存在的目录 —— 剩下的活就会算到别人的超时/删不掉文件上。处置：新测试的 `tearDown` 里先 `GlobalContext.get().get<CoroutineScope>().cancel()` 再 `stopKoin()`；改完连跑两次全量都是 136/1156/0/0/3。（#42 记的是同一族现象，但那一条的根系在别的测试里，本批只处理自己新引入的那一半。）
+
+#### 5. 真窗口取证（`docs/port-evidence/c37c5-*`）
+
+开发启动路由 `-Plyrico.start.route=folder_manager`（C5b 加的那个逃生口，因为这一页的正式入口在还没搬的设置页里），真数据目录（已播种的 `demo-library`）：
+
+| 文件 | 内容 | OCR 关键行 | 分析 |
+|---|---|---|---|
+| `c37c5-folder-manager.png` | 根级列表：`demo-library` 一行（名字 + 全路径副标题 + “4 个文件夹，24 首歌曲”） | `y=249 x=29 :: demo-llbrary`（OCR 把 i 读成 l）；`y=275` 是同一条全路径 | `VERDICT: OK`，主色占比 0.707 |
+| `c37c5-folder-manager-songs.png` | 点进根目录：面包屑 `文件夹 > demo-library`、4 个子文件夹各带数量 | `y=106 x=29 :: 文 件 夹 >`、`y=108 x=102 :: demo-llbrary`、`y=249 :: Earth, Wnd & Fire - September` | `VERDICT: OK` |
+| `c37c5-folder-songs.png` | 再点进 `周华健 - 朋友` 并切到「歌曲」页：三级面包屑 + 两行歌 | `y=106 :: 文 《 牛 夹 > demo-library >`、`y=108 :: 周 华 健 - 朋 友`、`y=186 x=841 :: 歌 曲 （ 2 〕` | `VERDICT: OK` |
+
+三张合起来是一条完整链：列表 → 进目录 → 进叶子并看里面的歌；而**第一张的 `demo-library` 就是分隔符 bug 修好后的直接证据**（没修之前那里会是整条 Windows 路径）。其余数字断言在无头测试里（真库、真扫描、真 Room），截图只负责「这一页在真实窗口里长得对」。
+
+#### 6. 这批实测出来的坑（都会再踩）
+
+1. **`ViewModelStore.put(...)` 编得过但跑不起**：`store.put("k", viewModel)` 能通过编译（lifecycle 2.11 的元数据里有），运行期抛 `NoSuchMethodError: put(String, ViewModel)`。想「在测试里拥有 VM 的 scope」就得走 `ViewModelProvider.create(store, factory)`（工厂里返回实例）——本批的 `FolderManagerViewModelTest` 就是这么写的，并在 KDoc 里把这个坑标出来了。
+2. **`awaitUntil` 的 `describe` 不是 suspend 的**：直接在里面读 DAO（suspend）会编译不过（“Suspension functions can only be called within coroutine body”）。做法是用一个收集器把 DAO 的 flow 镜像到 `AtomicReference`，再对快照轮询（顺便让断言落在“用户会看到的那条流”上）。
+3. **排序断言不造 sort key 就是空断言**：`titleSortKey` 默认是 `"#"`，并列键下 `ASC` 与 `DESC` 返回同一个顺序 —— 得先用 `SortKeyUpdater().update(song)` 造出键，否则“降序”这条测不出任何东西。
+4. **短音频默认被丢弃**：TagLib 的夹具都短于一分钟，而应用默认 `ignoreShortAudio = true`，不先 `saveIgnoreShortAudio(false)` 的话扫描结果为空——正是这条让本批的一项测试先超时。
+5. **图标按钮没有文字，`onNodeWithText` 找不到**：要么补 `contentDescription` 再用 `onNodeWithContentDescription`，要么测试根本点不到。
+6. **页签文案带计数，而同一页的统计行也含同一个词**：`onNodeWithText("歌曲", substring = true)` 会命中两个节点（页签 + “0 个文件夹，1 首歌曲”），要么用完整标签（`"歌曲 (1)"`），要么按索引取。
+7. **`File(dir, name)` 与 `Path.resolve` 不能互换**：夹具里混用两者会得到 “actual type is File, but Path! was expected” 这类报错；`placeFixture` 保留 `Path`，测试里那些“给扫描器一个路径”的地方用 `File`。
+8. **`SongEntity.path` 是 `java.nio.file.Path` 扩展属性**（不是字符串）：断言文件名要用 `stored.path.fileName` 或直接用 `stored.fileName`。
+9. **`StringFormattingGuardTest` 是搬文件时就生效的**：安卓树不在它的扫描范围（只看 `src/main/kotlin`），所以一批安卓期的 `stringResource(res, args)` 会在文件搬进来的那一刻才被发现。搬大文件时先跑一次全量，比最后才发现便宜。
+10. **`stopKoin()` 不会取消 DI 里的 `CoroutineScope`**：那是一个 `single`，测试结束后它上面的协程（真扫描、真 IO）会继续跑，还拿着马上就要被删的临时目录 —— 表现为**别的不相干的类**超时或删不掉文件。新写的屏幕测试要在 `tearDown` 里先 `cancel()` 再 `stopKoin()`（见本节第 4 条）。
+
+#### 7. 用户可见缺口（如实记录）
+
+1. **没有系统返回手势**：安卓的 `BackHandler` 在桌面端没有对应物，所以“回上一层”只能点面包屑或子目录列表。与 `AlbumDetailScreen` / `LibraryHomeScreen` / `EditMetadataScreen` 是同一处缺口（那几处已记录）。
+2. **文件夹行的“在资源管理器中显示”与“复制”分工**：安卓的分享/复制在桌面端统一成 reveal + 剪贴板（组件 KDoc 里写明），与其它歌曲列表一致，但和安卓的分享面板不是一一对应。
+3. **这一页现在只能从开发路由（`-Dlyrico.start.route=folder_manager`）到达**：正式入口是设置页里那一行，而设置页要到 C-3 —— 与本批之前 `artist_poster_folders` 的状态相同。
+
+#### 8. 前沿（本批收口）
+
+java 主树 42 → **38**（搬走 2 + 作废 2）；前沿 **24 → 22**（两个搬走的不在前沿，两个作废的在）；被挡 18 → **16**；陈旧副本 **0**。
+
+算术：搬走的 2 个（`FolderManagerScreen` / `FolderManagerViewModel`）本在**被挡**名单，它们一走被挡就 18 → 16；作废的 2 个（`UriUtils` / `SafDocuments`）本在**前沿**，所以前沿 24 → 22。`SettingsScreen` 的阻塞列表从两项剩到一项（只剩 `PainterUtils.kt`），下一个切片 C-3 就是它。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：

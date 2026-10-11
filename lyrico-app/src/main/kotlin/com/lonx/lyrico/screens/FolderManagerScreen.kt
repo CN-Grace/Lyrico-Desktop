@@ -1,9 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.content.Intent
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
@@ -53,13 +49,40 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_refresh_folder
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.cd_sort
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.dialog_remove_folder_content_tip
+import com.lonx.lyrico.resources.dialog_remove_folder_title
+import com.lonx.lyrico.resources.folder_action_hide
+import com.lonx.lyrico.resources.folder_action_remove
+import com.lonx.lyrico.resources.folder_action_show
+import com.lonx.lyrico.resources.folder_browser_count_format
+import com.lonx.lyrico.resources.folder_child_song_count_format
+import com.lonx.lyrico.resources.folder_hidden_child_song_count_format
+import com.lonx.lyrico.resources.action_add_folder
+import com.lonx.lyrico.resources.folder_manager_title
+import com.lonx.lyrico.resources.folder_root_path
+import com.lonx.lyrico.resources.folder_scan_failed
+import com.lonx.lyrico.resources.folder_scan_queued
+import com.lonx.lyrico.resources.folder_scanning
+import com.lonx.lyrico.resources.folder_tab_folders
+import com.lonx.lyrico.resources.folder_tab_songs
+import com.lonx.lyrico.resources.sort_ascending
+import com.lonx.lyrico.resources.sort_descending
+import com.lonx.lyrico.resources.swipe_selection_enter_selection
+import com.lonx.lyrico.resources.swipe_selection_range_end
+import com.lonx.lyrico.resources.swipe_selection_range_start
 import com.lonx.lyrico.data.model.entity.FolderEntity
 import com.lonx.lyrico.data.model.entity.SongEntity
 import com.lonx.lyrico.ui.components.bar.SongBatchSelectionActions
@@ -68,18 +91,16 @@ import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
 import com.lonx.lyrico.ui.components.song.SongActionSheets
 import com.lonx.lyrico.ui.components.song.SongListItem
 import com.lonx.lyrico.ui.components.song.SongListItemActions
-import com.lonx.lyrico.utils.UriUtils
+import com.lonx.lyrico.platform.DirectoryPicker
+import com.lonx.lyrico.platform.rememberDirectoryPicker
+import com.lonx.lyrico.ui.navigation.EditMetadataDestination
+import com.lonx.lyrico.ui.navigation.Navigator
 import com.lonx.lyrico.viewmodel.FolderManagerViewModel
 import com.lonx.lyrico.viewmodel.SongSelectionViewModel
 import com.lonx.lyrico.viewmodel.SortBy
 import com.lonx.lyrico.viewmodel.SortInfo
 import com.lonx.lyrico.viewmodel.SortOrder
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.EditMetadataDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -101,13 +122,19 @@ import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import com.lonx.lyrico.utils.formattedStringResource
+import java.awt.datatransfer.StringSelection
+import java.io.File
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.window.WindowDialog
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-@Destination<RootGraph>(route = "folder_manager")
 fun FolderManagerScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator,
+    // [directoryPicker] 是可空的唯一原因和 `SongsPage` 一样：可组合函数的默认参数不能调用可组合函数，
+    // 所以真实选择器在函数体里按需构造，测试则从这个参数把假的选择器塞进来。
+    directoryPicker: DirectoryPicker? = null,
 ) {
     val viewModel: FolderManagerViewModel = koinViewModel()
     val selectionViewModel: SongSelectionViewModel = koinViewModel()
@@ -117,18 +144,19 @@ fun FolderManagerScreen(
     val currentFolderSongs by viewModel.currentFolderSongs.collectAsState()
     val isSelectionMode by selectionViewModel.isSelectionMode.collectAsState()
     val selectedSongUris by selectionViewModel.selectedSongUris.collectAsState()
+    val clipboardManager = LocalClipboard.current
     val swipeAnchorUri by selectionViewModel.swipeAnchorUri.collectAsState()
     val swipeSelectionLabel = stringResource(
         if (!isSelectionMode) {
-            R.string.swipe_selection_enter_selection
+            Res.string.swipe_selection_enter_selection
         } else if (swipeAnchorUri == null) {
-            R.string.swipe_selection_range_start
+            Res.string.swipe_selection_range_start
         } else {
-            R.string.swipe_selection_range_end
+            Res.string.swipe_selection_range_end
         }
     )
     val swipeSelectionSecondaryLabel = if (!isSelectionMode) {
-        stringResource(R.string.swipe_selection_range_start)
+        stringResource(Res.string.swipe_selection_range_start)
     } else {
         null
     }
@@ -137,8 +165,6 @@ fun FolderManagerScreen(
     val folderTree = remember(folders) {
         buildFolderTree(folders)
     }
-    val context = LocalContext.current
-
     var currentFolderId by rememberSaveable { mutableLongStateOf(ROOT_FOLDER_ID) }
     var selectedFolderId by rememberSaveable { mutableLongStateOf(ROOT_FOLDER_ID) }
     var folderContentTransition by remember { mutableStateOf<FolderContentTransition?>(null) }
@@ -185,32 +211,24 @@ fun FolderManagerScreen(
     } else {
         emptyList()
     }
-    val rootPathLabel = stringResource(R.string.folder_root_path)
+    val rootPathLabel = stringResource(Res.string.folder_root_path)
     val currentBreadcrumbs = remember(currentFolder, currentNode, folderTree, rootPathLabel) {
         buildFolderBreadcrumbs(currentFolder, currentNode, folderTree, rootPathLabel)
     }
     val showConfirmDialog = remember { mutableStateOf(false) }
 
-    val folderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        uri?.let {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+    // 桌面端没有回调式的目录选择器：选完直接拿到路径，直接投给 ViewModel。
+    //
+    // 安卓那边这一步拿到的是 tree uri，还要 takePersistableUriPermission 再换成人能读的路径；桌面端
+    // 两者都不需要（[rememberDirectoryPicker] 的 KDoc 写了为什么 UriUtils 根本没搬）。
+    val folderPicker = directoryPicker ?: rememberDirectoryPicker(
+        title = stringResource(Res.string.action_add_folder)
+    )
 
-            try {
-                context.contentResolver.takePersistableUriPermission(it, flags)
-            } catch (e: SecurityException) {
-                e.printStackTrace()
-            }
-
-            val path = UriUtils.getFileAbsolutePath(context, it)
-                ?: it.toString()
-
-            viewModel.addFolder(
-                path = path,
-                treeUri = it.toString()
-            )
+    fun addFolder() {
+        scope.launch {
+            val folder = folderPicker.pick() ?: return@launch
+            viewModel.addFolder(folder.absolutePath)
         }
     }
 
@@ -227,21 +245,10 @@ fun FolderManagerScreen(
         currentFolderId = folderId
     }
 
-    BackHandler(enabled = isSelectionMode || currentFolder != null) {
-        when {
-            isFabMenuExpanded -> {
-                isFabMenuExpanded = false
-            }
-
-            isSelectionMode -> {
-                selectionViewModel.exitSelectionMode()
-            }
-
-            currentFolder != null -> {
-                navigateToFolder(parentFolder?.id ?: ROOT_FOLDER_ID, forward = false)
-            }
-        }
-    }
+    // 安卓在这里挂了一个 BackHandler（关 FAB 菜单 / 退出选择模式 / 回到上一层文件夹）。桌面端没有系统
+    // 返回手势 —— `AlbumDetailScreen` 的 KDoc 记了同一处删减 —— 于是：菜单靠 `ExpandableFabMenu` 自己画
+    // 的遮罩关，选择模式靠 `SongSelectionTopAppBar` 的关闭按钮退，回到上一层靠面包屑/子文件夹列表里的
+    // 那一条。`PLAN.md` 把这处 UX 缺口记下来，而不是用一个假的手势把它藏起来。
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -284,12 +291,10 @@ fun FolderManagerScreen(
                     } else {
                         SmallTopAppBar(
                             title = if (currentFolderId == ROOT_FOLDER_ID) {
-                                stringResource(R.string.folder_manager_title)
+                                stringResource(Res.string.folder_manager_title)
                             } else {
-                                currentFolder?.path
-                                    ?.substringAfterLast("/")
-                                    ?.ifBlank { currentFolder.path }
-                                    ?: stringResource(R.string.folder_manager_title)
+                                currentFolder?.let { folderDisplayName(it.path) }
+                                    ?: stringResource(Res.string.folder_manager_title)
                             },
                             navigationIcon = {
                                 IconButton(
@@ -313,11 +318,13 @@ fun FolderManagerScreen(
                             actions = {
                                 if (currentFolderId == ROOT_FOLDER_ID) {
                                     IconButton(
-                                        onClick = { folderPickerLauncher.launch(null) }
+                                        onClick = { addFolder() }
                                     ) {
                                         Icon(
                                             imageVector = MiuixIcons.AddFolder,
-                                            contentDescription = null
+                                            // 安卓原本这里是 null（图标旁没有文字）；桌面端补上描述：同一页的
+                                            // 排序图标就有 `cd_sort`，而一个只能靠位置猜的按钮既读不出来也点不中。
+                                            contentDescription = stringResource(Res.string.action_add_folder)
                                         )
                                     }
                                 }
@@ -338,8 +345,8 @@ fun FolderManagerScreen(
                                                 summary = if (isSelected) {
                                                     stringResource(
                                                         when (sortInfo.order) {
-                                                            SortOrder.ASC -> R.string.sort_ascending
-                                                            SortOrder.DESC -> R.string.sort_descending
+                                                            SortOrder.ASC -> Res.string.sort_ascending
+                                                            SortOrder.DESC -> Res.string.sort_descending
                                                         }
                                                     )
                                                 } else {
@@ -372,7 +379,7 @@ fun FolderManagerScreen(
                                     ) {
                                         Icon(
                                             imageVector = MiuixIcons.Sort,
-                                            contentDescription = stringResource(R.string.cd_sort)
+                                            contentDescription = stringResource(Res.string.cd_sort)
                                         )
                                     }
                                 }
@@ -385,7 +392,7 @@ fun FolderManagerScreen(
         ) { paddingValues ->
             selectedFolder?.let { folder ->
                 WindowDialog(
-                    title = stringResource(R.string.dialog_remove_folder_title),
+                    title = stringResource(Res.string.dialog_remove_folder_title),
                     show = showConfirmDialog.value,
                     onDismissRequest = { showConfirmDialog.value = false }
                 ) {
@@ -399,7 +406,7 @@ fun FolderManagerScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = stringResource(R.string.dialog_remove_folder_content_tip),
+                            text = stringResource(Res.string.dialog_remove_folder_content_tip),
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             fontSize = MiuixTheme.textStyles.body2.fontSize
                         )
@@ -410,7 +417,7 @@ fun FolderManagerScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             TextButton(
-                                text = stringResource(R.string.cancel),
+                                text = stringResource(Res.string.cancel),
                                 onClick = {
                                     showConfirmDialog.value = false
                                 },
@@ -420,7 +427,7 @@ fun FolderManagerScreen(
                             Spacer(Modifier.width(20.dp))
 
                             TextButton(
-                                text = stringResource(R.string.confirm),
+                                text = stringResource(Res.string.confirm),
                                 onClick = {
                                     showConfirmDialog.value = false
                                     viewModel.deleteFolder(folder)
@@ -456,7 +463,7 @@ fun FolderManagerScreen(
 
                 uiState.error?.let { error ->
                     Text(
-                        text = stringResource(R.string.folder_scan_failed, error),
+                        text = formattedStringResource(Res.string.folder_scan_failed, error),
                         fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                         color = MiuixTheme.colorScheme.error,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
@@ -471,8 +478,8 @@ fun FolderManagerScreen(
                 ) {
                     TabRowWithContour(
                         tabs = listOf(
-                            "${stringResource(R.string.folder_tab_folders)} (${currentChildFolders.size})",
-                            "${stringResource(R.string.folder_tab_songs)} (${currentSongs.size})"
+                            "${stringResource(Res.string.folder_tab_folders)} (${currentChildFolders.size})",
+                            "${stringResource(Res.string.folder_tab_songs)} (${currentSongs.size})"
                         ),
                         selectedTabIndex = pagerState.currentPage,
                         onTabSelected = { index ->
@@ -536,7 +543,15 @@ fun FolderManagerScreen(
                 onShowDelete = { showDeleteDialog = true },
                 onShowRename = { showRenameDialog = true },
                 onPlay = { song ->
-                    selectionViewModel.play(context, song)
+                    selectionViewModel.play(song)
+                },
+                onShare = { song -> selectionViewModel.share(listOf(song)) },
+                onCopy = { text ->
+                    scope.launch {
+                        // The same AWT-backed clipboard call the other ported song lists make; in a
+                        // headless test Compose resolves `LocalClipboard` to a no-op.
+                        clipboardManager.setClipEntry(ClipEntry(StringSelection(text)))
+                    }
                 },
                 onDelete = { song ->
                     selectionViewModel.delete(song)
@@ -556,12 +571,23 @@ fun FolderManagerScreen(
             onExpandedChange = { isFabMenuExpanded = it },
             onSetSelectionUris = selectionViewModel::setSelectionUris,
             onBatchDelete = selectionViewModel::batchDelete,
-            onBatchShare = selectionViewModel::batchShare
+            // 安卓的 `batchShare`；桌面端两条分享路径都是「在资源管理器中显示」（见该组件 KDoc）。
+            onBatchShare = selectionViewModel::share
         )
     }
 }
 
 private const val ROOT_FOLDER_ID = -1L
+
+/**
+ * 文件夹在界面上显示的名字。
+ *
+ * 安卓那边 SAF 存下来的路径是 `/` 分隔的，所以取名字就是 `substringAfterLast("/")`；桌面端存的是
+ * Windows 路径（反斜杠，见 `FolderDao.FOLDER_SEPARATOR`），只按 `/` 切会把**整条路径**当成名字显示出来。
+ * 这里交给 `File.name`：两种分隔符都认，空名字与末尾分隔符也一并处理掉。
+ */
+private fun folderDisplayName(path: String): String =
+    File(path).name.ifBlank { path }
 
 private data class FolderContentTransition(
     val fromFolderId: Long,
@@ -595,7 +621,7 @@ private fun FolderPagerSlideContent(
     swipeSelectionLabel: String,
     swipeSelectionSecondaryLabel: String?,
     topAppBarScrollBehavior: ScrollBehavior,
-    navigator: DestinationsNavigator,
+    navigator: Navigator,
     selectionViewModel: SongSelectionViewModel,
     onFolderClick: (FolderEntity) -> Unit,
     onDeleteFolder: (FolderEntity) -> Unit,
@@ -723,7 +749,7 @@ private fun FolderPageSlideContent(
     swipeSelectionLabel: String,
     swipeSelectionSecondaryLabel: String?,
     topAppBarScrollBehavior: ScrollBehavior,
-    navigator: DestinationsNavigator,
+    navigator: Navigator,
     selectionViewModel: SongSelectionViewModel,
     onFolderClick: (FolderEntity) -> Unit,
     onDeleteFolder: (FolderEntity) -> Unit,
@@ -843,7 +869,7 @@ private fun FolderPage(
     swipeSelectionLabel: String,
     swipeSelectionSecondaryLabel: String?,
     topAppBarScrollBehavior: ScrollBehavior,
-    navigator: DestinationsNavigator,
+    navigator: Navigator,
     selectionViewModel: SongSelectionViewModel,
     onFolderClick: (FolderEntity) -> Unit,
     onDeleteFolder: (FolderEntity) -> Unit,
@@ -880,8 +906,7 @@ private fun FolderPage(
                 onSongClick = { song ->
                     navigator.navigate(
                         EditMetadataDestination(songFileUri = song.uri)
-                    )
-                },
+                    )                },
                 onToggleSelection = { song ->
                     selectionViewModel.toggleSelection(song.uri)
                 },
@@ -1098,7 +1123,7 @@ private fun FolderPathHeader(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = stringResource(R.string.folder_browser_count_format, folderCount, songCount),
+                text = formattedStringResource(Res.string.folder_browser_count_format, folderCount, songCount),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = MiuixTheme.textStyles.body2.fontSize
             )
@@ -1119,28 +1144,28 @@ private fun FolderListItem(
     onRefresh: () -> Unit,
     onIgnoredChange: (Boolean) -> Unit
 ) {
-    val folderName = folder.path.substringAfterLast("/").ifBlank { folder.path }
+    val folderName = folderDisplayName(folder.path)
     val isBusy = isScanning || isQueued || isSelectionMode
     val statusText = when {
         isScanning -> {
-            stringResource(R.string.folder_scanning)
+            stringResource(Res.string.folder_scanning)
         }
 
         isQueued -> {
-            stringResource(R.string.folder_scan_queued)
+            stringResource(Res.string.folder_scan_queued)
         }
 
         folder.isIgnored -> {
-            stringResource(
-                R.string.folder_hidden_child_song_count_format,
+            formattedStringResource(
+                Res.string.folder_hidden_child_song_count_format,
                 node.childFolders.size,
                 node.subtreeSongCount
             )
         }
 
         else -> {
-            stringResource(
-                R.string.folder_child_song_count_format,
+            formattedStringResource(
+                Res.string.folder_child_song_count_format,
                 node.childFolders.size,
                 node.subtreeSongCount
             )
@@ -1151,9 +1176,9 @@ private fun FolderListItem(
         add(
             DropdownItem(
                 text = if (folder.isIgnored) {
-                    stringResource(R.string.folder_action_show)
+                    stringResource(Res.string.folder_action_show)
                 } else {
-                    stringResource(R.string.folder_action_hide)
+                    stringResource(Res.string.folder_action_hide)
                 },
                 onClick = {
                     onIgnoredChange(!folder.isIgnored)
@@ -1163,7 +1188,7 @@ private fun FolderListItem(
 
         add(
             DropdownItem(
-                text = stringResource(R.string.action_refresh_folder),
+                text = stringResource(Res.string.action_refresh_folder),
                 onClick = {
                     if (!isBusy) {
                         onRefresh()
@@ -1175,7 +1200,7 @@ private fun FolderListItem(
         if (canRemove) {
             add(
                 DropdownItem(
-                    text = stringResource(R.string.folder_action_remove),
+                    text = stringResource(Res.string.folder_action_remove),
                     onClick = {
                         if (!isBusy) {
                             onDelete()
@@ -1235,8 +1260,7 @@ private fun buildFolderBreadcrumbs(
             add(
                 FolderBreadcrumb(
                     folderId = ancestor.folder.id,
-                    label = ancestor.folder.path.substringAfterLast("/")
-                        .ifBlank { ancestor.folder.path }
+                    label = folderDisplayName(ancestor.folder.path)
                 )
             )
         }
