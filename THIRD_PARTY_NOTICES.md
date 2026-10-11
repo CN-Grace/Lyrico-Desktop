@@ -2,7 +2,10 @@
 
 This file lists third-party source components that are vendored in this repository or built into the app outside the ordinary Gradle dependency metadata.
 
-Gradle and Android dependencies are shown in the app's open-source licenses screen, generated with AboutLibraries.
+Gradle dependencies are listed in the app's own open-source licenses screen. That list is
+**maintained by hand** in `lyrico-app/src/main/kotlin/com/lonx/lyrico/data/model/AppLicence.kt` (the
+Android build generated it with the AboutLibraries plugin; the desktop build has no such plugin), so a
+dependency added to `gradle/libs.versions.toml` also has to be added there.
 
 | Component | Usage | License | Notice |
 | --- | --- | --- | --- |

@@ -2771,3 +2771,56 @@ C-1 发现这批文件时（见 #37-C-1 第 2 节）定下的规则是：**主�
 #### 3. 口径变化
 
 全量从 C 簇结束时的 144 类 / 1190 项变成 **158 类 / 1279 项**：+14 类 / +89 项，全部来自这一批迁进来的死测试（它们此前从未在桌面端跑过，其中 `ArtistPosterFileNamingTest`、`ArtistPosterEmbeddingTest`、`MatchMetadataProcessorTest` 是 90–198 行的大文件）。**从此「全量」的口径第一次覆盖了那些测试原本想覆盖的逻辑**。
+
+## P6（#7 打包发布 + #6 端到端验收）
+
+### P5/P6 施工批次（#7：Windows 便携包 + 许可随包，2026-10-11）
+
+#### 1. 这一批交付了什么
+
+`./gradlew :lyrico-app:portableZip` 产出一个可以直接跑的 Windows 便携包：
+
+```
+lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
+  115.0 MiB, sha256 841b7c0b01dbe3a5487d532bc7f19a281978e8ce9be71441255467cf86f8f78c
+  Lyrico.bat                启动器（要求 Java 21+；用 JAVA_HOME 或 PATH 里的 java）
+  README.txt                布局说明
+  THIRD_PARTY_NOTICES.md    第三方组件清单
+  app/                      100 个 jar：应用 + 全部运行时依赖
+  native/                   taglib.dll / ebur128.dll / quickjs-ng.dll
+  ffmpeg/windows-x64/       ffmpeg.exe + LICENSE.txt（LGPL v3 的随包义务）
+```
+
+三条线索把它拼起来（都写进 `lyrico-app/build.gradle.kts`）：
+
+1. **`stagePackaging`（`Sync`）**把 `build/native/windows-x64/*.dll`、`build/ffmpeg/windows-x64/{ffmpeg.exe,LICENSE.txt}` 与 `THIRD_PARTY_NOTICES.md` 摆成两个加载器在打包布局下探测的形状（`NativeLibraryLoader` 与 `FfmpegSidecar` 的 KDoc 里各写着 `<cwd>/native` 与 `<cwd>/ffmpeg/<platform>`）。
+2. **`portableDist`（`Sync`）**把 `jar` + `configurations.runtimeClasspath` 收进 `app/`，把上面的暂存目录收进根，再把 `lyrico-app/dist/` 里的启动器与说明拷进去。
+3. **`portableZip`（`Zip`）**打成一个 zip。
+
+启动器与说明是**仓库里的文件**（`lyrico-app/dist/Lyrico.bat`、`README.txt`）而不是从字符串字面量生成的：`.bat` 需要 CRLF，用户要能直接审阅这段文本。
+
+#### 2. 为什么不是 MSI / jpackage 的 app image
+
+`compose.desktop` 里 `targetFormats(Msi, Exe)` 与 `appResourcesRootDir` **都配好了**，但这台机器上两条路都跑不通，原因分开记：
+
+1. **MSI/EXE 需要 WiX v3**：`./gradlew :lyrico-app:packageMsi` 会去下载/解压 WiX，而本机没有 WiX 工具集（`downloadWix` 是插件自带的那条路，试运行时 `:downloadWix SKIPPED`）。
+2. **`createDistributable` 在 Gradle 9 + Compose 1.12 下被 jlink 拒绝**：失败信息是 jlink 的「目录已存在」（`错误: 目录已存在：…\build\compose\tmp\main\runtime`）。原因是 **Gradle 9 会在任务执行前创建任务的 `@OutputDirectory`**，而 `jlink --output <dir>` 要求那个目录**不存在**；插件自身的类（`AbstractJLinkTask`）里没有删除该目录的代码（`javap` 查过），所以这条组合在本环境里必然失败。试过在 `createRuntimeImage` 上挂 `doFirst { deleteRecursively() }`，无效（插件在任务动作里又建了一次），改动没有保留。
+
+两者都**不影响交付**：便携包用已安装的 JVM 跑（`Lyrico.bat` 里 `-cp "app\*"`），只要 Java 21+；`appResourcesRootDir` 的设置留着，将来若修好 jlink 那一条，MSI 会连带把同一批 native/ffmpeg 打进去。
+
+#### 3. 真机验收（`docs/port-evidence/c7-portable-*`）
+
+在**分发目录里**（不是仓库里）双击等效路径 `Lyrico.bat` 启动：
+
+| 证据 | 内容 |
+|---|---|
+| `c7-portable.png` + `.ocr.txt` + `.analysis.txt` | 应用窗口起来并渲染**首次运行的空白态**（`歌曲（0）`、rail 三项、`尚未添加文件夹` + 「添加文件夹」按钮），`VERDICT: OK`、767 种颜色、正文像素 7037 |
+| 启动日志（本次记录在 PLAN） | `数据目录=…\portable\Lyrico\data (便携模式)` —— 便携包把数据放在自己目录下；`[INFO] taglib: loaded native library from …\portable\Lyrico\native\taglib.dll` —— **打包布局下的原生库探测真的生效**（这是便携布局存在的理由）；`native OK` |
+| `c7-portable-package.txt` | 包清单：115.0 MiB、sha256、108 个文件项、`app/` 100 个 jar、native 三个 dll、ffmpeg + LICENSE.txt、启动器全文 |
+
+#### 4. 这批实测出来的坑（都会再踩）
+
+1. **Kotlin 的块注释会嵌套**：我在 `build.gradle.kts` 的 KDoc 里写了 `` `<install>/native/*.dll` ``，其中的 `/*` 打开了一个**内层**块注释，于是 KDoc 的 `*/` 只关掉了内层，**文件后面所有内容都变成了注释——而且照样能编译**。症状极具迷惑性：`compose.desktop` 块里的 `packageName`、`createDistributable` 任务全都「消失」了，但构建成功。定位手法是用 `println`/`require(false)` 在文件里分段插桩（注意：插桩本身要先保证不引入新语法错误）。**规则：注释里永远不要出现 `/*`**。
+2. **扁平拷贝 jar 会按文件名互撞**：Compose 的同一个传递依赖会出现两个同名但不同内容的 jar（真 jar 与 stub），`duplicatesStrategy = EXCLUDE` 留下错的那个，症状是启动时 `NoClassDefFoundError: androidx/compose/runtime/Composer`。做法是 `eachFile` 里重名就加 `-altN` 后缀，一起进 `app/`（类路径会按顺序取到需要的那份）。
+3. **不要把 `build/compose/tmp` 手动删掉**：Gradle 的执行历史会认为运行时镜像任务仍然 up-to-date，于是它不再重建，而 `createDistributable` 的输入校验会说目录不存在。要么 `--rerun-tasks`，要么干脆别删。
+4. **`Zip`/`Sync` 的清单脚本要按第一段路径解析**：我第一版把 `Lyrico/` 当成 zip 里的前缀，写出来的清单看起来像「jar 全在根目录」；实际布局是对的（`app/`、`native/`、`ffmpeg/`），错的是那份统计脚本。

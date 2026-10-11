@@ -8,12 +8,12 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 // libraries are built out-of-band by scripts/build-native.ps1 into build/native/windows-x64/ and are
 // loaded from the JVM at runtime (see lyrico-audiotag's NativeLibraryLoader).
 //
-// Source layout during the port (PLAN.md phase 2 → 4):
-//   src/main/kotlin  — desktop sources (this phase: the application shell only)
-//   src/main/java    — the original Android source tree; still unconsumed. Files are moved over with
-//                      `git mv` as they are ported (phase 3/4), and the directory is deleted at the
-//                      end of phase 4 together with AndroidManifest.xml and src/main/res.
-//   src/test/java    — the original Android unit tests; unconsumed, same migration path.
+// Source layout (the port is finished -- `src/main/java`, `src/test/java`, `src/androidTest`,
+// `AndroidManifest.xml` and `src/main/res` are gone; see PLAN.md #38/#62):
+//   src/main/kotlin           — every desktop source
+//   src/main/composeResources — strings and drawables (the Android `res/` replacement)
+//   src/main/cpp              — the native sidecars built by scripts/build-native.ps1 (ebur128, quickjs-ng)
+//   src/test/kotlin           — every test
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.compose)
@@ -96,6 +96,21 @@ kotlin {
 tasks.withType<KotlinCompile>().configureEach {
     dependsOn(generateBuildInfo)
 }
+
+// `jlink --output <dir>` refuses to write into a directory that already exists, and Gradle 9 creates a
+// task's `@OutputDirectory` before the task runs -- so the runtime-image task has to remove the directory
+// again just before jlink is launched. `doFirst` runs last-registered-first, so this runs after Gradle's
+// own creation and before the plugin's jlink call. Remove it if a future Compose/Gradle pair drops the
+// eager creation (the symptom is a jlink error about the directory already existing).
+tasks.matching { it.name == "createRuntimeImage" }.configureEach {
+    doFirst {
+        layout.buildDirectory.dir("compose/tmp/main/runtime").get().asFile.deleteRecursively()
+    }
+}
+
+// jpackage reads the app resources through `prepareAppResources`, so that is the task that has to wait for
+// the staging copy (naming the packaging tasks themselves is not enough -- Gradle checks the direct reader).
+tasks.matching { it.name == "prepareAppResources" }.configureEach { dependsOn("stagePackaging") }
 
 // The desktop app runs on a non-ASCII project path; keep the sources/intermediate text encoding
 // explicit so that javac/kotlinc and any file IO agree with the GBK daemon setting in
@@ -252,6 +267,76 @@ tasks.named<Test>("test") {
     systemProperty("lyrico.devTheme", providers.gradleProperty("lyrico.devTheme").getOrElse(""))
 }
 
+/**
+ * The files a packaged app has to carry that Gradle knows nothing about.
+ *
+ * Both loaders probe *relative* directories next to the launcher once the app is installed
+ * (`<install>/native/<lib>.dll`, `<install>/ffmpeg/<platform>/ffmpeg.exe` -- see `NativeLibraryLoader` and
+ * `FfmpegSidecar`), and both of those are build outputs under `build/`, which is not committed. So they are
+ * staged here at build time and handed to jpackage through `appResourcesRootDir`; the dev-time
+ * `-Dlyrico.native.dir` absolute path stays a dev convenience.
+ *
+ * ffmpeg's `LICENSE.txt` travels with the binary because that is the LGPL obligation
+ * (`docs/third-party/ffmpeg-lgpl.md`).
+ */
+val packagingDir = layout.buildDirectory.dir("packaging")
+tasks.register<Sync>("stagePackaging") {
+    description = "Stages the native libraries and the ffmpeg sidecar for jpackage."
+    into(packagingDir)
+    from(rootProject.layout.projectDirectory.dir("build/native/windows-x64")) {
+        into("native")
+        include("*.dll")
+    }
+    from(rootProject.layout.projectDirectory.dir("build/ffmpeg/windows-x64")) {
+        into("ffmpeg/windows-x64")
+        include("ffmpeg.exe", "LICENSE.txt")
+    }
+    from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
+}
+
+/**
+ * The portable distribution: the app's jars, the native sidecars, the ffmpeg sidecar and the notices, plus a
+ * launcher, in one directory that runs against an installed Java 21.
+ *
+ * This exists because `createDistributable` / `packageMsi` cannot run here: Gradle 9 creates a task's
+ * `@OutputDirectory` before the task runs, and `jlink --output` refuses a directory that already exists, so
+ * the runtime-image task fails with "目录已存在" (see PLAN.md #7). The portable layout needs no jlink, and it
+ * is the artifact the port actually ships to a Windows user who already has a JVM.
+ */
+val portableDir = layout.buildDirectory.dir("portable/Lyrico")
+val portableDist by tasks.registering(Sync::class) {
+    description = "Builds the portable distribution (no jlink/jpackage required)."
+    dependsOn(tasks.jar, "stagePackaging")
+    into(portableDir)
+    from(tasks.jar) { into("app") }
+    // Two dependencies can carry the *same file name* (Compose publishes a real jar and a stub/relocated one
+    // under the same name), so a flat copy would drop one of them -- and dropping the wrong one shows up as
+    // `NoClassDefFoundError: androidx/compose/runtime/Composer`. Both are copied, the second under a
+    // suffixed name, and the classpath glob picks up either.
+    val nameCounts = mutableMapOf<String, Int>()
+    from(configurations.runtimeClasspath) {
+        into("app")
+        eachFile {
+            val seen = nameCounts.getOrDefault(name, 0)
+            nameCounts[name] = seen + 1
+            if (seen > 0) name = name.removeSuffix(".jar") + "-alt$seen.jar"
+        }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(packagingDir) { into(".") }
+    // The launcher and the readme are committed under `dist/` rather than written from string literals:
+    // they are user-facing text, and a `.bat` needs its CRLF preserved.
+    from(layout.projectDirectory.dir("dist"))
+}
+
+val portableZip by tasks.registering(Zip::class) {
+    description = "Zips the portable distribution."
+    dependsOn(portableDist)
+    from(portableDir)
+    archiveFileName.set("Lyrico-${baseVersionName}-windows-x64-portable.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("package"))
+}
+
 compose.desktop {
     application {
         mainClass = "com.lonx.lyrico.MainKt"
@@ -271,7 +356,10 @@ compose.desktop {
         }
 
         nativeDistributions {
+            // MSI/EXE need WiX v3 on the machine that builds them; the app image
+            // (`createDistributable`) needs nothing extra and is what the portable zip ships.
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+            appResourcesRootDir.set(packagingDir)
             packageName = "Lyrico"
             // Placeholder until the packaging phase (PLAN.md phase 6) — jpackage rejects a version
             // with a suffix, and Windows wants x.y.z.w with the major >= 1.

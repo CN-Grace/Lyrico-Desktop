@@ -1,0 +1,32 @@
+artifact: lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
+size_bytes: 120560141 (115.0 MiB)
+sha256: 841b7c0b01dbe3a5487d532bc7f19a281978e8ce9be71441255467cf86f8f78c
+file_entries: 108
+
+top level entries:
+  Lyrico.bat
+  README.txt
+  THIRD_PARTY_NOTICES.md
+  app/
+  ffmpeg/
+  native/
+
+native libraries + ffmpeg sidecar + licence files (the LGPL obligation):
+  Lyrico.bat
+  README.txt
+  THIRD_PARTY_NOTICES.md
+  ffmpeg/windows-x64/LICENSE.txt
+  ffmpeg/windows-x64/ffmpeg.exe
+  native/ebur128.dll
+  native/quickjs-ng.dll
+  native/taglib.dll
+
+app/ jar count: 100
+
+launcher (Lyrico.bat):
+  @echo off
+  rem Lyrico portable launcher. Requires Java 21+ on PATH or JAVA_HOME.
+  setlocal
+  cd /d "%~dp0"
+  if defined JAVA_HOME (set JAVA=%JAVA_HOME%\bin\java.exe) else (set JAVA=java)
+  "%JAVA%" -cp "app\*" com.lonx.lyrico.MainKt %*

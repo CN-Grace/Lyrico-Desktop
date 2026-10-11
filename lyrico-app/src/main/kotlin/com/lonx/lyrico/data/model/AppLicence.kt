@@ -112,6 +112,14 @@ object AppLicences {
             url = "https://github.com/BtbN/FFmpeg-Builds",
         ),
         AppLicence(
+            id = "libebur128",
+            name = "libebur128",
+            // Vendored under `lyrico-app/src/main/cpp/ebur128`; the version is the one in its header.
+            version = "1.2.6",
+            licences = listOf("MIT"),
+            url = "https://github.com/jiixyj/libebur128",
+        ),
+        AppLicence(
             id = "quickjs-ng",
             name = "quickjs-ng (plugin runtime)",
             // No version is pinned anywhere in this repository: the engine ships as a bundled `quickjs-ng`
