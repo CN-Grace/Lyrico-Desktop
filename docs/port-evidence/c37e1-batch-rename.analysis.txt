@@ -1,0 +1,36 @@
+file: docs\port-evidence\c37e1-batch-rename.png
+size: 1166x773
+distinct_colours: 1167  most_common_share: 0.613  text_pixels: 6191
+accent_blue_pixels: 54305  accent_warm_pixels: 151
+top_colours: (247, 247, 247)=552652, (255, 255, 255)=223028, (240, 240, 240)=60624, (194, 217, 255)=54136
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+#+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                       ... .+.                                           .+ +
+  # ++                                      ++#+++##++#+                                      ++ +
+  #                      ++++                                         ...+..                     +
+  #                      ...+                                           .....                    +
+  #                                                                                              +
+  #                                                                                              +
+  #  .++.++                                                                                 +#   +
+  #  ....+.                                                                                 ++   +
+  #                                                                                              +
+  #                                                                                              +
+  # .+++++++++#                                                                                  +
+  #  .+.......+                                                                                  +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

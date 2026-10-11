@@ -287,6 +287,15 @@ class ArtistSplitSettingsDestination : NavDirection {
     }
 }
 
+/** The character-mapping editor. Reached from the batch-rename screen; its screen arrives with E-2. */
+class CharacterMappingDestination : NavDirection {
+    override val route: String = ROUTE
+
+    companion object {
+        const val ROUTE = "character_mapping"
+    }
+}
+
 /** The about page (update check + licence list). Reached from the settings screen; screen arrives with F. */
 class AboutDestination : NavDirection {
     override val route: String = ROUTE

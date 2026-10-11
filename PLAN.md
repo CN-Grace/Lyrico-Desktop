@@ -2485,3 +2485,64 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 java 主树 34 → **31**（三个都在前沿）；前沿 19 → **17**；被挡 15 → **14**；陈旧副本 **0**。
 
 算术：三个搬走的文件里**两个本在前沿**（`LocalSearchField` / `SearchSectionHeader`），**一个本在被挡名单**（`LocalSearchScreen`，它等的正是那两个叶子）；所以前沿 `19 - 2 = 17`、被挡 `15 - 1 = 14`、`34 - 3 = 31` 三者自洽。剩下的 16 个里 5 个是 `[ANDROID]` 待作废，其余属于 E（批量重命名/编辑）与尾部杂项。
+
+### P5 施工批次（#37-E-1：批量重命名链（5 个文件）+ RenameEngine 的真文件测试，2026-10-11）
+
+E 片按「引擎」与「批量编辑」切开：E-1 是重命名这条链（`ConflictResolver` → `RenamePreview` → `RenameEngine` → `BatchRenameViewModel` → `BatchRenameScreen`），E-2 是批量编辑与字符映射页（约 2500 行）。
+
+#### 1. 搬了什么（`git mv` 5 个 + 路由 1 条 + DI 1 条 + 声明 1 条）
+
+| 文件 | 行数 | 说明 |
+|---|---|---|
+| `utils/ConflictResolver.kt` | 34 | 逐字（`File`/`Set<String>`，本来就没有安卓 API） |
+| `data/model/RenamePreview.kt` | 7 | 逐字 |
+| `utils/RenameEngine.kt` | 78 | 逐字（格式解析/清洗/冲突解决，纯逻辑） |
+| `viewmodel/BatchRenameViewModel.kt` | 414 | 1 处字串机械迁移 + `UiMessage.StringResource(...)` → `UiMessage.Localized(Res.string.…)` |
+| `screens/BatchRenameScreen.kt` | 560 | 22 处字符串机械迁移 + 手工缝合（见下） |
+
+接线：`LyricoNavHost` 注册 `BatchRenameDestination`（`batch_rename`）；`DesktopAppModule` 注册 `BatchRenameViewModel`（**之前没注册过** —— 安卓的 `di/AppModule.kt` 里有，桌面图里没有，测试一挂就暴露了）；`Destinations.kt` 新增 `CharacterMappingDestination`（E-2 的屏幕，按「声明了但未注册」惯例先声明）。
+
+#### 2. 桌面化改写点（比前几批少，因为这条链本身很纯）
+
+1. **`@Destination<RootGraph>` + `DestinationsNavigator` → 路由注册 + 手写 `Navigator`**；`koinViewModel` 换多平台入口。
+2. **`UiMessage.text(context)` 那类调用改成 `asString()`**（桌面端没有 `Context`，`asString` 是可组合的；调用点本来就在组合里）。
+3. **私有 `BatchRenameTab.labelRes: Int` → `StringResource`**（与 D 片同一条教训：类型一改，三处调用点自己报出来）。
+4. **`stringResource(id = Res.string.x)` 的具名参数去掉**（安卓的 `stringResource` 有 `id` 参数，Compose Resources 的没有）。
+5. **9 处 `stringResource(res, args)` → `formattedStringResource`**（计数/耗时那些；守卫抓住）。
+6. **`characterMappingConfig` 那条 `CharacterMappingDestination` 的调用**：目标屏幕属于 E-2，先声明路由，呼叫点写成对象式 `CharacterMappingDestination()`（未注册路由的惯例）。
+
+#### 3. 无头取证（新增 2 类 7 项；全量 141 类 / 1178 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+| 测试类 | 项 | 钉住的东西 |
+|---|---|---|
+| `utils/RenameEngineTest` | 5 | 真临时文件 + 真 `AudioTagData`：新名从标签来且保后缀；**两首同名会加 `(1)` 且第二首被标 `conflict`**（预览页靠这个标记上色）；清洗后名字为空时回落到原名；字符映射规则作用在新名上；预设格式互不相同且用 `@` 占位语法 |
+| `screens/BatchRenameScreenTest` | 2 | 真路由 + 真图：空选择下页面能组合出标题；**设置里存的格式就是字段里显示的格式**（顺带证明读写走同一条偏好） |
+
+**为什么没有 `BatchRenameViewModelTest`**：这个 VM 的「真干活」那一半是 `executeRename()`，它把活交给批量任务引擎（`BatchTaskRepository` + `BatchTaskScheduler`）；那条链已经由 `BatchTaskSchedulerTest` / 各处理器测试端到端覆盖，而它真正自有的计算就是 `RenameEngine`（上面已用真文件钉住）。这是取舍，不是漏掉。
+
+写这批测试时又踩到两件事，一并记下：**测试用的 `TestLibrary` 和图不是同一个数据库**（D 片已踩过一次，这次没重犯）；以及下面第 5 节的坑 1。
+
+#### 4. 真窗口取证（`docs/port-evidence/c37e1-batch-rename.*`，`-Plyrico.start.route=batch_rename`）
+
+| 文件 | 内容 | OCR 关键行 | 分析 |
+|---|---|---|---|
+| `c37e1-batch-rename.png` | Batch Rename 页：Config / Preview (0) 两个页签、Rename Format 字段里是 `@1 - @2`（设置里的默认值）、提示「Enter the naming format, for example @1 - @2」、Placeholder help 开关、置灰的 Rename 按钮 | `y=50 :: Batch Rename`、`y=101 :: Preview (O)`、`y=149 :: Rename Format`、`y=320 :: Placeholder help`、`y=388 :: Rename` | `VERDICT: OK` |
+
+空选择下 Rename 置灰、Preview 计数为 0，正是这一页在没有选歌时的正确形状；有选择的预览/执行链由 `RenameEngineTest` 与批量任务测试覆盖。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **不要用正则批量重写 `stringResource(\n Res.string.x,`**：这次为了让 9 处多行调用改走 `formattedStringResource`，我写了一个跨行正则，结果**把单参数的多行调用也改掉了**，加上顺手加的一个 `if/else` 花括号，整个文件语法坏掉，报出来的却是一堆「`BatchRenameConfigTab` 未解析」这种下游错误（声明本身是好的，是解析器在中途崩了）。正确做法：**一处一处改**，或者先只定位行号再逐条替换；跨行正则在这个代码风格里不值得。
+2. **`viewModel { }` 没注册时，第一个挂载该页的测试就会告诉你**（`NoDefinitionFoundException`）：安卓的 `di/AppModule.kt` 里有一份定义，很容易以为桌面图里也有 —— 搬页面时顺手确认一次。
+3. **`stringResource(id = ...)` 是安卓形态**：Compose Resources 的 `stringResource` 没有 `id` 参数，具名调用会直接编译不过（比想象中容易漏，机械脚本不动具名参数）。
+4. **守卫（`StringFormattingGuardTest`）会把「多行参数写法」全找出来**：本片它在两个不同的函数里各抓一次，如果只看行内 grep 会漏。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. **正式入口在曲库页的批量菜单里**（已注册的 `batch_rename`）：现在点得进去，页面本身也是完整的 Config/Preview 两页；但**没有选歌时按钮置灰**，这与安卓一致。
+2. 桌面端没有系统返回手势（同前几片）。
+3. **`character_mapping` 路由已声明但未注册**（E-2 的屏幕），点下去只在日志里警告。
+
+#### 7. 前沿（本批收口）
+
+java 主树 31 → **26**（5 个：2 个本在前沿、3 个本在被挡）；前沿 17 → **15**；被挡 14 → **11**；陈旧副本 **0**。

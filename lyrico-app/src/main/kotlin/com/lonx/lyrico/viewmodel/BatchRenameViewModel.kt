@@ -13,6 +13,7 @@ import com.lonx.lyrico.data.repository.SettingsDefaults
 import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.song.library.SongLibraryRepository
 import com.lonx.lyrico.utils.RenameEngine
+import com.lonx.lyrico.utils.UiMessage
 import com.lonx.lyrico.worker.BatchTaskScheduler
 import com.lonx.lyrico.worker.processor.RenameFilesTaskConfig
 import com.lonx.lyrico.worker.processor.RenameFilesTaskResult
@@ -29,6 +30,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.io.File
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.no_tag_data
 
 data class BatchRenameUiState(
     val songCount: Int = 0,
@@ -133,7 +136,7 @@ class BatchRenameViewModel(
                             it.copy(
                                 previews = emptyList(),
                                 isGeneratingPreview = false,
-                                errorMessage = com.lonx.lyrico.utils.UiMessage.StringResource(com.lonx.lyrico.R.string.no_tag_data)
+                                errorMessage = UiMessage.Localized(Res.string.no_tag_data)
                             )
                         }
                         return@collectLatest

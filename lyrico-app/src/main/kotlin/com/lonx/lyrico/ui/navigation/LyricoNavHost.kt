@@ -24,6 +24,7 @@ import com.lonx.lyrico.screens.EditFieldSettingsScreen
 import com.lonx.lyrico.screens.FolderManagerScreen
 import com.lonx.lyrico.screens.LyricsCleanupRulesScreen
 import com.lonx.lyrico.screens.SettingsScreen
+import com.lonx.lyrico.screens.BatchRenameScreen
 import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
 import com.lonx.lyrico.screens.EditMetadataScreen
@@ -147,6 +148,11 @@ fun LyricoNavHost(
             // icon already navigated to the declaration; this is the registration that makes it land.
             composable(route = LocalSearchDestination.ROUTE) {
                 LocalSearchScreen(navigator = navigator)
+            }
+            // The batch-rename page (E-1). Its Android entry point is the batch menu on the library pages,
+            // which is ported; the route is registered here so those rows land on a real screen.
+            composable(route = BatchRenameDestination.ROUTE) {
+                BatchRenameScreen(navigator = navigator)
             }
             // The three settings sub-pages: their destinations were declared by C3 (so the settings
             // screen's rows could navigate), and their screens arrive here.

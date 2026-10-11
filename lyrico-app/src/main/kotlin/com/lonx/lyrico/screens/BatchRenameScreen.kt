@@ -1,6 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -32,25 +31,46 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_abort
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.action_rename
+import com.lonx.lyrico.resources.batch_matching_failure
+import com.lonx.lyrico.resources.batch_matching_success
+import com.lonx.lyrico.resources.batch_matching_total_time
+import com.lonx.lyrico.resources.batch_rename_tab_config
+import com.lonx.lyrico.resources.batch_rename_tab_preview
+import com.lonx.lyrico.resources.batch_rename_title
+import com.lonx.lyrico.resources.batch_replay_gain_skipped
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.format_hint
+import com.lonx.lyrico.resources.format_preset_show_placeholders
+import com.lonx.lyrico.resources.label_new_name
+import com.lonx.lyrico.resources.label_new_path
+import com.lonx.lyrico.resources.label_old_name
+import com.lonx.lyrico.resources.label_old_path
+import com.lonx.lyrico.resources.preview_empty_tip
+import com.lonx.lyrico.resources.preview_title
+import com.lonx.lyrico.resources.preview_title_generating
+import com.lonx.lyrico.resources.rename_conflict_warning
+import com.lonx.lyrico.resources.rename_format
 import com.lonx.lyrico.data.model.RenamePreview
 import com.lonx.lyrico.ui.components.scaffoldBottomPadding
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
-import com.ramcosta.composedestinations.generated.destinations.CharacterMappingDestination
+import com.lonx.lyrico.ui.navigation.CharacterMappingDestination
+import com.lonx.lyrico.ui.navigation.Navigator
 import com.lonx.lyrico.utils.TagField
 import com.lonx.lyrico.viewmodel.BatchRenameViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.utils.formattedStringResource
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownImpl
@@ -81,21 +101,18 @@ import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
 
-private enum class BatchRenameTab(val labelRes: Int) {
-    Config(R.string.batch_rename_tab_config),
-    Preview(R.string.batch_rename_tab_preview)
+private enum class BatchRenameTab(val labelRes: StringResource) {
+    Config(Res.string.batch_rename_tab_config),
+    Preview(Res.string.batch_rename_tab_preview)
 }
 
-@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
-@Destination<RootGraph>(route = "batch_rename")
 fun BatchRenameScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: BatchRenameViewModel = koinViewModel()
     val renameFormat by viewModel.renameFormat.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val showDropdowns = remember { mutableStateOf(false) }
     val tabs = remember { BatchRenameTab.entries }
     val pagerState = rememberPagerState(pageCount = { tabs.size })
@@ -107,13 +124,13 @@ fun BatchRenameScreen(
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = stringResource(id = R.string.batch_rename_title),
+                title = stringResource(Res.string.batch_rename_title),
                 navigationIcon = {
                     IconButton(
                         onClick = { if (!uiState.isRenamingInProgress) navigator.popBackStack() }) {
                         Icon(
                             imageVector = MiuixIcons.Back,
-                            contentDescription = stringResource(R.string.action_back)
+                            contentDescription = stringResource(Res.string.action_back)
                         )
                     }
                 },
@@ -121,7 +138,7 @@ fun BatchRenameScreen(
                     IconButton(
                         onClick = {
                             if (!uiState.isRenamingInProgress) {
-                                navigator.navigate(CharacterMappingDestination)
+                                navigator.navigate(CharacterMappingDestination())
                             }
                         }
                     ) {
@@ -149,7 +166,7 @@ fun BatchRenameScreen(
                 val tabLabels = tabs.map { tab ->
                     when (tab) {
                         BatchRenameTab.Config -> stringResource(tab.labelRes)
-                        BatchRenameTab.Preview -> stringResource(tab.labelRes, uiState.previews.size)
+                        BatchRenameTab.Preview -> formattedStringResource(tab.labelRes, uiState.previews.size)
                     }
                 }
                 TabRowWithContour(
@@ -178,7 +195,7 @@ fun BatchRenameScreen(
                         onShowPlaceholderInfoChange = { showPlaceholderInfo = it },
                         onFormatChange = viewModel::saveFormat,
                         onExecuteRename = viewModel::executeRename,
-                        errorMessage = uiState.errorMessage?.asString(context)
+                        errorMessage = uiState.errorMessage?.asString()
                     )
 
                     BatchRenameTab.Preview -> BatchRenamePreviewTab(
@@ -197,7 +214,7 @@ fun BatchRenameScreen(
                 if (!uiState.isRenamingInProgress) viewModel.closeRenameDialog()
             },
             allowDismiss = !uiState.isRenamingInProgress,
-            title = stringResource(R.string.batch_rename_title),
+            title = stringResource(Res.string.batch_rename_title),
         ) {
             Column(
                 modifier = Modifier
@@ -221,8 +238,8 @@ fun BatchRenameScreen(
                                 text = if (uiState.isRenamingInProgress) {
                                     uiState.currentFile
                                 } else {
-                                    stringResource(
-                                        R.string.batch_matching_total_time,
+                                    formattedStringResource(
+                                        Res.string.batch_matching_total_time,
                                         uiState.renameTimeMillis / 1000.0
                                     )
                                 },
@@ -250,22 +267,22 @@ fun BatchRenameScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(
-                            R.string.batch_matching_success,
+                        text = formattedStringResource(
+                            Res.string.batch_matching_success,
                             uiState.successCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_replay_gain_skipped,
+                        text = formattedStringResource(
+                            Res.string.batch_replay_gain_skipped,
                             uiState.skippedCount
                         ),
                         style = MiuixTheme.textStyles.main
                     )
                     Text(
-                        text = stringResource(
-                            R.string.batch_matching_failure,
+                        text = formattedStringResource(
+                            Res.string.batch_matching_failure,
                             uiState.failureCount
                         ),
                         style = MiuixTheme.textStyles.main
@@ -273,9 +290,12 @@ fun BatchRenameScreen(
                 }
 
                 TextButton(
-                    text = if (uiState.isRenamingInProgress) stringResource(R.string.action_abort) else stringResource(
-                        R.string.confirm
-                    ),
+                    // `confirm` carries no format arguments, so the library's own overload is the right one.
+                    text = if (uiState.isRenamingInProgress) {
+                        stringResource(Res.string.action_abort)
+                    } else {
+                        stringResource(Res.string.confirm)
+                    },
                     onClick = {
                         if (uiState.isRenamingInProgress) {
                             viewModel.abortRename()
@@ -316,7 +336,7 @@ private fun BatchRenameConfigTab(
         overscrollEffect = null,
     ) {
         item {
-            SmallTitle(text = stringResource(id = R.string.rename_format))
+            SmallTitle(text = stringResource(Res.string.rename_format))
             Card(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
@@ -360,12 +380,12 @@ private fun BatchRenameConfigTab(
                 )
                 Text(
                     modifier = Modifier.padding(12.dp),
-                    text = stringResource(id = R.string.format_hint),
+                    text = stringResource(Res.string.format_hint),
                     fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                     color = MiuixTheme.colorScheme.onSurfaceVariantActions
                 )
                 SwitchPreference(
-                    title = stringResource(id = R.string.format_preset_show_placeholders),
+                    title = stringResource(Res.string.format_preset_show_placeholders),
                     checked = showPlaceholderInfo,
                     onCheckedChange = onShowPlaceholderInfoChange
                 )
@@ -378,7 +398,7 @@ private fun BatchRenameConfigTab(
                         .padding(12.dp)
                         .fillMaxWidth(),
                     onClick = onExecuteRename,
-                    text = stringResource(id = R.string.action_rename),
+                    text = stringResource(Res.string.action_rename),
                     enabled = uiState.previews.isNotEmpty() && !uiState.isRenamingInProgress,
                     colors = ButtonDefaults.textButtonColorsPrimary()
                 )
@@ -425,9 +445,9 @@ private fun BatchRenamePreviewTab(
             SmallTitle(
                 text = stringResource(
                     if (uiState.isGeneratingPreview)
-                        R.string.preview_title_generating
+                        Res.string.preview_title_generating
                     else
-                        R.string.preview_title,
+                        Res.string.preview_title,
                     uiState.previews.size
                 )
             )
@@ -441,7 +461,7 @@ private fun BatchRenamePreviewTab(
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = stringResource(id = R.string.preview_empty_tip),
+                        text = stringResource(Res.string.preview_empty_tip),
                         fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                         color = MiuixTheme.colorScheme.onSurfaceVariantActions,
                         modifier = Modifier.padding(12.dp)
@@ -466,8 +486,8 @@ private fun BatchRenamePreviewTab(
                         }
                     ) {
                         Text(
-                            text = stringResource(
-                                R.string.label_old_name,
+                            text = formattedStringResource(
+                                Res.string.label_old_name,
                                 preview.originalPath.substringAfterLast('/')
                             ),
                             style = MiuixTheme.textStyles.body1,
@@ -476,8 +496,8 @@ private fun BatchRenamePreviewTab(
                         )
 
                         Text(
-                            text = stringResource(
-                                R.string.label_new_name,
+                            text = formattedStringResource(
+                                Res.string.label_new_name,
                                 preview.newPath.substringAfterLast('/')
                             ),
                             style = MiuixTheme.textStyles.body1.copy(if (preview.conflict) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary),
@@ -487,7 +507,7 @@ private fun BatchRenamePreviewTab(
 
                         if (preview.conflict) {
                             Text(
-                                text = stringResource(R.string.rename_conflict_warning),
+                                text = stringResource(Res.string.rename_conflict_warning),
                                 fontSize = 11.sp,
                                 color = MiuixTheme.colorScheme.error,
                                 modifier = Modifier.padding(top = 2.dp)
@@ -501,12 +521,12 @@ private fun BatchRenamePreviewTab(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = stringResource(R.string.label_old_path, preview.originalPath),
+                                    text = formattedStringResource(Res.string.label_old_path, preview.originalPath),
                                     style = MiuixTheme.textStyles.footnote1,
                                     color = MiuixTheme.colorScheme.onSurfaceVariantActions
                                 )
                                 Text(
-                                    text = stringResource(R.string.label_new_path, preview.newPath),
+                                    text = formattedStringResource(Res.string.label_new_path, preview.newPath),
                                     style = MiuixTheme.textStyles.footnote1,
                                     color = if (preview.conflict) {
                                         MiuixTheme.colorScheme.error

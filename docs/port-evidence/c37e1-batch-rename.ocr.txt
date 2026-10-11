@@ -1,0 +1,10 @@
+file: docs\port-evidence\c37e1-batch-rename.png
+engine: zh-Hans-CN
+lines: 7
+  y=10 x=31 :: Lyrico 1 ℃ 〔 bgfg7 〕
+  y=149 x=30 :: Rename Format
+  y=273 x=26 :: Enter the naming format for example @1 _ @二
+  y=320 x=30 :: Placeholder help
+  y=50 x=519 :: Batch Rename
+  y=101 x=835 :: Preview (O)
+  y=388 x=554 :: Rename
