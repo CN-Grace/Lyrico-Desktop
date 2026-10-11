@@ -103,14 +103,24 @@ class UpdateRepositoryImplTest {
     }
 
     @Test
-    fun `a missing release is an api error, not a network error`() = runBlocking<Unit> {
-        // The Android implementation threw an IOException for this and reported "网络错误"; the sealed
-        // result type has an ApiError state, and UpdateManager renders it as "接口错误".
+    fun `a repository without releases is not an error, just nothing newer`() = runBlocking<Unit> {
+        // GitHub answers `/releases/latest` with 404 when the repository has no releases *at all* -- the state
+        // of this fork until the first one is published (verified against the live API: `/releases` returns
+        // 200 while `/releases/latest` returns 404). Android's upstream always had releases, so the inherited
+        // code reported that as "接口错误" and every user of the port would have seen an error instead of
+        // "already the latest version".
         val result = repository().checkForUpdate(OWNER, REPO)
 
-        val apiError = assertIs<UpdateCheckResult.ApiError>(result)
-        assertEquals(404, apiError.code)
-        assertTrue(apiError.message.contains("404"), "the status has to survive into the message")
+        assertEquals(UpdateCheckResult.NoUpdateAvailable, result)
+    }
+
+    @Test
+    fun `another missing path is still an api error`() = runBlocking<Unit> {
+        // The 404 special case must not swallow real API failures; a 403 (rate limit) still reports its code.
+        server.respond(releasePath, """{"message":"nope"}""", status = 403)
+
+        val apiError = assertIs<UpdateCheckResult.ApiError>(repository().checkForUpdate(OWNER, REPO))
+        assertEquals(403, apiError.code)
     }
 
     @Test

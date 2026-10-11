@@ -2669,7 +2669,7 @@ java 主树 26 → **23**（3 个：`BatchEditViewModel` 与两个屏幕，都�
 #### 6. 用户可见缺口（如实记录）
 
 1. **启动时的自动检查更新没有接线**：安卓的 Activity 外壳在启动时触发检查，桌面端只有关于页的「Check for updates」按钮会触发（`SongListViewModel.checkForUpdate()` 已存在但无人调用）。设置了「自动检查更新」也只在打开关于页时才生效 —— 要接就得一并决定对话框挂在哪里（见下一条），归到后续批次。
-2. **更新对话框现在只挂在关于页上**：安卓挂在 Activity 外壳上，所以它在任何页面之上都能弹出；桌面端把它放在了触发检查的那一页。若把启动检查接上，这个宿主位置需要重新决定。
+2. ~~更新对话框只挂在关于页上~~ ✅ **已修**（P6 §6c）：对话框移到外壳（`LyricoDesktopApp`），任何页面上都能弹出。
 3. **许可清单是手维护的**（第 2 节第 4 条）：比安卓那份「全量依赖」短，且会滞后于 `libs.versions.toml`。
 4. 桌面端没有系统返回手势（同前几片）。
 
@@ -2878,7 +2878,7 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 
 1. **MSI/EXE 安装包在本环境构建不出来**（#7）：WiX v3 缺失 + Gradle 9 与 Compose 1.12 的 `jlink --output` 冲突。交付物是便携包（解压即用，需 Java 21+）。
 2. **没有系统返回手势**：安卓 `BackHandler` 的所有用法在桌面端都删了（`FolderManagerScreen` / `AlbumDetailScreen` / `LibraryHomeScreen` / `LocalSearchScreen` / `BatchEditScreen` / `BatchRenameScreen`），补救是各页自带的关闭/返回控件。
-3. **启动时自动检查更新没接线**（#37-F）：只有「关于」页的按钮会触发；`SongListViewModel.checkForUpdate()` 存在但无人调用。
+3. ~~启动时自动检查更新没接线~~ ✅ **已修**（P6 §6c）：外壳在启动时检查（受设置约束）并托管更新对话框；同时修掉了「仓库没有 release 时误报接口错误」。
 4. **命令行传入的文件不会自动打开**（#37-C-2）：`externalFilePath` 至今无人消费。
 5. **液态玻璃悬浮栏没搬**（#38）：保留毛玻璃与纯色；`LIQUID_GLASS` 枚举值仍在（旧偏好要能读）。
 6. **主题键色的两个已知限制**：默认项不再跟壁纸取色（#37-C-3）；薄荷模式下键色不生效（安卓原样，#37-C-2）。
@@ -2915,6 +2915,22 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 2. 真窗口里字段显示 `September`（`c37d-ls-sendinput.png` 的 OCR 读到 `y=107 September`），点击 All 页签后整窗只变了 43 像素（0.00%）→ 列表仍空 → **注入的输入没有进入 Compose 的文本状态**（最可能：Skiko 在 Windows 上走 TSF/IME 文本输入通道，注入的按键被 IME 吃掉，没有被应用的文本输入消费）。
 
 所以这一条给出的是**工具能力 + 精确诊断**，不是那张结果图；要拿到它需要给 Skiko 的文本输入通道喂输入（例如用 UI Automation/TSF 客户端写文本），那是另一件工具活。`c37d-local-search.png`（空态）仍是这一页已入库的窗口证据。
+
+#### 6c. 后续工作第 3 条：启动检查更新接线 + 对话框宿主 + 修掉 404 的误报
+
+**做了什么**
+
+1. **外壳接管两件事**（与安卓的 `MainActivity` 一致）：`LyricoDesktopApp` 现在会在启动时检查更新（受 `check_update_enabled` 约束，与安卓 `SongListViewModel.checkForUpdate()` 的判据相同），并把 `UpdateDialog` 挂在整个导航图之上 —— 这样任何页面上发现新版本都看得见。关于页那份自用的对话框随之删掉（`AboutViewModel.releaseInfo` / `dismissUpdate()` 一并移除，避免两个宿主）。
+2. **顺带修掉一个真实的用户可见错误**：证据驱动的发现 —— 启动检查在真机日志里报 `HTTP 404`。查下去是 fork **一个 release 都没有**（实测：`/releases` 返回 200、`/releases/latest` 返回 404），而安卓继承来的代码把 404 当接口错误，于是每个用户都会看到「更新检查接口错误」而不是「已是最新版本」。现在 404 专门处理成 `NoUpdateAvailable`（其余状态码仍是 `ApiError`，403 的用例保留）。
+3. **一条既有测试的语义被纠正**：`a missing release is an api error, not a network error` 断言的正是旧行为，改成 `a repository without releases is not an error, just nothing newer` + 新增 `another missing path is still an api error`（403 仍报错）。
+
+**测试**：新增 `LyricoDesktopAppTest` 3 项（真 Koin 图 + 真外壳 + 假 `UpdateManager`/`DesktopOpener`）：设置在开时启动检查被调用一次；设置在关时不调用；有 release 时对话框出现在外壳之上、点确认把 release URL 交给 `DesktopOpener`。`UpdateRepositoryImplTest` 13 项全绿（含新语义）。
+
+**真窗口证据**（`docs/port-evidence/c7-update-latest.*`）：关于页的「Check for updates」行现在显示 **"You are already on the latest version"**（OCR `y=514`），日志两次命中新分支（启动一次 + 点击一次），并带 `开始检查更新`。
+
+**坑**：Kotlin 测试名（反引号里的）**不能含双引号** —— 编译器会用它生成 class 文件名，Windows 上直接 `InvalidPathException: Illegal char <">`。第一次就撞上了，改成正引号后正常。
+
+**仍缺**：对话框只在「真的有新版本」时出现，而本 fork 尚无 release，所以那张图拍不到 —— 由 `LyricoDesktopAppTest` 的第三项覆盖（假 manager 发一个 9.9.9 的 release）。
 
 #### 7. 这一版的结论
 

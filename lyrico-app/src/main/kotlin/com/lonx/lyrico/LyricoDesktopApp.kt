@@ -9,10 +9,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lonx.lyrico.data.model.AppLanguage
 import com.lonx.lyrico.data.model.ThemeConfig
 import com.lonx.lyrico.data.repository.SettingsRepository
+import com.lonx.lyrico.platform.DesktopOpener
 import com.lonx.lyrico.plugin.i18n.PluginLocales
 import com.lonx.lyrico.ui.ProvideAppLocale
+import com.lonx.lyrico.ui.components.update.UpdateDialog
 import com.lonx.lyrico.ui.navigation.LyricoNavHost
 import com.lonx.lyrico.ui.theme.LyricoTheme
+import com.lonx.lyrico.utils.UpdateManager
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 
 /**
@@ -40,6 +45,8 @@ import org.koin.compose.koinInject
 fun LyricoDesktopApp(
     externalFilePath: String? = null,
     settingsRepository: SettingsRepository = koinInject(),
+    updateManager: UpdateManager = koinInject(),
+    desktopOpener: DesktopOpener = koinInject(),
 ) {
     val themeConfig by settingsRepository.themeConfigFlow
         .collectAsStateWithLifecycle(initialValue = ThemeConfig())
@@ -59,6 +66,18 @@ fun LyricoDesktopApp(
         }
     }
 
+    // The update check runs here rather than on a screen, and its dialog is hosted by the shell: Android did
+    // both in `MainActivity` so that a found release could appear over whatever page the user was on. The
+    // setting gates it, exactly as `SongListViewModel.checkForUpdate()` gated the Android one.
+    val releaseInfo by updateManager.state
+        .map { it.releaseInfo }
+        .collectAsStateWithLifecycle(initialValue = null)
+    LaunchedEffect(Unit) {
+        if (settingsRepository.checkUpdateEnabled.first()) {
+            updateManager.checkForUpdate()
+        }
+    }
+
     ProvideAppLocale(appLanguage) {
         // The ported screens were written against the Android theme, which wraps Miuix and supplies the
         // ripple indication; the port keeps that wrapper rather than theming each screen.
@@ -69,5 +88,20 @@ fun LyricoDesktopApp(
         ) {
             LyricoNavHost(modifier = Modifier.fillMaxSize())
         }
+    }
+
+    // Hosted by the shell, not by the about page, so a release found at start-up shows over whatever page the
+    // user is on (it is also why the about page's own "check for updates" ends up here).
+    releaseInfo?.let { release ->
+        UpdateDialog(
+            show = true,
+            versionName = release.versionName,
+            releaseNote = release.releaseNotes,
+            onConfirm = {
+                desktopOpener.browse(release.url)
+                updateManager.resetUpdateState()
+            },
+            onDismissRequest = { updateManager.resetUpdateState() },
+        )
     }
 }

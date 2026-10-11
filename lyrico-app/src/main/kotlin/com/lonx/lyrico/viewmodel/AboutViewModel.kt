@@ -33,15 +33,6 @@ class AboutViewModel(
 
     val updateEffect = updateManager.effect
 
-    /**
-     * The release the update check found, or `null`.
-     *
-     * Android's shell hosted the update dialog app-wide; on desktop the about page is where the check is
-     * triggered and where the result is shown, so the page needs the release itself, not just a message.
-     */
-    val releaseInfo = updateManager.state
-        .map { it.releaseInfo }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     private val _contributors = MutableStateFlow<List<ContributorInfo>>(emptyList())
     val contributors: StateFlow<List<ContributorInfo>> = _contributors
 
@@ -68,11 +59,6 @@ class AboutViewModel(
      */
     fun openBrowser(url: String) {
         desktopOpener.browse(url)
-    }
-
-    /** Closes the update dialog and clears the found release. */
-    fun dismissUpdate() {
-        updateManager.resetUpdateState()
     }
 
     fun checkUpdate() {

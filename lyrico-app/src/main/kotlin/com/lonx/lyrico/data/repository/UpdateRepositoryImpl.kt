@@ -42,6 +42,14 @@ class UpdateRepositoryImpl(
 
             okHttpClient.newCall(request).execute().use { response ->
 
+                // GitHub answers `/releases/latest` with 404 when the repository has **no releases at all**,
+                // which is the state of this fork until the first one is published -- and that is not an API
+                // error: there is simply nothing newer to offer. Android's upstream always had releases, so the
+                // inherited code reported it as a failure and the about page showed "API error" to every user.
+                if (response.code == 404) {
+                    PlatformLog.d(TAG, "仓库还没有任何 release，视为已是最新")
+                    return@withContext UpdateCheckResult.NoUpdateAvailable
+                }
                 if (!response.isSuccessful) {
                     throw ApiResponseException(response.code, response.message)
                 }

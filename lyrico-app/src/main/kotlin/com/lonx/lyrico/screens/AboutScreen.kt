@@ -48,7 +48,6 @@ import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.AboutViewModel
 import com.lonx.lyrico.viewmodel.UiError
 import com.lonx.lyrico.ui.navigation.Navigator
-import com.lonx.lyrico.ui.components.update.UpdateDialog
 import com.lonx.lyrico.ui.navigation.OpensourceLicenceDestination
 import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -82,7 +81,6 @@ fun AboutScreen(
     val updateEffect by viewModel.updateEffect.collectAsStateWithLifecycle(
         initialValue = UpdateEffect(Res.string.about_check_update_default)
     )
-    val releaseInfo by viewModel.releaseInfo.collectAsStateWithLifecycle()
     val contributors by viewModel.contributors.collectAsStateWithLifecycle()
     val loading by viewModel.loadingContributors.collectAsStateWithLifecycle()
     val error by viewModel.contributorsError.collectAsStateWithLifecycle()
@@ -292,16 +290,4 @@ fun AboutScreen(
 
     // 安卓把更新对话框挂在 Activity 外壳上（那样它能在任何页面之上弹出）；桌面端的关于页是触发检查、
     // 也是展示结果的地方，所以这一页自己兼。`PLAN.md` 里记了两者的差别。
-    releaseInfo?.let { release ->
-        UpdateDialog(
-            show = true,
-            versionName = release.versionName,
-            releaseNote = release.releaseNotes,
-            onConfirm = {
-                viewModel.openBrowser(release.url)
-                viewModel.dismissUpdate()
-            },
-            onDismissRequest = { viewModel.dismissUpdate() },
-        )
-    }
 }
