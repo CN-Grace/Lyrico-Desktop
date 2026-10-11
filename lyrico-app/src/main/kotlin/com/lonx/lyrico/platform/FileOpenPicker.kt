@@ -33,7 +33,7 @@ fun interface FileOpenPicker {
 }
 
 /**
- * The real picker: AWT's native open dialog, filtered to zip files.
+ * The real picker: AWT's native open dialog, filtered to [extensions].
  *
  * [title] is the dialog's caption, passed in already localised so no string is baked in here, exactly
  * as [rememberDirectoryPicker] does it. The parent is deliberately `null` for the reason
@@ -41,21 +41,38 @@ fun interface FileOpenPicker {
  * owner-less dialog is still a native modal dialog on Windows.
  *
  * [FileDialog.setFilenameFilter] is a no-op on Windows -- the JVM's Windows implementation ignores it
- * and filters through the `file` pattern the OS understands instead -- so it is set but not relied on;
- * it does apply on the other platforms this build could be run on.
+ * and filters through the `file` pattern the OS understands instead -- so both are set and neither is
+ * relied on; the filter does apply on the other platforms this build could be run on.
+ *
+ * [extensions] took no parameter until the single-song editor arrived: the plugin importer only ever
+ * wanted `.zip`, but importing lyrics wants `.lrc`/`.ttml` and picking a poster wants the image
+ * formats, and a plugin-archive picker that also offers every `.jpg` on the disk is a bad dialog. The
+ * default keeps the plugin flow's dialog exactly as it was, so that call site did not change.
  */
 @Composable
-fun rememberFileOpenPicker(title: String): FileOpenPicker = remember(title) {
-    FileOpenPicker { pickFile(title) }
+fun rememberFileOpenPicker(
+    title: String,
+    extensions: List<String> = listOf("zip")
+): FileOpenPicker = remember(title, extensions) {
+    FileOpenPicker { pickFile(title, extensions) }
 }
 
-private fun pickFile(title: String): File? {
+/**
+ * Whether [fileName] ends in one of [extensions], case-insensitively.
+ *
+ * Split out from the dialog so the platform-independent matching rule has a test that does not need a
+ * native window: the dialog itself cannot be driven headlessly.
+ */
+internal fun matchesExtensions(fileName: String, extensions: List<String>): Boolean =
+    extensions.any { fileName.endsWith(".$it", ignoreCase = true) }
+
+private fun pickFile(title: String, extensions: List<String>): File? {
     // Blocking, like FileSavePicker: AWT's modal dialog pumps its own event loop, so it can be called
     // straight from a coroutine on the UI dispatcher. Only the *picking* blocks -- the caller hands
     // the result to a background coroutine before touching the archive.
     val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD).apply {
-        filenameFilter = java.io.FilenameFilter { _, name -> name.endsWith(".zip", ignoreCase = true) }
-        file = "*.zip"
+        filenameFilter = java.io.FilenameFilter { _, name -> matchesExtensions(name, extensions) }
+        file = extensions.joinToString(";") { "*.$it" }
         isVisible = true
     }
     val directory = dialog.directory

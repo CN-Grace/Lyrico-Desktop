@@ -1,6 +1,5 @@
 package com.lonx.lyrico.ui.components.crop
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -24,19 +23,19 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import androidx.core.graphics.scale
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.label_image_ratio
+import com.lonx.lyrico.resources.option_free_ratio
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -51,41 +50,50 @@ import kotlin.math.sqrt
 // 裁剪状态持有者 —— 供外部读取和触发裁剪
 // ============================================================
 class ImageCropperState internal constructor(
-    /** 原始全尺寸 Bitmap，用于最终裁剪 */
-    internal val originalBitmap: Bitmap,
-    /** 缩小后的显示用 Bitmap，用于 Canvas 绘制 */
-    internal val displayBitmap: Bitmap
+    /** 原始全尺寸位图，用于最终裁剪 */
+    internal val originalBitmap: ImageBitmap,
+    /** 缩小后的显示用位图，用于 Canvas 绘制 */
+    internal val displayBitmap: ImageBitmap
 ) {
     internal var imageBounds by mutableStateOf(Rect.Zero)
     internal var cropRect by mutableStateOf(Rect.Zero)
     var aspectRatio by mutableStateOf<Float?>(1f)
 
     /**
-     * 外部调用此方法执行裁剪，返回裁剪后的 Bitmap
+     * 外部调用此方法执行裁剪，返回裁剪后的位图。
+     *
+     * 桌面端的像素操作全程用 Compose 的 [ImageBitmap]（见 [scaleTo] / [crop]），不走 Android 的
+     * `Bitmap.createBitmap`：界面层拿到的封面本来就是 [ImageBitmap]，写盘时才由
+     * `EditMetadataViewModel` 交给 `ImageIO` 编码。
      */
-    fun crop(): Bitmap {
+    fun crop(): ImageBitmap {
         return cropActualBitmap(originalBitmap, displayBitmap, imageBounds, cropRect)
     }
 }
 
 /**
- * 将 Bitmap 缩放到不超过 maxPixels 总像素数（默认 16M 像素）
+ * 将位图缩放到不超过 [maxPixels] 总像素数（默认 16M 像素）。
+ *
+ * 和 Android 的 `Bitmap.createScaledBitmap(..., filter = true)` 一样是双线性采样。
+ *
+ * [maxPixels] 是参数而不是常量，测试才能用一张 8 像素的小图验证缩放边界（见 `ImageCropperTest`），
+ * 不必为了越过默认阈值真的构造一张 4000 万像素的图。
  */
-private fun downscaleBitmap(bitmap: Bitmap, maxPixels: Long = 16_000_000L): Bitmap {
+internal fun downscaleBitmap(bitmap: ImageBitmap, maxPixels: Long = 16_000_000L): ImageBitmap {
     val currentPixels = bitmap.width.toLong() * bitmap.height.toLong()
     if (currentPixels <= maxPixels) return bitmap
 
     val scale = sqrt(maxPixels.toFloat() / currentPixels.toFloat())
     val newWidth = (bitmap.width * scale).toInt().coerceAtLeast(1)
     val newHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
-    return bitmap.scale(newWidth, newHeight)
+    return bitmap.scaleTo(newWidth, newHeight)
 }
 
 /**
  * 创建并记住一个 ImageCropperState
  */
 @Composable
-fun rememberImageCropperState(bitmap: Bitmap): ImageCropperState {
+fun rememberImageCropperState(bitmap: ImageBitmap): ImageCropperState {
     return remember(bitmap) {
         val display = downscaleBitmap(bitmap)
         ImageCropperState(
@@ -114,7 +122,7 @@ fun ImageCropper(
     val touchTolerance = with(density) { 24.dp.toPx() }
     val minCropSize = with(density) { 60.dp.toPx() }
 
-    val imageBitmap: ImageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
+    val imageBitmap: ImageBitmap = bitmap
     val bitmapAspectRatio = remember(bitmap) {
         bitmap.width.toFloat() / bitmap.height.toFloat()
     }
@@ -181,7 +189,7 @@ fun ImageCropper(
     val aspectRatioRef = rememberUpdatedState(state.aspectRatio)
     var activeHandle by remember { mutableStateOf(DragHandle.NONE) }
 
-    val freeRatio = stringResource(id = R.string.option_free_ratio)
+    val freeRatio = stringResource(Res.string.option_free_ratio)
     Column(modifier = modifier.fillMaxWidth()) {
         if (showRatioBar) {
             val ratioOptions = remember {
@@ -212,7 +220,7 @@ fun ImageCropper(
                 WindowSpinnerPreference(
                     items = spinnerItems,
                     selectedIndex = selectedIndex,
-                    title = stringResource(R.string.label_image_ratio),
+                    title = stringResource(Res.string.label_image_ratio),
                     onSelectedIndexChange = { index ->
                         state.aspectRatio = ratioOptions[index].first
                     }
@@ -290,14 +298,18 @@ fun ImageCropper(
 // ============================================================
 
 /**
- * 将显示坐标映射回原始 Bitmap 坐标
+ * 将显示坐标映射回原始位图坐标。
+ *
+ * 两次缩放的乘积是从「视图坐标」直接到「原始像素坐标」的比例：先由显示区域映射到显示位图像素，
+ * 再由显示位图映射到原始位图。裁剪本身交给 [crop]，边界收缩规则与 Android 一致（越界部分补到
+ * 至少 1 像素，而不是返回空图）。
  */
 fun cropActualBitmap(
-    originalBitmap: Bitmap,
-    displayBitmap: Bitmap,
+    originalBitmap: ImageBitmap,
+    displayBitmap: ImageBitmap,
     imageDisplayBounds: Rect,
     cropRect: Rect
-): Bitmap {
+): ImageBitmap {
     // 从显示区域坐标 → 显示 Bitmap 像素坐标
     val displayScaleX = displayBitmap.width / imageDisplayBounds.width
     val displayScaleY = displayBitmap.height / imageDisplayBounds.height
@@ -320,7 +332,7 @@ fun cropActualBitmap(
     val safeWidth = min(originalBitmap.width - safeX, cropWidth).coerceAtLeast(1)
     val safeHeight = min(originalBitmap.height - safeY, cropHeight).coerceAtLeast(1)
 
-    return Bitmap.createBitmap(originalBitmap, safeX, safeY, safeWidth, safeHeight)
+    return originalBitmap.crop(safeX, safeY, safeWidth, safeHeight)
 }
 
 fun getHitHandle(touch: Offset, rect: Rect, tolerance: Float): DragHandle {

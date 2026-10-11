@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -43,7 +42,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_manual_input
+import com.lonx.lyrico.resources.action_reset
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.label_lyrics_offset
+import com.lonx.lyrico.resources.lyrics_offset_input_hint
+import com.lonx.lyrico.resources.lyrics_offset_input_invalid
+import com.lonx.lyrico.resources.lyrics_offset_input_out_of_range
+import com.lonx.lyrico.utils.formattedStringResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
@@ -216,13 +225,13 @@ fun LyricsOffsetField(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TextButton(
-                text = stringResource(R.string.action_reset),
+                text = stringResource(Res.string.action_reset),
                 onClick = { onOffsetChange(0L) },
                 modifier = Modifier.weight(1f),
                 enabled = enabled && safeOffset != 0L
             )
             TextButton(
-                text = stringResource(R.string.action_manual_input),
+                text = stringResource(Res.string.action_manual_input),
                 onClick = { showInputDialog = true },
                 modifier = Modifier.weight(1f),
                 enabled = enabled
@@ -296,11 +305,11 @@ fun LyricsOffsetInputDialog(
     val magnitude = magnitudeInput.trim().toLongOrNull()
     val value = magnitude?.let { if (negative) -it else it }
     val isValid = value != null && value in minOffset..maxOffset
-    val rangeHint = stringResource(R.string.lyrics_offset_input_hint, minOffset, maxOffset)
+    val rangeHint = formattedStringResource(Res.string.lyrics_offset_input_hint, minOffset, maxOffset)
 
     WindowDialog(
         show = show,
-        title = stringResource(R.string.label_lyrics_offset),
+        title = stringResource(Res.string.label_lyrics_offset),
         onDismissRequest = onDismiss
     ) {
         Column(modifier = modifier.fillMaxWidth()) {
@@ -327,7 +336,7 @@ fun LyricsOffsetInputDialog(
                     value = magnitudeInput,
                     onValueChange = { magnitudeInput = it },
                     modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.label_lyrics_offset),
+                    label = stringResource(Res.string.label_lyrics_offset),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
@@ -335,8 +344,8 @@ fun LyricsOffsetInputDialog(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = when {
-                    magnitude == null -> stringResource(R.string.lyrics_offset_input_invalid)
-                    !isValid -> stringResource(R.string.lyrics_offset_input_out_of_range, rangeHint)
+                    magnitude == null -> stringResource(Res.string.lyrics_offset_input_invalid)
+                    !isValid -> formattedStringResource(Res.string.lyrics_offset_input_out_of_range, rangeHint)
                     else -> rangeHint
                 },
                 style = MiuixTheme.textStyles.footnote1,
@@ -349,13 +358,13 @@ fun LyricsOffsetInputDialog(
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = { value?.let(onConfirm) },
                     modifier = Modifier.weight(1f),
                     enabled = isValid,

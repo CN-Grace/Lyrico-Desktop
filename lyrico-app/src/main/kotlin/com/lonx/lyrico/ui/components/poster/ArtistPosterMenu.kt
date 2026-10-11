@@ -14,12 +14,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lonx.audiotag.model.AudioPicture
-import com.lonx.lyrico.R
 import com.lonx.lyrico.domain.poster.ArtistPictureEntry
 import com.lonx.lyrico.domain.poster.ArtistPosterGrouping
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.artist_image_untagged
+import com.lonx.lyrico.resources.label_artist_image_count
+import com.lonx.lyrico.resources.label_artist_image_duplicate
+import com.lonx.lyrico.resources.label_artist_image_exists
+import com.lonx.lyrico.resources.label_artist_image_options
+import com.lonx.lyrico.resources.label_change_artist_image
+import com.lonx.lyrico.resources.label_crop_artist_image
+import com.lonx.lyrico.resources.label_reassign_artist_image
+import com.lonx.lyrico.resources.label_remove_artist_image
+import com.lonx.lyrico.resources.label_save_artist_image
+import com.lonx.lyrico.resources.label_select_artist
+import com.lonx.lyrico.resources.label_select_artist_image
+import com.lonx.lyrico.utils.formattedStringResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -121,7 +134,7 @@ fun ArtistPosterMenu(
     onReassign: (target: AudioPicture, artistName: String) -> Unit,
     onMissingArtist: () -> Unit,
 ) {
-    val untaggedLabel = stringResource(R.string.artist_image_untagged)
+    val untaggedLabel = stringResource(Res.string.artist_image_untagged)
 
     fun runEntryAction(request: PosterPickerRequest, entry: ArtistPictureEntry) {
         when (request) {
@@ -186,7 +199,7 @@ fun ArtistPosterMenu(
     WindowBottomSheet(
         show = state.showOptions,
         enableNestedScroll = false,
-        title = stringResource(R.string.label_artist_image_options),
+        title = stringResource(Res.string.label_artist_image_options),
         onDismissRequest = { state.closeOptions() }
     ) {
         Column(
@@ -200,7 +213,7 @@ fun ArtistPosterMenu(
             ) {
                 // 一个艺术家只有一张海报，所以「从本地选择」同时就是新增和替换
                 ArrowPreference(
-                    title = stringResource(R.string.label_change_artist_image),
+                    title = stringResource(Res.string.label_change_artist_image),
                     onClick = {
                         state.closeOptions()
                         chooseLocalImage()
@@ -208,21 +221,21 @@ fun ArtistPosterMenu(
                 )
                 if (canActOnEmbedded) {
                     ArrowPreference(
-                        title = stringResource(R.string.label_remove_artist_image),
+                        title = stringResource(Res.string.label_remove_artist_image),
                         onClick = {
                             state.closeOptions()
                             requestEntryAction(PosterPickerRequest.Remove)
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.label_save_artist_image),
+                        title = stringResource(Res.string.label_save_artist_image),
                         onClick = {
                             state.closeOptions()
                             requestEntryAction(PosterPickerRequest.Export)
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.label_crop_artist_image),
+                        title = stringResource(Res.string.label_crop_artist_image),
                         onClick = {
                             state.closeOptions()
                             requestEntryAction(PosterPickerRequest.Crop)
@@ -239,8 +252,8 @@ fun ArtistPosterMenu(
                     colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.secondaryContainer)
                 ) {
                     ArrowPreference(
-                        title = stringResource(
-                            R.string.label_reassign_artist_image,
+                        title = formattedStringResource(
+                            Res.string.label_reassign_artist_image,
                             currentEntry.displayName(untaggedLabel)
                         ),
                         onClick = {
@@ -259,8 +272,8 @@ fun ArtistPosterMenu(
         show = pickerRequest != null,
         enableNestedScroll = false,
         title = stringResource(
-            if (pickerRequest?.picksArtist == true) R.string.label_select_artist
-            else R.string.label_select_artist_image
+            if (pickerRequest?.picksArtist == true) Res.string.label_select_artist
+            else Res.string.label_select_artist_image
         ),
         onDismissRequest = { state.dismissPicker() }
     ) {
@@ -282,9 +295,9 @@ fun ArtistPosterMenu(
                             title = artistName,
                             summary = when {
                                 posterCount > 1 ->
-                                    stringResource(R.string.label_artist_image_count, posterCount)
+                                    formattedStringResource(Res.string.label_artist_image_count, posterCount)
                                 posterCount == 1 ->
-                                    stringResource(R.string.label_artist_image_exists)
+                                    stringResource(Res.string.label_artist_image_exists)
                                 else -> null
                             },
                             onClick = { onArtistPicked(artistName) }
@@ -325,7 +338,7 @@ private fun ArtistPicturePickerItems(
 
         ArrowPreference(
             title = if (total > 1) {
-                stringResource(R.string.label_artist_image_duplicate, name, position, total)
+                formattedStringResource(Res.string.label_artist_image_duplicate, name, position, total)
             } else {
                 name
             },
