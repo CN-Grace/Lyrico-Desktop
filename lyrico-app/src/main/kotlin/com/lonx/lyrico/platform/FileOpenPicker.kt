@@ -58,13 +58,15 @@ fun rememberFileOpenPicker(
 }
 
 /**
- * Whether [fileName] ends in one of [extensions], case-insensitively.
+ * Whether [fileName] ends in one of [extensions], case-insensitively. A `"*"` entry matches every
+ * file, which is how a caller asks for "any file": the dialog then shows its all-files pattern. That
+ * is the desktop replacement for Android's `OpenDocument` with a wildcard MIME type.
  *
  * Split out from the dialog so the platform-independent matching rule has a test that does not need a
  * native window: the dialog itself cannot be driven headlessly.
  */
 internal fun matchesExtensions(fileName: String, extensions: List<String>): Boolean =
-    extensions.any { fileName.endsWith(".$it", ignoreCase = true) }
+    extensions.any { it == "*" || fileName.endsWith(".$it", ignoreCase = true) }
 
 private fun pickFile(title: String, extensions: List<String>): File? {
     // Blocking, like FileSavePicker: AWT's modal dialog pumps its own event loop, so it can be called

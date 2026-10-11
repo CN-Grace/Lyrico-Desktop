@@ -13,9 +13,9 @@ import com.lonx.lyrico.utils.logging.PlatformLog
  * `navigateBack(result)`, the caller declared `onLyricsResult: ResultRecipient<SearchResultsDestination,
  * LyricsSearchResult>` and implemented its `onResult`. Compose Destinations publishes no JVM artifact
  * (see [NavDirection]), so -- like [Navigator] itself -- the two halves are replaced here. This file is
- * the **sending** half only: nothing in the ported tree receives a result yet, because the only caller
- * (`EditMetadataScreen`) belongs to a later batch. The receiving half and the key function it must use
- * are described below so the batch that ports that screen is not guessing.
+ * the **sending** half; the receiving half is [ResultRecipient], written by the batch that ported
+ * `EditMetadataScreen` (its only caller). The key both halves have to agree on is [resultKey], and the
+ * rules it encodes are described below.
  *
  * ### How a result travels
  *

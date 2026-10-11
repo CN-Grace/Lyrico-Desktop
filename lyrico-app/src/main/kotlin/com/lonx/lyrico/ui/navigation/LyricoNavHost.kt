@@ -18,6 +18,7 @@ import androidx.savedstate.read
 import com.lonx.lyrico.screens.AppLogScreen
 import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
+import com.lonx.lyrico.screens.EditMetadataScreen
 import com.lonx.lyrico.screens.LibraryHomeScreen
 import com.lonx.lyrico.screens.PluginConfigScreen
 import com.lonx.lyrico.screens.PluginManagerScreen
@@ -145,6 +146,36 @@ fun LyricoNavHost(
                     resultNavigator = rememberResultBackNavigator(
                         controller = navController,
                         route = SearchCoverDestination.BASE,
+                    ),
+                )
+            }
+            composable(
+                route = EditMetadataDestination.PATTERN,
+                // A path argument, so required rather than optional, exactly like the batch task id: the
+                // route only matches with a non-empty segment, and the `songs.uri` value is never blank.
+                arguments = listOf(
+                    navArgument(EditMetadataDestination.ARG_SONG_FILE_URI) { type = NavType.StringType }
+                ),
+            ) { entry ->
+                EditMetadataScreen(
+                    navigator = navigator,
+                    songFileUri = entry.arguments
+                        .readOptionalString(EditMetadataDestination.ARG_SONG_FILE_URI)
+                        .orEmpty(),
+                    // The editor is the *receiver* of all three searches' results, and it reads them off
+                    // its own handle keyed by each sender's base route -- `ResultBackNavigator` writes
+                    // them there. Naming the senders here, once, is what keeps the two halves agreeing.
+                    onCoverSearchResult = rememberResultRecipient(
+                        handle = entry.savedStateHandle,
+                        route = SearchCoverDestination.BASE,
+                    ),
+                    onLyricsResult = rememberResultRecipient(
+                        handle = entry.savedStateHandle,
+                        route = SearchResultsDestination.BASE,
+                    ),
+                    onLyricsSearchResult = rememberResultRecipient(
+                        handle = entry.savedStateHandle,
+                        route = SearchLyricsDestination.BASE,
                     ),
                 )
             }

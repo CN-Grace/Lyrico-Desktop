@@ -1,0 +1,38 @@
+H:\VibeCoding\03-”¶”√\Lyrico-Desktop\scripts\analyze-window-capture.py:48: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+  pixels = list(image.getdata())
+file: docs\port-evidence\c36-editor.png
+size: 1166x773
+distinct_colours: 486  most_common_share: 0.392  text_pixels: 13345
+accent_blue_pixels: 3028  accent_warm_pixels: 157
+top_colours: (240, 240, 240)=353253, (255, 255, 255)=321040, (247, 247, 247)=189052, (149, 149, 149)=17233
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+#+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                           .+.                                            . +
+  # ++                                          .++.                                          +. +
+  #                                                                                              +
+  #  ###    .++.                                                                                 +
+  #     ########                                                                                 +
+  #     ########   ##+                                                                           +
+  #   +###  +###   ##+                                                                           +
+  #   ####  +###                                                                                 +
+  #   .#+   #####                                                                                +
+  #       #                                                                                      +
+  #                                                                                              +
+  # +##.                                                                                         +
+  # ..+.                                                                                         +
+  #                                                                                              +
+  # +#..                                                                                         +
+  #                                                                                              +
+  # .+..+                                                                                        +
+  # +++++                                                                                        +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  # .#+.                                                                                         +
+  # .++.                                                                                         +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

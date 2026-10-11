@@ -1,0 +1,11 @@
+file: docs/port-evidence/c36-editor.png
+engine: zh-Hans-CN
+lines: 8
+  y=10 x=31 :: Lyrico 1 ℃ 〔 20 匚 g255 〕
+  y=205 x=205 :: 周 华
+  y=348 x=29 :: 评 级
+  y=435 x=29 :: ． 化 心
+  y=493 x=29 :: 周 华 健
+  y=551 x=29 :: 专 辑 艺 术 家
+  y=627 x=29 :: 朋 友
+  y=686 x=32 :: 日 耻

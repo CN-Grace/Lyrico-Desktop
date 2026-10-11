@@ -1,0 +1,103 @@
+== lyrico-app run log, captured during the C36-C slice-2 real-window session ==
+== launch: ./gradlew :lyrico-app:run  (seed: -Plyrico.seedDevLibrary=1 beforehand) ==
+== click path: library row 1 -> editor (c36-editor.png) -> top-right save -> library (c36-save-1.png) ==
+Calculating task graph as configuration cache cannot be reused because output of the external process 'git' has changed.
+> Task :lyrico-audiotag:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :lyrico-app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :lyrico-app:prepareAppResources NO-SOURCE
+> Task :lyrico-app:generateComposeResClass UP-TO-DATE
+> Task :lyrico-audiotag:processResources NO-SOURCE
+> Task :lyrico-app:convertXmlValueResourcesForMain UP-TO-DATE
+> Task :lyrico-app:copyNonXmlValueResourcesForMain UP-TO-DATE
+> Task :lyrico-audiotag:compileKotlin UP-TO-DATE
+> Task :lyrico-app:prepareComposeResourcesTaskForMain UP-TO-DATE
+> Task :lyrico-app:generateResourceAccessorsForMain UP-TO-DATE
+> Task :lyrico-app:assembleMainResources UP-TO-DATE
+> Task :lyrico-app:generateActualResourceCollectorsForMain UP-TO-DATE
+> Task :lyrico-audiotag:compileJava UP-TO-DATE
+> Task :lyrico-audiotag:classes UP-TO-DATE
+> Task :lyrico-audiotag:jar UP-TO-DATE
+> Task :lyrico-app:generateBuildInfo UP-TO-DATE
+> Task :lyrico-app:kspKotlin UP-TO-DATE
+> Task :lyrico-app:processResources UP-TO-DATE
+> Task :lyrico-app:compileKotlin UP-TO-DATE
+> Task :lyrico-app:compileJava NO-SOURCE
+> Task :lyrico-app:classes UP-TO-DATE
+> Task :lyrico-app:jar UP-TO-DATE
+
+> Task :lyrico-app:run
+I/Lyrico: 数据目录=H:\VibeCoding\03-应用\Lyrico-Desktop\lyrico-app\data (便携模式)
+[INFO] taglib: loaded native library from H:\VibeCoding\03-应用\Lyrico-Desktop\build\native\windows-x64\taglib.dll
+I/Lyrico: native OK: H:\VibeCoding\03-应用\Lyrico-Desktop\build\native\windows-x64
+[DEBUG] AudioTagReader: Read tag: ALBUM = 朋友
+[DEBUG] AudioTagReader: Read tag: LYRICS = [00:00.00]花的心藏在蕊中
+[00:06.50]空把花期都错过
+[DEBUG] AudioTagReader: Read tag: ARTIST = 周华健
+[DEBUG] AudioTagReader: Read tag: TITLE = 花心
+[DEBUG] AudioTagReader: Read tag: ALBUM = 朋友
+[DEBUG] AudioTagReader: Read tag: LYRICS = [00:00.00]花的心藏在蕊中
+[00:06.50]空把花期都错过
+[DEBUG] AudioTagReader: Read tag: ARTIST = 周华健
+[DEBUG] AudioTagReader: Read tag: TITLE = 花心
+[DEBUG] AudioTagWriter: Write tag: USLT = [Ljava.lang.String;@2a5179c8
+[DEBUG] AudioTagWriter: Write tag: TLAN = [Ljava.lang.String;@4d57903d
+[DEBUG] AudioTagWriter: Write tag: TALB = [Ljava.lang.String;@158d29d
+[DEBUG] AudioTagWriter: Write tag: TDAT = [Ljava.lang.String;@292989b0
+[DEBUG] AudioTagWriter: Write tag: ALBUM ARTIST = [Ljava.lang.String;@8173a64
+[DEBUG] AudioTagWriter: Write tag: TRACKNUMBER = [Ljava.lang.String;@79b09523
+[DEBUG] AudioTagWriter: Write tag: TEXT = [Ljava.lang.String;@3e3b6cb2
+[DEBUG] AudioTagWriter: Write tag: LYRICSENG = [Ljava.lang.String;@5bba06cc
+[DEBUG] AudioTagWriter: Write tag: REPLAYGAIN_ALBUM_PEAK = [Ljava.lang.String;@6acfc3c5
+[DEBUG] AudioTagWriter: Write tag: COMM = [Ljava.lang.String;@172b5a32
+[DEBUG] AudioTagWriter: Write tag: YEAR = [Ljava.lang.String;@7290ea99
+[DEBUG] AudioTagWriter: Write tag: POPM = [Ljava.lang.String;@79170e61
+[DEBUG] AudioTagWriter: Write tag: LANGUAGE = [Ljava.lang.String;@6dd23b6d
+[DEBUG] AudioTagWriter: Write tag: STYLE = [Ljava.lang.String;@20e5062f
+[DEBUG] AudioTagWriter: Write tag: TCON = [Ljava.lang.String;@55d4f488
+[DEBUG] AudioTagWriter: Write tag: DISCNUMBER = [Ljava.lang.String;@14719c55
+[DEBUG] AudioTagWriter: Write tag: TCOM = [Ljava.lang.String;@6884d4e5
+[DEBUG] AudioTagWriter: Write tag: ?cpy = [Ljava.lang.String;@60d873a4
+[DEBUG] AudioTagWriter: Write tag: TPE2 = [Ljava.lang.String;@125aab83
+[DEBUG] AudioTagWriter: Write tag: TPE1 = [Ljava.lang.String;@ad10ea9
+[DEBUG] AudioTagWriter: Write tag: DATE = [Ljava.lang.String;@44bcd0ea
+[DEBUG] AudioTagWriter: Write tag: TIT2 = [Ljava.lang.String;@67dace8a
+[DEBUG] AudioTagWriter: Write tag: TIT1 = [Ljava.lang.String;@201b7741
+[DEBUG] AudioTagWriter: Write tag: DISC = [Ljava.lang.String;@223d81ad
+[DEBUG] AudioTagWriter: Write tag: RATING = [Ljava.lang.String;@a43e80
+[DEBUG] AudioTagWriter: Write tag: TCOP = [Ljava.lang.String;@31bb1e80
+[DEBUG] AudioTagWriter: Write tag: UNSYNCED LYRICS = [Ljava.lang.String;@4a61c689
+[DEBUG] AudioTagWriter: Write tag: REPLAYGAIN_TRACK_PEAK = [Ljava.lang.String;@49f1681
+[DEBUG] AudioTagWriter: Write tag: LYRICIST = [Ljava.lang.String;@256e68ac
+[DEBUG] AudioTagWriter: Write tag: DISKNUMBER = [Ljava.lang.String;@4cc83d9f
+[DEBUG] AudioTagWriter: Write tag: TRCK = [Ljava.lang.String;@8d9ff01
+[DEBUG] AudioTagWriter: Write tag: LYRICS BY = [Ljava.lang.String;@748edb85
+[DEBUG] AudioTagWriter: Write tag: RATE = [Ljava.lang.String;@22f3e6b0
+[DEBUG] AudioTagWriter: Write tag: TPOS = [Ljava.lang.String;@2f5a13b4
+[DEBUG] AudioTagWriter: Write tag: LYRICS = [Ljava.lang.String;@683cc0a9
+[DEBUG] AudioTagWriter: Write tag: ALBUMARTIST = [Ljava.lang.String;@6aec6cd8
+[DEBUG] AudioTagWriter: Write tag: COMPOSER = [Ljava.lang.String;@5717d153
+[DEBUG] AudioTagWriter: Write tag: COMMENT = [Ljava.lang.String;@282fbfb6
+[DEBUG] AudioTagWriter: Write tag: ARTIST = [Ljava.lang.String;@26980b92
+[DEBUG] AudioTagWriter: Write tag: MOOD = [Ljava.lang.String;@2f9b3935
+[DEBUG] AudioTagWriter: Write tag: TYER = [Ljava.lang.String;@466fe8dc
+[DEBUG] AudioTagWriter: Write tag: DESCRIPTION = [Ljava.lang.String;@13e83da8
+[DEBUG] AudioTagWriter: Write tag: REPLAYGAIN_ALBUM_GAIN = [Ljava.lang.String;@754a60dc
+[DEBUG] AudioTagWriter: Write tag: REPLAYGAIN_TRACK_GAIN = [Ljava.lang.String;@3eeadd1
+[DEBUG] AudioTagWriter: Write tag: SUBGENRE = [Ljava.lang.String;@3afe9c78
+[DEBUG] AudioTagWriter: Write tag: LYRIC = [Ljava.lang.String;@68a9f3f2
+[DEBUG] AudioTagWriter: Write tag: WRITER = [Ljava.lang.String;@4ec322bb
+[DEBUG] AudioTagWriter: Write tag: ALBUMARTISTSORT = [Ljava.lang.String;@38b59e97
+[DEBUG] AudioTagWriter: Write tag: GENRE = [Ljava.lang.String;@76e6d8a5
+[DEBUG] AudioTagWriter: Write tag: TRACK = [Ljava.lang.String;@517783e8
+[DEBUG] AudioTagWriter: Write tag: REPLAYGAIN_REFERENCE_LOUDNESS = [Ljava.lang.String;@676b587
+[DEBUG] AudioTagWriter: Write tag: aART = [Ljava.lang.String;@12a3d2f8
+[DEBUG] AudioTagWriter: Write tag: CPRO = [Ljava.lang.String;@52c013f9
+[DEBUG] AudioTagWriter: Write tag: ALBUM = [Ljava.lang.String;@3fc5a28a
+[DEBUG] AudioTagWriter: Write tag: TITLE = [Ljava.lang.String;@cace278
+[DEBUG] AudioTagWriter: Write tag: COPYRIGHT = [Ljava.lang.String;@14c507
+[DEBUG] AudioTagWriter: Write tag: ?wrt = [Ljava.lang.String;@52995127
+[DEBUG] AudioTagReader: Read tag: ALBUM = 朋友
+[DEBUG] AudioTagReader: Read tag: LYRICS = [00:00.00]花的心藏在蕊中
+[00:06.50]空把花期都错过
+[DEBUG] AudioTagReader: Read tag: ARTIST = 周华健
+[DEBUG] AudioTagReader: Read tag: TITLE = 花心

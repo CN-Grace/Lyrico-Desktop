@@ -1,17 +1,6 @@
 package com.lonx.lyrico.screens
 
-import android.annotation.SuppressLint
-import android.app.Activity
-import android.content.ClipData
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import com.lonx.lyrico.ExternalAudioEditHost
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
+import com.lonx.lyrico.LocalExternalAudioEditHost
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,13 +19,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -70,19 +57,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
@@ -93,7 +80,81 @@ import com.lonx.audiotag.model.type
 import com.lonx.lyrico.data.model.lyrics.LyricsOperation
 import com.lonx.lyrico.ui.components.lyrics.LyricsProcessingSheet
 import com.lonx.lyrico.ui.components.lyrics.LyricsOrganizationMenu
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_add_custom_tag
+import com.lonx.lyrico.resources.action_calculate_replay_gain
+import com.lonx.lyrico.resources.action_cancel_undo
+import com.lonx.lyrico.resources.action_delete
+import com.lonx.lyrico.resources.action_export_lyrics
+import com.lonx.lyrico.resources.action_import_lyrics
+import com.lonx.lyrico.resources.action_lyrics_options
+import com.lonx.lyrico.resources.action_main_search
+import com.lonx.lyrico.resources.action_search_cover
+import com.lonx.lyrico.resources.action_search_lyrics
+import com.lonx.lyrico.resources.action_undo_changes
+import com.lonx.lyrico.resources.action_view_plain_lyrics
+import com.lonx.lyrico.resources.artist_image_untagged
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.chinese_conversion_mode_simplified_to_traditional
+import com.lonx.lyrico.resources.chinese_conversion_mode_traditional_to_simplified
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.edit_artist_image
+import com.lonx.lyrico.resources.edit_cover
+import com.lonx.lyrico.resources.edit_field_settings_title
+import com.lonx.lyrico.resources.edit_metadata_default_title
+import com.lonx.lyrico.resources.ic_album_24dp
+import com.lonx.lyrico.resources.ic_filled_star_24dp
+import com.lonx.lyrico.resources.ic_outline_star_24dp
+import com.lonx.lyrico.resources.label_artist
+import com.lonx.lyrico.resources.label_artist_image
+import com.lonx.lyrico.resources.label_artist_image_conflict_message
+import com.lonx.lyrico.resources.label_artist_image_conflict_title
+import com.lonx.lyrico.resources.label_artist_image_options
+import com.lonx.lyrico.resources.label_artist_image_replace
+import com.lonx.lyrico.resources.label_artist_image_swap
+import com.lonx.lyrico.resources.label_change_cover
+import com.lonx.lyrico.resources.label_cover
+import com.lonx.lyrico.resources.label_cover_options
+import com.lonx.lyrico.resources.label_crop_artist_image
+import com.lonx.lyrico.resources.label_crop_cover
+import com.lonx.lyrico.resources.label_custom_tag_name
+import com.lonx.lyrico.resources.label_custom_tag_value
+import com.lonx.lyrico.resources.label_disc_number
+import com.lonx.lyrico.resources.label_image_source_embedded
+import com.lonx.lyrico.resources.label_image_source_external
+import com.lonx.lyrico.resources.label_lyrics
+import com.lonx.lyrico.resources.label_plain_lyrics
+import com.lonx.lyrico.resources.label_rating
+import com.lonx.lyrico.resources.label_remove_cover
+import com.lonx.lyrico.resources.label_save_cover
+import com.lonx.lyrico.resources.label_select_same_album_cover
+import com.lonx.lyrico.resources.label_track_number
+import com.lonx.lyrico.resources.limit_lyrics_input_lines
+import com.lonx.lyrico.resources.limit_lyrics_input_lines_hint
+import com.lonx.lyrico.resources.lyrics_convert
+import com.lonx.lyrico.resources.lyrics_empty
+import com.lonx.lyrico.resources.lyrics_organize
+import com.lonx.lyrico.resources.menu_play_music
+import com.lonx.lyrico.resources.msg_artist_field_empty_for_poster
+import com.lonx.lyrico.resources.msg_artist_image_reassigned
+import com.lonx.lyrico.resources.msg_export_lyrics_failed
+import com.lonx.lyrico.resources.msg_export_lyrics_success
+import com.lonx.lyrico.resources.msg_field_reverted
+import com.lonx.lyrico.resources.msg_import_lyrics_failed
+import com.lonx.lyrico.resources.msg_import_lyrics_success
+import com.lonx.lyrico.resources.msg_picture_save_failed
+import com.lonx.lyrico.resources.msg_picture_saved
+import com.lonx.lyrico.resources.msg_read_artist_image_failed
+import com.lonx.lyrico.resources.msg_read_cover_failed
+import com.lonx.lyrico.resources.msg_save_failed_with_reason
+import com.lonx.lyrico.resources.msg_save_success
+import com.lonx.lyrico.resources.offset_adjust_hint
+import com.lonx.lyrico.resources.permission_denied_cannot_save
+import com.lonx.lyrico.resources.replay_gain_calculate_in_progress
+import com.lonx.lyrico.resources.roma
+import com.lonx.lyrico.resources.status_modified
+import com.lonx.lyrico.resources.translation
+import com.lonx.lyrico.resources.unknown_error_simple
 import com.lonx.lyrico.data.editfield.EditFieldDefinition
 import com.lonx.lyrico.data.editfield.EditFieldKind
 import com.lonx.lyrico.data.editfield.EditFieldRegistry
@@ -115,42 +176,44 @@ import com.lonx.lyrico.ui.components.base.ExportDestinationBottomSheet
 import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
+import com.lonx.lyrico.ui.components.cover.CoverSourceImage
+import com.lonx.lyrico.ui.components.cover.decodeCoverBitmap
+import com.lonx.lyrico.ui.components.cover.readCoverSourceSize
 import com.lonx.lyrico.ui.components.cover.rememberArtistPosterSource
 import com.lonx.lyrico.ui.components.crop.ImageCropper
 import com.lonx.lyrico.ui.components.crop.rememberImageCropperState
 import com.lonx.lyrico.ui.components.fab.ExpandableFabMenu
 import com.lonx.lyrico.ui.components.fab.ExpandableFabMenuStyle
 import com.lonx.lyrico.ui.components.fab.FabMenuItem
-import com.lonx.lyrico.ui.components.getBitmap
-import com.lonx.lyrico.ui.components.player.PlayerPickerBottomSheet
 import com.lonx.lyrico.ui.components.poster.ArtistPosterMenu
 import com.lonx.lyrico.ui.components.poster.rememberArtistPosterMenuState
 import com.lonx.lyrico.ui.components.rememberTintedPainter
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
+import com.lonx.lyrico.ui.navigation.EditFieldSettingsDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.ui.navigation.ResultRecipient
+import com.lonx.lyrico.ui.navigation.SearchCoverDestination
+import com.lonx.lyrico.ui.navigation.SearchLyricsDestination
+import com.lonx.lyrico.ui.navigation.SearchResultsDestination
+import com.lonx.lyrico.ui.navigation.onResult
 import com.lonx.lyrico.ui.theme.LyricoColors
-import com.lonx.lyrico.utils.CoverSourceType
+import com.lonx.lyrico.platform.rememberFileOpenPicker
+import com.lonx.lyrico.platform.rememberFileSavePicker
 import com.lonx.lyrico.utils.LyricDecoder
-import com.lonx.lyrico.utils.getCoverSourceType
-import com.lonx.lyrico.utils.coil.readExternalArtistPoster
+import com.lonx.lyrico.utils.formattedString
+import com.lonx.lyrico.utils.formattedStringResource
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.viewmodel.EditMetadataViewModel
 import com.lonx.lyrico.viewmodel.isEqualIgnoringBlank
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.EditFieldSettingsDestination
-import com.ramcosta.composedestinations.generated.destinations.SearchCoverDestination
-import com.ramcosta.composedestinations.generated.destinations.SearchLyricsDestination
-import com.ramcosta.composedestinations.generated.destinations.SearchResultsDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import com.ramcosta.composedestinations.result.ResultRecipient
-import com.ramcosta.composedestinations.result.onResult
-import java.net.URL
+import java.awt.datatransfer.StringSelection
+import java.io.File
 import kotlin.apply
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import org.koin.compose.koinInject
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -191,23 +254,36 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.window.WindowDialog
 
+private const val TAG = "EditMetadataScreen"
+
 private const val LIMITED_LYRICS_INPUT_MAX_LINES = 30
+
+/**
+ * 选本地图片时对话框过滤的扩展名。
+ *
+ * Android 的 `PickVisualMedia` 把「什么算图片」交给系统判断；桌面端由 `FileOpenPicker` 按文件名过滤，
+ * 所以在这里列出图片格式（包含 `ImageIO` 能解码的那几种，否则选进来也读不出像素）。
+ */
+private val LocalImageExtensions = listOf("jpg", "jpeg", "png", "webp", "bmp", "gif")
+
+/** 导入歌词不过滤文件，等价于 Android 里 `OpenDocument` 传通配的 MIME 类型（见 `matchesExtensions`）。 */
+private val AnyFileExtensions = listOf("*")
 
 /** 艺术家海报描述对不上任何艺术家时，角标的警示底色。 */
 private val ArtistImageUnmatchedBadgeColor = Color(0xFFB45309).copy(alpha = 0.9f)
 
-@SuppressLint("LocalContextGetResourceValueCall")
+// `ClipEntry` is @ExperimentalComposeUiApi in Compose Multiplatform; the marker sits on the screen
+// rather than on the copy site, matching the other ported screens.
 @OptIn(
-    ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class
+    ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalComposeUiApi::class
 )
 @Composable
-@Destination<RootGraph>(route = "edit_metadata")
 fun EditMetadataScreen(
-    navigator: DestinationsNavigator,
+    navigator: Navigator,
     songFileUri: String,
-    onCoverSearchResult: ResultRecipient<SearchCoverDestination, String>,
-    onLyricsResult: ResultRecipient<SearchResultsDestination, LyricsSearchResult>,
-    onLyricsSearchResult: ResultRecipient<SearchLyricsDestination, LyricsSearchResult>,
+    onCoverSearchResult: ResultRecipient<String>,
+    onLyricsResult: ResultRecipient<LyricsSearchResult>,
+    onLyricsSearchResult: ResultRecipient<LyricsSearchResult>,
     externalEditRequestId: Long? = null,
 ) {
     val viewModel: EditMetadataViewModel = koinViewModel()
@@ -239,7 +315,8 @@ fun EditMetadataScreen(
      * 多艺术家时就会出现几位艺术家显示同一张图、各自的海报文件永远查不到。
      */
     fun artistPosterFileRequest(artistName: String) = CoverRequest(
-        uri = songFileUri.toUri(),
+        // 桌面端歌曲路径就是绝对路径本身，没有 `file://` 包装（见 `CoverRequest` 的 KDoc）
+        uri = songFileUri,
         lastUpdate = 0L,
         pictureType = AudioPictureType.Artist,
         fallbackPictureTypes = listOf(AudioPictureType.LeadArtist, AudioPictureType.Band),
@@ -252,16 +329,33 @@ fun EditMetadataScreen(
     )
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val activity = context as Activity
+    // 外部编辑请求的宿主（Android 上是 Activity）由窗口通过 CompositionLocal 提供。桌面端窗口还没有
+    // 实现方，所以这里可能取到 null，见下方 `closeEditor` 与 PLAN.md 的缺口记录。
+    val externalEditHost = LocalExternalAudioEditHost.current
+    // 下面几段文案要在非 @Composable 的局部函数 / 协程里使用，所以在组合里先取好：
+    // `msg_field_reverted`、`msg_artist_image_reassigned` 是占位符模板，用 Kotlin 的 `format` 代入。
+    val cancelUndoLabel = stringResource(Res.string.action_cancel_undo)
+    val fieldRevertedTemplate = stringResource(Res.string.msg_field_reverted)
+    val artistImageReassignedTemplate = stringResource(Res.string.msg_artist_image_reassigned)
+    val coverLabel = stringResource(Res.string.label_cover)
+    val artistImageLabel = stringResource(Res.string.label_artist_image)
+
     fun closeEditor(saved: Boolean) {
         if (externalEditRequestId != null) {
-            (activity as? ExternalAudioEditHost)?.finishExternalAudioEdit(
-                requestId = externalEditRequestId,
-                saved = saved,
-            )
+            // Android 在这里回调 Activity，把结果交给外部调用方；桌面端没有 Activity，窗口宿主还没接入。
+            // 记录而不是静默吞掉：「保存了没有」对调用方是有意义的（见 PLAN.md 的缺口记录）。
+            if (externalEditHost == null) {
+                PlatformLog.w(TAG, "外部编辑请求 $externalEditRequestId 没有宿主，结果无法回传（saved=$saved）")
+            } else {
+                externalEditHost.finishExternalAudioEdit(
+                    requestId = externalEditRequestId,
+                    saved = saved,
+                )
+            }
         } else if (!navigator.popBackStack()) {
-            activity.finish()
+            // Android 在这里 `activity.finish()`。桌面端「结束」意味着关掉整个窗口，而编辑页永远不是
+            // 窗口的根目的地，所以只记录（见 PLAN.md 的缺口记录）。
+            PlatformLog.w(TAG, "编辑页不在返回栈里，无法返回上一页")
         }
     }
     // 艺术家字段按「艺术家拆分规则」拆成一个个艺术家；艺术家海报用图片描述记录归属
@@ -293,14 +387,12 @@ fun EditMetadataScreen(
     var showAddCustomTagDialog by remember { mutableStateOf(false) }
     var lyricsOperation by remember { mutableStateOf(LyricsOperation.CONVERT) }
     var showLyricsProcessingSheet by remember { mutableStateOf(false) }
-    var showPlayerPicker by remember { mutableStateOf(false) }
-    var bitmapToCrop by remember { mutableStateOf<Bitmap?>(null) }
+    var bitmapToCrop by remember { mutableStateOf<ImageBitmap?>(null) }
     var cropRequest by remember { mutableStateOf<CropRequest>(CropRequest.Cover) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
     var isSearchFabMenuExpanded by remember { mutableStateOf(false) }
     // 艺术家海报的菜单与选择面板由组件自己管理
     val artistPosterMenu = rememberArtistPosterMenuState()
-    var photoPickerArtistName by remember { mutableStateOf<String?>(null) }
     val currentShiftOffset by viewModel.currentShiftOffset.collectAsState()
 
     val clipboardManager = LocalClipboard.current
@@ -310,7 +402,7 @@ fun EditMetadataScreen(
         scope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = message,
-                actionLabel = context.getString(R.string.action_cancel_undo),
+                actionLabel = cancelUndoLabel,
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
@@ -320,7 +412,7 @@ fun EditMetadataScreen(
     }
 
     fun showCancelUndoSnackbar(fieldLabel: String, restoreChange: () -> Unit) {
-        showUndoSnackbar(context.getString(R.string.msg_field_reverted, fieldLabel), restoreChange)
+        showUndoSnackbar(fieldRevertedTemplate.format(fieldLabel), restoreChange)
     }
 
     fun <T> revertField(
@@ -336,26 +428,27 @@ fun EditMetadataScreen(
     }
 
     fun revertSimpleTextField(
-        definition: EditFieldDefinition,
+        fieldLabel: String,
         field: SimpleTextField,
         original: AudioTagData?,
         edited: AudioTagData?,
     ) {
         revertField(
-            fieldLabel = context.getString(definition.titleRes),
+            fieldLabel = fieldLabel,
             currentValue = edited?.let(field.valueOf),
             originalValue = original?.let(field.valueOf),
         ) { value -> field.write(this, value) }
     }
 
-    val imeVisible = WindowInsets.isImeVisible
-    val isFloatingToolbarVisible = !imeVisible
+    // 桌面端没有软键盘，也就没有「键盘弹出时收起浮动工具栏」这回事（`WindowInsets.isImeVisible` 是
+    // Android 专属扩展，Compose Multiplatform 没有），所以浮动工具栏始终可见。
+    val isFloatingToolbarVisible = true
 
     val picturePages = buildList {
         add(
             PicturePagerItem(
-                label = stringResource(R.string.label_cover),
-                editLabel = stringResource(R.string.edit_cover),
+                label = coverLabel,
+                editLabel = stringResource(Res.string.edit_cover),
                 source = uiState.coverUri,
                 isModified = uiState.coverUri != uiState.originalCover,
                 onClick = { showCoverOptionsSheet = true },
@@ -365,9 +458,7 @@ fun EditMetadataScreen(
                     val previousPictures = editingTagData?.pictures.orEmpty()
                     val previousPicUrl = editingTagData?.picUrl
                     viewModel.revertCover()
-                    showCancelUndoSnackbar(
-                        context.getString(R.string.label_cover)
-                    ) {
+                    showCancelUndoSnackbar(coverLabel) {
                         viewModel.restoreCoverSnapshot(
                             coverUri = previousCoverUri,
                             picture = previousPicture,
@@ -385,9 +476,9 @@ fun EditMetadataScreen(
                 val entry = page.entry
                 add(
                     PicturePagerItem(
-                        label = entry?.displayName(stringResource(R.string.artist_image_untagged))
-                            ?: page.artistName.ifBlank { stringResource(R.string.label_artist) },
-                        editLabel = stringResource(R.string.edit_artist_image),
+                        label = entry?.displayName(stringResource(Res.string.artist_image_untagged))
+                            ?: page.artistName.ifBlank { stringResource(Res.string.label_artist) },
+                        editLabel = stringResource(Res.string.edit_artist_image),
                         source = when {
                             entry != null -> entry.picture.data
                             page.showExternalPoster -> artistPosterFileRequest(page.artistName)
@@ -398,9 +489,9 @@ fun EditMetadataScreen(
                         } ?: !page.showExternalPoster,
                         isUnmatched = entry?.isUnmatched == true,
                         sourceLabel = if (entry != null) {
-                            stringResource(R.string.label_image_source_embedded)
+                            stringResource(Res.string.label_image_source_embedded)
                         } else if (page.showExternalPoster) {
-                            stringResource(R.string.label_image_source_external)
+                            stringResource(Res.string.label_image_source_external)
                         } else {
                             null
                         },
@@ -408,9 +499,7 @@ fun EditMetadataScreen(
                         onRevertClick = {
                             val previousPictures = editingTagData?.pictures.orEmpty()
                             viewModel.revertArtistImages()
-                            showCancelUndoSnackbar(
-                                context.getString(R.string.label_artist_image)
-                            ) {
+                            showCancelUndoSnackbar(artistImageLabel) {
                                 viewModel.restoreArtistImageSnapshot(previousPictures)
                             }
                         }
@@ -423,34 +512,42 @@ fun EditMetadataScreen(
     val coverPagerState = rememberPagerState(pageCount = { picturePages.size })
     val currentArtistPage = artistPages.getOrNull(coverPagerState.currentPage - 1)
 
-    // 各种 Launcher
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        uri?.let { viewModel.updateCover(context, it) }
+    // 各种选择器。桌面端没有 SAF / ActivityResult Launcher：选文件是原生对话框，拿到的就是真正的
+    // `File`，直接交给 ViewModel（它本来就只认路径/`File`）。对话框会挂起，所以在协程里调用。
+    val coverImagePicker = rememberFileOpenPicker(
+        title = stringResource(Res.string.edit_cover),
+        extensions = LocalImageExtensions
+    )
+    val artistImagePicker = rememberFileOpenPicker(
+        title = stringResource(Res.string.edit_artist_image),
+        extensions = LocalImageExtensions
+    )
+    val lyricsFilePicker = rememberFileOpenPicker(
+        title = stringResource(Res.string.action_import_lyrics),
+        extensions = AnyFileExtensions
+    )
+    val lyricsFileSaver = rememberFileSavePicker(title = stringResource(Res.string.action_export_lyrics))
+    val coverFileSaver = rememberFileSavePicker(title = stringResource(Res.string.label_save_cover))
+    val artistImageFileSaver = rememberFileSavePicker(title = stringResource(Res.string.edit_artist_image))
+
+    /** 选一张本地图片当封面（Android 的 `PickVisualMedia` 图片选择器）。 */
+    fun pickCoverImage() {
+        scope.launch { coverImagePicker.pick()?.let(viewModel::updateCover) }
     }
 
-    val artistPhotoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        val artistName = photoPickerArtistName
-        photoPickerArtistName = null
-        if (uri == null || artistName == null) return@rememberLauncherForActivityResult
-        // 描述写入所选艺术家；该艺术家原有的海报会被替换（一个艺术家只有一张海报）
-        viewModel.setArtistImage(context, uri, artistName)
-    }
-
-    /** 打开系统图片选择器，选中的图片会作为 [artistName] 的海报。 */
+    /** 选一张本地图片当 [artistName] 的海报（Android 的 `PickVisualMedia` 图片选择器）。 */
     fun pickArtistImage(artistName: String) {
-        photoPickerArtistName = artistName
-        artistPhotoPickerLauncher.launch(
-            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-        )
+        scope.launch {
+            val file = artistImagePicker.pick() ?: return@launch
+            // 描述写入所选艺术家；该艺术家原有的海报会被替换（一个艺术家只有一张海报）
+            viewModel.setArtistImage(file, artistName)
+        }
     }
 
     fun cropArtistImage(target: AudioPicture) {
+        // 仍在 IO 线程：网络来源要发请求，本地文件要读盘。桌面端解码不再需要 Context
         scope.launch(Dispatchers.IO) {
-            val bitmap = getBitmap(context, target.data)
+            val bitmap = decodeCoverBitmap(target.data)
             withContext(Dispatchers.Main) {
                 if (bitmap != null) {
                     cropRequest = CropRequest.ArtistImage(target)
@@ -458,36 +555,12 @@ fun EditMetadataScreen(
                     showCropSheet = true
                 } else {
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.msg_read_artist_image_failed)
+                        formattedString(Res.string.msg_read_artist_image_failed)
                     )
                 }
             }
         }
     }
-
-    val intentSenderLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) viewModel.saveMetadata()
-        else scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.permission_denied_cannot_save)) }
-    }
-
-    // 导入歌词文件选择器
-    val lyricsFileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { viewModel.importLyrics(context, it) }
-    }
-
-    // 导出歌词文件选择器
-    val exportLyricsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("*/*")
-    ) { uri -> uri?.let { viewModel.exportLyrics(context, it) } }
-
-    // 导出封面文件选择器
-    val exportCoverLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("image/jpeg")
-    ) { uri -> uri?.let { viewModel.exportCover(context, it) } }
 
     ExportDestinationBottomSheet(
         show = showLyricsExportDestinationSheet,
@@ -496,11 +569,15 @@ fun EditMetadataScreen(
             showLyricsExportDestinationSheet = false
             when (destination) {
                 ExportDestination.SELECTED_DIRECTORY -> {
-                    viewModel.getLyricsFileName()?.let(exportLyricsLauncher::launch)
+                    viewModel.getLyricsFileName()?.let { defaultName ->
+                        scope.launch {
+                            lyricsFileSaver.pick(defaultName)?.let(viewModel::exportLyrics)
+                        }
+                    }
                 }
 
                 ExportDestination.AUDIO_DIRECTORY -> {
-                    viewModel.exportLyricsToAudioDirectory(context)
+                    viewModel.exportLyricsToAudioDirectory()
                 }
             }
         }
@@ -513,11 +590,15 @@ fun EditMetadataScreen(
             showCoverExportDestinationSheet = false
             when (destination) {
                 ExportDestination.SELECTED_DIRECTORY -> {
-                    exportCoverLauncher.launch(viewModel.getCoverFileName())
+                    viewModel.getCoverFileName()?.let { defaultName ->
+                        scope.launch {
+                            coverFileSaver.pick(defaultName)?.let(viewModel::exportCover)
+                        }
+                    }
                 }
 
                 ExportDestination.AUDIO_DIRECTORY -> {
-                    viewModel.exportCoverToAudioDirectory(context)
+                    viewModel.exportCoverToAudioDirectory()
                 }
             }
         }
@@ -528,23 +609,20 @@ fun EditMetadataScreen(
     onLyricsSearchResult.onResult { result -> viewModel.updateMetadataFromSearchResult(result) }
 
     onCoverSearchResult.onResult { result -> viewModel.updateCover(result) }
-    LaunchedEffect(uiState.permissionIntentSender) {
-        uiState.permissionIntentSender?.let { intentSender ->
-            intentSenderLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
-            viewModel.consumePermissionRequest()
-        }
-    }
+
+    // Android 这里还有一个 `uiState.permissionIntentSender` 的 LaunchedEffect：往 SAF 文档里写之前要先
+    // 用 IntentSender 跟用户要一次授权。桌面端写的是真实文件，没有这层授权，所以整段去掉。
 
     LaunchedEffect(songFileUri) { viewModel.readMetadata(songFileUri) }
 
     LaunchedEffect(uiState.saveSuccess) {
         uiState.saveSuccess?.let { success ->
             val message = if (success) {
-                context.getString(R.string.msg_save_success)
+                formattedString(Res.string.msg_save_success)
             } else {
-                context.getString(
-                    R.string.msg_save_failed_with_reason,
-                    uiState.saveFailureMessage ?: context.getString(R.string.unknown_error_simple)
+                formattedString(
+                    Res.string.msg_save_failed_with_reason,
+                    uiState.saveFailureMessage ?: formattedString(Res.string.unknown_error_simple)
                 )
             }
             scope.launch {
@@ -564,17 +642,17 @@ fun EditMetadataScreen(
     LaunchedEffect(uiState.exportLyricsResult) {
         uiState.exportLyricsResult?.let { success ->
             val msg =
-                if (success) R.string.msg_export_lyrics_success else R.string.msg_export_lyrics_failed
-            scope.launch { snackbarHostState.showSnackbar(context.getString(msg)) }
+                if (success) Res.string.msg_export_lyrics_success else Res.string.msg_export_lyrics_failed
+            scope.launch { snackbarHostState.showSnackbar(formattedString(msg)) }
             viewModel.clearExportLyricsStatus()
         }
     }
 
     LaunchedEffect(uiState.exportCoverResult) {
         uiState.exportCoverResult?.let { success ->
-            val message = context.getString(
-                if (success) R.string.msg_picture_saved else R.string.msg_picture_save_failed,
-                context.getString(R.string.label_cover)
+            val message = formattedString(
+                if (success) Res.string.msg_picture_saved else Res.string.msg_picture_save_failed,
+                coverLabel
             )
             scope.launch { snackbarHostState.showSnackbar(message) }
             viewModel.clearExportCoverStatus()
@@ -583,9 +661,9 @@ fun EditMetadataScreen(
 
     LaunchedEffect(uiState.exportArtistImageResult) {
         uiState.exportArtistImageResult?.let { success ->
-            val message = context.getString(
-                if (success) R.string.msg_picture_saved else R.string.msg_picture_save_failed,
-                context.getString(R.string.label_artist_image)
+            val message = formattedString(
+                if (success) Res.string.msg_picture_saved else Res.string.msg_picture_save_failed,
+                artistImageLabel
             )
             scope.launch { snackbarHostState.showSnackbar(message) }
             viewModel.clearExportArtistImageStatus()
@@ -595,8 +673,8 @@ fun EditMetadataScreen(
     LaunchedEffect(uiState.importLyricsResult) {
         uiState.importLyricsResult?.let { success ->
             val msg =
-                if (success) R.string.msg_import_lyrics_success else R.string.msg_import_lyrics_failed
-            scope.launch { snackbarHostState.showSnackbar(context.getString(msg)) }
+                if (success) Res.string.msg_import_lyrics_success else Res.string.msg_import_lyrics_failed
+            scope.launch { snackbarHostState.showSnackbar(formattedString(msg)) }
             viewModel.clearImportLyricsStatus()
         }
     }
@@ -604,7 +682,7 @@ fun EditMetadataScreen(
     LaunchedEffect(uiState.replayGainScanMessage) {
         uiState.replayGainScanMessage?.let { message ->
             scope.launch {
-                message.asString(context)?.let { it1 -> snackbarHostState.showSnackbar(it1) }
+                message.resolve()?.let { it1 -> snackbarHostState.showSnackbar(it1) }
             }
             viewModel.clearReplayGainScanMessage()
         }
@@ -613,23 +691,25 @@ fun EditMetadataScreen(
     LaunchedEffect(uiState.sameAlbumCoverMessage) {
         uiState.sameAlbumCoverMessage?.let { message ->
             scope.launch {
-                message.asString(context)?.let { it1 -> snackbarHostState.showSnackbar(it1) }
+                message.resolve()?.let { it1 -> snackbarHostState.showSnackbar(it1) }
             }
             viewModel.clearSameAlbumCoverMessage()
         }
     }
 
-    BackHandler(enabled = externalEditRequestId != null) {
-        if (!uiState.isSaving) closeEditor(saved = uiState.saveSuccess == true)
-    }
-
-    BackHandler(enabled = isFabMenuExpanded || isSearchFabMenuExpanded) {
-        if (isSearchFabMenuExpanded) {
-            isSearchFabMenuExpanded = false
-        } else {
-            isFabMenuExpanded = false
+    // Android 直接弹 Toast，没有这段状态；桌面端跟 `sameAlbumCoverMessage` 一样把结果留在状态里，由界面
+    // 弹 snackbar（PLAN.md 的播放策略，已移除的 `PlayerPickerBottomSheet` 也走这条）。
+    LaunchedEffect(uiState.playMessage) {
+        uiState.playMessage?.let { message ->
+            scope.launch {
+                message.resolve()?.let { it1 -> snackbarHostState.showSnackbar(it1) }
+            }
+            viewModel.clearPlayMessage()
         }
     }
+
+    // Android 这里有两个 BackHandler：外部编辑时按返回键等于「关闭编辑页」，以及展开的浮动菜单按返回键
+    // 收起。桌面端没有系统返回键/手势，两者都不适用（见 PLAN.md 的缺口记录）。
 
     if (uiState.editingTagData == null) {
         Box(
@@ -838,7 +918,7 @@ fun EditMetadataScreen(
             topBar = {
                 val titleText = uiState.songInfo?.tagData?.title
                     ?: uiState.songInfo?.tagData?.fileName
-                    ?: stringResource(R.string.edit_metadata_default_title)
+                    ?: stringResource(Res.string.edit_metadata_default_title)
 
                 BlurredTopBar(backdrop = topBarBackdrop) {
                     SmallTopAppBar(
@@ -944,9 +1024,9 @@ fun EditMetadataScreen(
                                     ) {
                                         Text(
                                             text = if (uiState.isReplayGainCalculating) {
-                                                stringResource(R.string.replay_gain_calculate_in_progress)
+                                                stringResource(Res.string.replay_gain_calculate_in_progress)
                                             } else {
-                                                stringResource(R.string.action_calculate_replay_gain)
+                                                stringResource(Res.string.action_calculate_replay_gain)
                                             },
                                             fontSize = 11.sp,
                                             color = MiuixTheme.colorScheme.onPrimary,
@@ -1018,15 +1098,17 @@ fun EditMetadataScreen(
                                     )
                                 }
                                 definition.code == "lyrics" -> {
+                                    // 撤销提示要在非 @Composable 的 lambda 里拼，先在组合里取好
+                                    val lyricsLabel = stringResource(Res.string.label_lyrics)
                                     MetadataInputField(
-                                        label = stringResource(R.string.label_lyrics),
+                                        label = lyricsLabel,
                                         state = lyricsState,
                                         isModified = !editingTagData?.lyrics.isEqualIgnoringBlank(
                                             originalTagData?.lyrics
                                         ),
                                         onRevert = {
                                             revertField(
-                                                fieldLabel = context.getString(R.string.label_lyrics),
+                                                fieldLabel = lyricsLabel,
                                                 currentValue = editingTagData?.lyrics ?: "",
                                                 originalValue = originalTagData?.lyrics ?: ""
                                             ) { copy(lyrics = it) }
@@ -1053,7 +1135,7 @@ fun EditMetadataScreen(
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Text(
-                                                        text = stringResource(R.string.action_lyrics_options),
+                                                        text = stringResource(Res.string.action_lyrics_options),
                                                         fontSize = 11.sp,
                                                         color = MiuixTheme.colorScheme.onPrimary,
                                                         fontWeight = FontWeight.Medium
@@ -1066,15 +1148,16 @@ fun EditMetadataScreen(
                                     )
                                 }
                                 definition.code == "track_number" -> {
+                                    val trackNumberLabel = stringResource(Res.string.label_track_number)
                                     MetadataInputField(
-                                        label = stringResource(R.string.label_track_number),
+                                        label = trackNumberLabel,
                                         state = trackNumberState,
                                         isModified = !editingTagData?.trackNumber.isEqualIgnoringBlank(
                                             originalTagData?.trackNumber
                                         ),
                                         onRevert = {
                                             revertField(
-                                                fieldLabel = context.getString(R.string.label_track_number),
+                                                fieldLabel = trackNumberLabel,
                                                 currentValue = editingTagData?.trackNumber ?: "",
                                                 originalValue = originalTagData?.trackNumber ?: ""
                                             ) { copy(trackNumber = it) }
@@ -1082,13 +1165,14 @@ fun EditMetadataScreen(
                                     )
                                 }
                                 definition.code == "disc_number" -> {
+                                    val discNumberLabel = stringResource(Res.string.label_disc_number)
                                     MetadataInputField(
-                                        label = stringResource(R.string.label_disc_number),
+                                        label = discNumberLabel,
                                         state = discNumberState,
                                         isModified = editingTagData?.discNumber != originalTagData?.discNumber,
                                         onRevert = {
                                             revertField(
-                                                fieldLabel = context.getString(R.string.label_disc_number),
+                                                fieldLabel = discNumberLabel,
                                                 currentValue = editingTagData?.discNumber,
                                                 originalValue = originalTagData?.discNumber
                                             ) { copy(discNumber = it) }
@@ -1098,13 +1182,15 @@ fun EditMetadataScreen(
                                 definition.simpleTextInput -> {
                                     block.fields.forEach { textDefinition ->
                                         val field = simpleTextFields.getValue(textDefinition.code)
+                                        // 同上：撤销提示要在非 @Composable 的 lambda 里拼
+                                        val fieldLabel = stringResource(textDefinition.titleRes)
                                         MetadataInputField(
-                                            label = stringResource(textDefinition.titleRes),
+                                            label = fieldLabel,
                                             state = field.state,
                                             isModified = !editedValue(editingTagData, field)
                                                 .isEqualIgnoringBlank(editedValue(originalTagData, field)),
                                             onRevert = {
-                                                revertSimpleTextField(textDefinition, field, originalTagData, editingTagData)
+                                                revertSimpleTextField(fieldLabel, field, originalTagData, editingTagData)
                                             },
                                         )
                                     }
@@ -1143,7 +1229,7 @@ fun EditMetadataScreen(
             ) {
                 if (mainSearchSources.isNotEmpty()) {
                     FabMenuItem(
-                        label = stringResource(R.string.action_main_search),
+                        label = stringResource(Res.string.action_main_search),
                         icon = MiuixIcons.Search,
                         onClick = {
                             isSearchFabMenuExpanded = false
@@ -1159,7 +1245,7 @@ fun EditMetadataScreen(
                 }
                 if (lyricsSearchSources.isNotEmpty()) {
                     FabMenuItem(
-                        label = stringResource(R.string.action_search_lyrics),
+                        label = stringResource(Res.string.action_search_lyrics),
                         icon = MiuixIcons.Notes,
                         onClick = {
                             isSearchFabMenuExpanded = false
@@ -1176,7 +1262,7 @@ fun EditMetadataScreen(
                 }
                 if (coverSearchSources.isNotEmpty()) {
                     FabMenuItem(
-                        label = stringResource(R.string.action_search_cover),
+                        label = stringResource(Res.string.action_search_cover),
                         icon = MiuixIcons.Image,
                         onClick = {
                             isSearchFabMenuExpanded = false
@@ -1205,7 +1291,7 @@ fun EditMetadataScreen(
             }
         ) {
             FabMenuItem(
-                label = stringResource(R.string.action_add_custom_tag),
+                label = stringResource(Res.string.action_add_custom_tag),
                 icon = MiuixIcons.AddCircle,
                 onClick = {
                     isFabMenuExpanded = false
@@ -1215,7 +1301,7 @@ fun EditMetadataScreen(
 
             if (editingTagData != null) {
                 FabMenuItem(
-                    label = stringResource(R.string.action_lyrics_options),
+                    label = stringResource(Res.string.action_lyrics_options),
                     icon = MiuixIcons.Notes,
                     onClick = {
                         isFabMenuExpanded = false
@@ -1226,7 +1312,7 @@ fun EditMetadataScreen(
 
             if (editingTagData != null) {
                 FabMenuItem(
-                    label = stringResource(R.string.label_cover_options),
+                    label = stringResource(Res.string.label_cover_options),
                     icon = MiuixIcons.Image,
                     onClick = {
                         isFabMenuExpanded = false
@@ -1234,7 +1320,7 @@ fun EditMetadataScreen(
                     }
                 )
                 FabMenuItem(
-                    label = stringResource(R.string.label_artist_image_options),
+                    label = stringResource(Res.string.label_artist_image_options),
                     icon = MiuixIcons.Image,
                     onClick = {
                         isFabMenuExpanded = false
@@ -1245,34 +1331,32 @@ fun EditMetadataScreen(
             }
 
             FabMenuItem(
-                label = stringResource(R.string.menu_play_music),
+                label = stringResource(Res.string.menu_play_music),
                 icon = MiuixIcons.Play,
                 onClick = {
                     isFabMenuExpanded = false
-                    showPlayerPicker = true
+                    viewModel.play()
                 }
             )
 
             FabMenuItem(
-                label = stringResource(R.string.edit_field_settings_title),
+                label = stringResource(Res.string.edit_field_settings_title),
                 icon = MiuixIcons.Settings,
                 onClick = {
                     isFabMenuExpanded = false
-                    navigator.navigate(EditFieldSettingsDestination())
+                    // 无参目的地是 data object，按对象本身导航（见 `LocalSearchDestination` 的用法）
+                    navigator.navigate(EditFieldSettingsDestination)
                 }
             )
         }
     }
-    PlayerPickerBottomSheet(
-        show = showPlayerPicker,
-        uri = songFileUri.toUri(),
-        onDismissRequest = { showPlayerPicker = false }
-    )
+    // Android 这里弹 `PlayerPickerBottomSheet` 让用户选一个播放器（Activity 的 chooser）；桌面端按
+    // PLAN.md 的播放策略交给 `PlaybackRepository`（系统默认关联程序），结果落在 `uiState.playMessage`。
     // 歌词操作
     WindowBottomSheet(
         show = showLyricsActionBottomSheet,
         enableNestedScroll = false,
-        title = stringResource(R.string.action_lyrics_options),
+        title = stringResource(Res.string.action_lyrics_options),
         onDismissRequest = { showLyricsActionBottomSheet = false }
     ) {
         Column(
@@ -1290,7 +1374,7 @@ fun EditMetadataScreen(
             ) {
                 if (lyricsSearchSources.isNotEmpty()) {
                     ArrowPreference(
-                        title = stringResource(R.string.action_search_lyrics),
+                        title = stringResource(Res.string.action_search_lyrics),
                         onClick = {
                             showLyricsActionBottomSheet = false
                             navigator.navigate(
@@ -1305,29 +1389,31 @@ fun EditMetadataScreen(
                     )
                 }
                 ArrowPreference(
-                    title = stringResource(R.string.action_import_lyrics),
+                    title = stringResource(Res.string.action_import_lyrics),
                     onClick = {
                         showLyricsActionBottomSheet = false
-                        lyricsFileLauncher.launch(arrayOf("*/*"))
+                        scope.launch {
+                            lyricsFilePicker.pick()?.let(viewModel::importLyrics)
+                        }
                     }
                 )
                 editingTagData?.lyrics?.let {
                     ArrowPreference(
-                        title = stringResource(R.string.action_export_lyrics),
+                        title = stringResource(Res.string.action_export_lyrics),
                         onClick = {
                             showLyricsActionBottomSheet = false
                             showLyricsExportDestinationSheet = true
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.chinese_conversion_mode_simplified_to_traditional),
+                        title = stringResource(Res.string.chinese_conversion_mode_simplified_to_traditional),
                         onClick = {
                             showLyricsActionBottomSheet = false
                             viewModel.convertLyrics(ConversionMode.SIMPLIFIED_TO_TRADITIONAL)
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.chinese_conversion_mode_traditional_to_simplified),
+                        title = stringResource(Res.string.chinese_conversion_mode_traditional_to_simplified),
                         onClick = {
                             showLyricsActionBottomSheet = false
                             viewModel.convertLyrics(ConversionMode.TRADITIONAL_TO_SIMPLIFIED)
@@ -1335,7 +1421,7 @@ fun EditMetadataScreen(
                     )
 
                     ArrowPreference(
-                        title = stringResource(R.string.offset_adjust_hint),
+                        title = stringResource(Res.string.offset_adjust_hint),
                         onClick = {
                             showLyricsActionBottomSheet = false
                             viewModel.prepareLyricsOffset()
@@ -1343,7 +1429,7 @@ fun EditMetadataScreen(
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.lyrics_convert),
+                        title = stringResource(Res.string.lyrics_convert),
                         onClick = {
                             showLyricsActionBottomSheet = false
                             lyricsOperation = LyricsOperation.CONVERT
@@ -1355,10 +1441,10 @@ fun EditMetadataScreen(
                         lyricsOperation = operation
                         showLyricsProcessingSheet = true
                     }) { open ->
-                        ArrowPreference(title = stringResource(R.string.lyrics_organize), onClick = open)
+                        ArrowPreference(title = stringResource(Res.string.lyrics_organize), onClick = open)
                     }
                     ArrowPreference(
-                        title = stringResource(R.string.action_view_plain_lyrics),
+                        title = stringResource(Res.string.action_view_plain_lyrics),
                         onClick = {
                             showLyricsActionBottomSheet = false
                             showPlainLyricsSheet = true
@@ -1366,8 +1452,8 @@ fun EditMetadataScreen(
                     )
                 }
                 SwitchPreference(
-                    title = stringResource(R.string.limit_lyrics_input_lines),
-                    summary = stringResource(R.string.limit_lyrics_input_lines_hint),
+                    title = stringResource(Res.string.limit_lyrics_input_lines),
+                    summary = stringResource(Res.string.limit_lyrics_input_lines_hint),
                     checked = limitLyricsInputLines,
                     onCheckedChange = { enabled ->
                         viewModel.setLimitLyricsInputLines(enabled)
@@ -1392,10 +1478,8 @@ fun EditMetadataScreen(
                     showPlainLyricsSheet = false
                     if (!plainLyrics.isNullOrEmpty()) {
                         scope.launch {
-                            val clipData =
-                                ClipData.newPlainText("copy plain lyrics", plainLyrics)
-                            val clipEntry = ClipEntry(clipData)
-                            clipboardManager.setClipEntry(clipEntry)
+                            // 桌面端没有 Android 的 `ClipData`；`ClipEntry` 直接包一段纯文本
+                            clipboardManager.setClipEntry(ClipEntry(StringSelection(plainLyrics)))
                         }
                     }
                 }
@@ -1406,7 +1490,7 @@ fun EditMetadataScreen(
                 )
             }
         },
-        title = stringResource(R.string.label_plain_lyrics),
+        title = stringResource(Res.string.label_plain_lyrics),
         onDismissRequest = { showPlainLyricsSheet = false }
     ) {
         Column(
@@ -1428,7 +1512,7 @@ fun EditMetadataScreen(
                 ) {
                     Text(
                         style = MiuixTheme.textStyles.body2,
-                        text = plainLyrics ?: stringResource(R.string.lyrics_empty),
+                        text = plainLyrics ?: stringResource(Res.string.lyrics_empty),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -1442,12 +1526,12 @@ fun EditMetadataScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 PlainLyricsToggleChip(
-                    text = stringResource(R.string.roma),
+                    text = stringResource(Res.string.roma),
                     selected = plainLyricsShowRomanization,
                     onClick = { plainLyricsShowRomanization = !plainLyricsShowRomanization }
                 )
                 PlainLyricsToggleChip(
-                    text = stringResource(R.string.translation),
+                    text = stringResource(Res.string.translation),
                     selected = plainLyricsShowTranslation,
                     onClick = { plainLyricsShowTranslation = !plainLyricsShowTranslation }
                 )
@@ -1458,7 +1542,7 @@ fun EditMetadataScreen(
     WindowBottomSheet(
         show = showCoverOptionsSheet,
         enableNestedScroll = false,
-        title = stringResource(R.string.label_cover_options),
+        title = stringResource(Res.string.label_cover_options),
         onDismissRequest = { showCoverOptionsSheet = false }
     ) {
         Column(
@@ -1472,7 +1556,7 @@ fun EditMetadataScreen(
             ) {
                 if (coverSearchSources.isNotEmpty()) {
                     ArrowPreference(
-                        title = stringResource(R.string.action_search_cover),
+                        title = stringResource(Res.string.action_search_cover),
                         onClick = {
                             val keyword = if (!editingTagData?.title.isNullOrEmpty()) {
                                 if (editingTagData.artist.isNullOrEmpty()) editingTagData.title!!
@@ -1486,25 +1570,21 @@ fun EditMetadataScreen(
                     )
                 }
                 ArrowPreference(
-                    title = stringResource(R.string.label_change_cover),
+                    title = stringResource(Res.string.label_change_cover),
                     onClick = {
                         showCoverOptionsSheet = false
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageOnly
-                            )
-                        )
+                        pickCoverImage()
                     }
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.label_select_same_album_cover),
+                    title = stringResource(Res.string.label_select_same_album_cover),
                     onClick = {
                         showCoverOptionsSheet = false
                         viewModel.loadSameAlbumCovers()
                     }
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.label_remove_cover),
+                    title = stringResource(Res.string.label_remove_cover),
                     onClick = {
                         showCoverOptionsSheet = false
                         viewModel.removeFrontCover()
@@ -1512,28 +1592,31 @@ fun EditMetadataScreen(
                 )
                 if (uiState.coverUri != null || uiState.originalCover != null) {
                     ArrowPreference(
-                        title = stringResource(R.string.label_save_cover),
+                        title = stringResource(Res.string.label_save_cover),
                         onClick = {
                             showCoverOptionsSheet = false
                             showCoverExportDestinationSheet = true
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.label_crop_cover),
+                        title = stringResource(Res.string.label_crop_cover),
                         onClick = {
                             showCoverOptionsSheet = false
                             val sourceData = uiState.coverUri ?: uiState.originalCover
 
                             if (sourceData != null) {
                                 scope.launch(Dispatchers.IO) {
-                                    val bitmap = getBitmap(context, sourceData)
+                                    val bitmap = decodeCoverBitmap(sourceData)
                                     withContext(Dispatchers.Main) {
                                         if (bitmap != null) {
                                             cropRequest = CropRequest.Cover
                                             bitmapToCrop = bitmap
                                             showCropSheet = true
                                         } else {
-                                            snackbarHostState.showSnackbar(context.getString(R.string.msg_read_cover_failed)) // "无法读取封面图片"
+                                            // “无法读取封面图片”
+                                            snackbarHostState.showSnackbar(
+                                                formattedString(Res.string.msg_read_cover_failed)
+                                            )
                                         }
                                     }
                                 }
@@ -1558,7 +1641,7 @@ fun EditMetadataScreen(
             viewModel.reassignArtistImages(target, artistName)
         }
         showUndoSnackbar(
-            context.getString(R.string.msg_artist_image_reassigned, artistName)
+            artistImageReassignedTemplate.format(artistName)
         ) {
             viewModel.restoreArtistImageSnapshot(previousPictures)
         }
@@ -1573,7 +1656,16 @@ fun EditMetadataScreen(
         currentPageIsArtistSlot = currentArtistPage != null,
         onSetPoster = { pickArtistImage(it) },
         onRemove = { viewModel.removeArtistImage(it) },
-        onExport = { viewModel.exportArtistImage(context, it) },
+        onExport = { target ->
+            // Android 是 `exportArtistImage(context, target)`，内部再弹 CreateDocument；桌面端先把保存路径
+            // 拿到手，再交给 ViewModel
+            scope.launch {
+                val defaultName = viewModel.getArtistImageFileName()
+                artistImageFileSaver.pick(defaultName)?.let { file ->
+                    viewModel.exportArtistImage(target, file)
+                }
+            }
+        },
         onCrop = { cropArtistImage(it) },
         onReassign = { target, artistName ->
             val ownerKey = ArtistPosterGrouping.ownerKeyOf(artistName)
@@ -1590,7 +1682,7 @@ fun EditMetadataScreen(
         onMissingArtist = {
             scope.launch {
                 snackbarHostState.showSnackbar(
-                    context.getString(R.string.msg_artist_field_empty_for_poster)
+                    formattedString(Res.string.msg_artist_field_empty_for_poster)
                 )
             }
         },
@@ -1602,8 +1694,8 @@ fun EditMetadataScreen(
         show = showCropSheet,
         enableNestedScroll = false,
         title = stringResource(
-            if (cropRequest is CropRequest.ArtistImage) R.string.label_crop_artist_image
-            else R.string.label_crop_cover
+            if (cropRequest is CropRequest.ArtistImage) Res.string.label_crop_artist_image
+            else Res.string.label_crop_cover
         ),
         endAction = {
             if (cropperState != null) {
@@ -1661,7 +1753,7 @@ fun EditMetadataScreen(
     WindowBottomSheet(
         show = showOffsetSheet,
         enableNestedScroll = false,
-        title = stringResource(R.string.offset_adjust_hint),
+        title = stringResource(Res.string.offset_adjust_hint),
         onDismissRequest = { showOffsetSheet = false }
     ) {
         Column(
@@ -1705,19 +1797,19 @@ fun EditMetadataScreen(
     pendingRebind?.let { pending ->
         WindowDialog(
             show = true,
-            title = stringResource(R.string.label_artist_image_conflict_title, pending.artistName),
+            title = formattedStringResource(Res.string.label_artist_image_conflict_title, pending.artistName),
             onDismissRequest = { pendingRebind = null }
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = stringResource(R.string.label_artist_image_conflict_message),
+                    text = stringResource(Res.string.label_artist_image_conflict_message),
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.SpaceBetween) {
                     TextButton(
-                        text = stringResource(R.string.label_artist_image_swap),
+                        text = stringResource(Res.string.label_artist_image_swap),
                         onClick = {
                             pendingRebind = null
                             applyRebind(pending.target, pending.artistName, swap = true)
@@ -1726,7 +1818,7 @@ fun EditMetadataScreen(
                     )
                     Spacer(Modifier.width(20.dp))
                     TextButton(
-                        text = stringResource(R.string.label_artist_image_replace),
+                        text = stringResource(Res.string.label_artist_image_replace),
                         onClick = {
                             pendingRebind = null
                             applyRebind(pending.target, pending.artistName)
@@ -1741,7 +1833,7 @@ fun EditMetadataScreen(
 
     WindowDialog(
         show = showAddCustomTagDialog,
-        title = stringResource(R.string.action_add_custom_tag),
+        title = stringResource(Res.string.action_add_custom_tag),
         onDismissRequest = { showAddCustomTagDialog = false }
     ) {
         val newCustomTagKeyState = rememberTextFieldState()
@@ -1752,7 +1844,7 @@ fun EditMetadataScreen(
         ) {
             TextField(
                 state = newCustomTagKeyState,
-                label = stringResource(R.string.label_custom_tag_name),
+                label = stringResource(Res.string.label_custom_tag_name),
                 modifier = Modifier.fillMaxWidth(),
                 lineLimits = TextFieldLineLimits.SingleLine
             )
@@ -1761,7 +1853,7 @@ fun EditMetadataScreen(
 
             TextField(
                 state = newCustomTagValueState,
-                label = stringResource(R.string.label_custom_tag_value),
+                label = stringResource(Res.string.label_custom_tag_value),
                 modifier = Modifier.fillMaxWidth(),
                 lineLimits = TextFieldLineLimits.SingleLine
             )
@@ -1772,7 +1864,7 @@ fun EditMetadataScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = {
                         showAddCustomTagDialog = false
                     },
@@ -1782,7 +1874,7 @@ fun EditMetadataScreen(
                 Spacer(Modifier.width(20.dp))
 
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = {
                         val key = newCustomTagKeyState.text.toString()
                         val value = newCustomTagValueState.text.toString()
@@ -1895,85 +1987,17 @@ private fun CoverSection(
     val surfaceVariant = MiuixTheme.colorScheme.surfaceVariant
     val onSurface = MiuixTheme.colorScheme.onSurface
     val onSurfaceDim = MiuixTheme.colorScheme.onSurfaceVariantSummary
-    val context = LocalContext.current
     val picturePages = pages
     val pagerScope = rememberCoroutineScope()
     val currentPage = pagerState.currentPage.coerceIn(0, picturePages.lastIndex)
     val currentImageSource = picturePages[currentPage].source
     var imageSize by remember(currentImageSource) { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // 加载图片尺寸
+    // 加载图片尺寸。桌面端不再需要 Context：字节/路径/URL/位图/外置海报文件都由 `readCoverSourceSize`
+    // 自己分辨并读取（内部就派发到 IO）。也不必再手写 `BitmapFactory` + `inJustDecodeBounds` —— 本地文件
+    // 只读文件头，网络只读响应头。
     LaunchedEffect(currentImageSource) {
-        if (currentImageSource != null) {
-            imageSize = withContext(Dispatchers.IO) {
-                try {
-                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-
-                    if (currentImageSource is CoverRequest) {
-                        // 外置海报是文件夹里的文件，UI 手里没有字节：按文件名读出来量一下尺寸。
-                        // 只有当前这一页会走到这里，读的是与取图相同的那份文件。
-                        val bytes = readExternalArtistPoster(
-                            context = context,
-                            artist = currentImageSource.artistName,
-                            folders = currentImageSource.artistPosterFolders
-                        )
-                        if (bytes != null && bytes.isNotEmpty()) {
-                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                        }
-                    } else {
-                        when (getCoverSourceType(currentImageSource)) {
-                            CoverSourceType.BYTE_ARRAY -> {
-                                val bytes = currentImageSource as ByteArray
-                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                            }
-
-                            CoverSourceType.BITMAP -> {
-                                val bitmap = currentImageSource as Bitmap
-                                return@withContext bitmap.width to bitmap.height
-                            }
-
-                            CoverSourceType.NETWORK_URL -> {
-                                val source = currentImageSource.toString().trim()
-                                URL(source).openStream().use { stream ->
-                                    BitmapFactory.decodeStream(stream, null, options)
-                                }
-                            }
-
-                            CoverSourceType.CONTENT_OR_FILE_URI,
-                            CoverSourceType.URI -> {
-                                val uri = when (currentImageSource) {
-                                    is Uri -> currentImageSource
-                                    is String -> currentImageSource.trim().toUri()
-                                    else -> null
-                                }
-                                uri?.let {
-                                    context.contentResolver.openInputStream(it)?.use { stream ->
-                                        BitmapFactory.decodeStream(stream, null, options)
-                                    }
-                                }
-                            }
-
-                            CoverSourceType.FILE_PATH -> {
-                                BitmapFactory.decodeFile(currentImageSource.toString().trim(), options)
-                            }
-
-                            CoverSourceType.UNSUPPORTED -> null
-                        }
-                    }
-
-                    if (options.outWidth > 0 && options.outHeight > 0) {
-                        options.outWidth to options.outHeight
-                    } else {
-                        null
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    null
-                }
-            }
-        } else {
-            imageSize = null
-        }
+        imageSize = currentImageSource?.let { readCoverSourceSize(it) }
     }
 
     Box(
@@ -1990,8 +2014,8 @@ private fun CoverSection(
                     .height(220.dp)
             ) {
 
-                AsyncImage(
-                    model = currentImageSource ?: coverUri,
+                CoverSourceImage(
+                    source = currentImageSource ?: coverUri,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -2033,17 +2057,17 @@ private fun CoverSection(
                                     .fillMaxSize()
                                     .clickable { item.onClick() }
                             ) {
-                                AsyncImage(
-                                    model = item.source,
+                                CoverSourceImage(
+                                    source = item.source,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.matchParentSize(),
                                     placeholder = rememberTintedPainter(
-                                        painter = painterResource(id = R.drawable.ic_album_24dp),
+                                        painter = painterResource(Res.drawable.ic_album_24dp),
                                         tint = LyricoColors.coverPlaceholderIcon
                                     ),
                                     error = rememberTintedPainter(
-                                        painter = painterResource(id = R.drawable.ic_album_24dp),
+                                        painter = painterResource(Res.drawable.ic_album_24dp),
                                         tint = LyricoColors.coverPlaceholderIcon
                                     )
                                 )
@@ -2134,7 +2158,7 @@ private fun CoverSection(
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.action_undo_changes),
+                                            text = stringResource(Res.string.action_undo_changes),
                                             fontSize = 10.sp,
                                             color = LyricoColors.modifiedText,
                                             fontWeight = FontWeight.Bold
@@ -2202,7 +2226,7 @@ private fun RatingField(rating: Int?, onRatingChange: (Int) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(stringResource(R.string.label_rating))
+            Text(stringResource(Res.string.label_rating))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -2211,8 +2235,8 @@ private fun RatingField(rating: Int?, onRatingChange: (Int) -> Unit) {
                     val isFilled = rating?.let { i <= it }
                     Icon(
                         painter = painterResource(
-                            if (isFilled == true) R.drawable.ic_filled_star_24dp
-                            else R.drawable.ic_outline_star_24dp
+                            if (isFilled == true) Res.drawable.ic_filled_star_24dp
+                            else Res.drawable.ic_outline_star_24dp
                         ),
                         contentDescription = null,
                         tint = if (isFilled == true)
@@ -2248,7 +2272,7 @@ private fun MetadataInputField(
     actionButtons: @Composable RowScope.() -> Unit = {}
 ) {
     val fieldLabel = label + if (isModified) {
-        "(" + stringResource(R.string.status_modified) + ")"
+        "(" + stringResource(Res.string.status_modified) + ")"
     } else {
         ""
     }
@@ -2288,7 +2312,7 @@ private fun MetadataInputField(
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Text(
-                            text = stringResource(R.string.action_undo_changes),
+                            text = stringResource(Res.string.action_undo_changes),
                             fontSize = 11.sp,
                             color = LyricoColors.modifiedText,
                             fontWeight = FontWeight.Bold
@@ -2369,7 +2393,7 @@ private fun CustomMetadataFieldEditor(
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.action_undo_changes),
+                        text = stringResource(Res.string.action_undo_changes),
                         fontSize = 11.sp,
                         color = LyricoColors.modifiedText,
                         fontWeight = FontWeight.Bold
@@ -2398,7 +2422,7 @@ private fun CustomMetadataFieldEditor(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.action_delete),
+                        text = stringResource(Res.string.action_delete),
                         fontSize = 11.sp,
                         color = MiuixTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Medium

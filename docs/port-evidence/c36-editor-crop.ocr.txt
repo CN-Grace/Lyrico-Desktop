@@ -1,0 +1,11 @@
+crop: (0,320)-(520,773) of c36-editor.png, scaled 3x LANCZOS
+      capture coord = (x/3, 320 + y/3)  -- the field list below the cover block
+file: docs/port-evidence/c36-editor-crop.png
+engine: zh-Hans-CN
+lines: 6
+  y=83 x=87 :: 评 级
+  y=327 x=87 :: 亻 心
+  y=518 x=86 :: 周 华 健
+  y=693 x=87 :: 专 辑 艺 术 家
+  y=920 x=87 :: 朋 友
+  y=1098 x=94 :: 日 期

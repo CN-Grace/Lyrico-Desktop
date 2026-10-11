@@ -114,6 +114,18 @@ data class EditMetadataDestination(val songFileUri: String) : NavDirection {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Not ported yet. `EditMetadataScreen` navigates here (`SettingsScreen` and `BatchEditScreen` do the
+// same, and both arrive in later batches); until the screen lands the navigator logs the miss.
+// ---------------------------------------------------------------------------------------------
+
+/** Field settings: pick which metadata fields show up, and in what order. Takes no arguments. */
+data object EditFieldSettingsDestination : NavDirection {
+    override val route: String = ROUTE
+
+    const val ROUTE = "edit_field_settings"
+}
+
+// ---------------------------------------------------------------------------------------------
 // Not ported yet. `AlbumsPage` and `ArtistsPage` navigate to these two, exactly as the Android pages
 // did. Both screens arrive in a later batch; until then the navigator logs the miss.
 // ---------------------------------------------------------------------------------------------

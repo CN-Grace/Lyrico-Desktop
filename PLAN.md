@@ -1586,6 +1586,145 @@ hub 的 KDoc 把四条写在类头上，其中只有第一条是行为改动：
 
 下一批（#36 及之后）的界面侧可以从这 40 个里挑：其中 4 个是 screen；被挡的 36 个里还剩 13 个 screen，加上 `di/AppModule.kt` 与 `MainActivity.kt`（Android 专属，不会搬）。批量重命名 / 批量编辑两个 screen 就在这 36 个里等它们的依赖。
 
+### P5 施工批次（编辑元数据页：5 个叶子组件 + 2461 行整页 + 结果回传的接收半，2026-10-11）
+
+`EditMetadataScreen` 是移植里第一个**跟应用外部对话**的页面：安卓版用 SAF 选封面 / 海报 / 歌词文件，用 `IntentSender` 跟用户要一次写授权，用 `Intent` chooser 把歌交给播放器，还要把「外部编辑请求」的结果回传给宿主它的 `Activity`。这批分两笔提交，分界跟 #35 一样是「谁能在没有界面的情况下被独立取证」：切片 1（`20c92b6`）搬 5 个叶子组件并补齐它们的平台能力，切片 2（本段所属的提交）搬那个 2461 行的页面本体、把结果回传的**接收半**写出来、注册路由并出窗口证据。切片 1 当时没配 PLAN 段落，在这里补记。
+
+#### 1. 切片 1：搬了什么（5 个文件 + 3 个新文件；java 主树 69 → 64）
+
+| 文件 | 改动 |
+| --- | --- |
+| `ui/components/PagerDotsIndicator.kt` | 纯 `git mv`（0/0） |
+| `ExternalAudioEditHost.kt` | 纯 `git mv`（0/0）；这一笔只搬接口，接缝在切片 2 才接上 |
+| `ui/components/base/LyricsOffsetField.kt` | +20 −11 |
+| `ui/components/poster/ArtistPosterMenu.kt` | +28 −15 |
+| `ui/components/crop/ImageCropper.kt` | +35 −23 |
+| `ui/components/crop/ImageBitmapOps.kt` | 新增 89 行 |
+| `ui/components/cover/CoverSourceImages.kt` | 新增 162 行 |
+| `utils/LocalImageSize.kt` | 新增 62 行 |
+| `platform/FileOpenPicker.kt` | +25 −8 |
+| 9 个新测试类 | 1333 行 73 项 |
+
+#### 2. 切片 1 的改写点（4 条）
+
+1. **`ImageCropper` 的像素层整体换成 Compose**：安卓那边直接吃 `android.graphics.Bitmap`，桌面端没有，于是像素操作全走 `ImageBitmap`，落在新文件 `ImageBitmapOps.kt` 里。**单独成文件不是洁癖**：`androidx.compose.foundation.Canvas` 与 `androidx.compose.ui.graphics.Canvas` 同名，同文件里同时用到就编不过。`downscaleBitmap` 从 `private` 放成 `internal` 并加了 `maxPixels` 参数，测试才能拿 8 像素的小图验证缩放边界；`scaleTo` 用 `FilterQuality.Low` 对齐安卓的 `filter = true`，`crop` 是复制语义。
+2. **5 处 `stringResource(res, args)` 改成 `formattedStringResource`**：CMP 的 `stringResource` 重载不做 `String.format`，裸 `%d` / `%s` 会原样渲染。这 5 处是 `StringFormattingGuardTest` 抓到的 —— 那两个文件原本躺在 java 树里，而守卫只扫 kotlin 树，随这次迁移才第一次被覆盖。这正是「迁移」与「守卫」放进同一笔提交的理由。
+3. **`CoverSourceImages.kt`（新）**：`decodeCoverBitmap`（同步解码封面来源）与 `readCoverSourceSize`（量尺寸）。封面来源可能是本地文件、外置海报文件或网络 URL，`CoverRequest` 走 `readExternalArtistPoster`，量的就是**要显示的那个文件**；`CoverSourceImage` 只直绘 `ImageBitmap`，其余交给 Coil（`CoverDisplayModelTest` 用真 loader 证明 `ImageBitmap` 与 `file://` 都是 `ErrorResult`，即那个分支存在的理由）。
+4. **`LocalImageSize.kt` + `FileOpenPicker.extensions`（新）**：`ImageIO` 只读文件头取宽高，任何失败静默返回 `null`（与 `readRemoteImageSize` 的「超时 + 日志」契约**故意不统一**，理由写在文件头：量本地图的尺寸失败不值得打扰用户）；`FileOpenPicker` 增加 `extensions` 参数，匹配逻辑抽成 `matchesExtensions` 以便无头测试 —— 对话框本身是原生窗口，驱动不了。
+
+切片 1 的账：122 类 1078 项 0 失败 2 跳过（原 113 类 1005 项，新增 9 类 73 项：`ImageBitmapOps` 4 + `ImageCropper` 16 + `LocalImageSize` 6 + `FileOpenPicker` 4 + `CoverDisplayModel` 4 + `CoverSourceImages` 12 + `PagerDotsIndicator` 4 + `LyricsOffsetField` 14 + `ArtistPosterMenu` 9 = 73）。
+
+#### 3. 切片 2：搬了什么（`git mv` 1 个 2461 行 + 5 个改写（其中 1 个只改 KDoc）+ 2 个新文件 + 2 个 drawable + 3 个测试文件；java 主树 64 → 63）
+
+| 文件 | 改动 |
+| --- | --- |
+| `screens/EditMetadataScreen.kt` | `git mv`，2461 → 2485 行（+340 −316） |
+| `ExternalAudioEditHost.kt` | +26 −1：把接缝从 `Activity` 换成 `CompositionLocal` |
+| `platform/FileOpenPicker.kt` | +4 −2：`"*"` 通配 |
+| `ui/navigation/Destinations.kt` | +12 −0：声明 `EditFieldSettingsDestination`（**只声明、没注册**） |
+| `ui/navigation/LyricoNavHost.kt` | +31 −0：注册 `edit_metadata`，并接上三个结果接收半 |
+| `ui/navigation/ResultBackNavigator.kt` | +3 −3：只改 KDoc（发送半早就写好，等的是接收半） |
+| `ui/navigation/ResultRecipient.kt` | 新增 81 行 |
+| `composeResources/drawable/ic_filled_star_24dp.svg` / `ic_outline_star_24dp.svg` | 新增 237 B / 258 B |
+| `test/screens/EditMetadataScreenTest.kt` | 新增 520 行 5 项 |
+| `test/ui/navigation/ResultRecipientTest.kt` | 新增 177 行 3 项 |
+| `test/support/HeadlessMainDispatcher.kt` | 新增 41 行 |
+
+那两个 svg 不是新图：安卓资源里是 `res/drawable/ic_*_star_24dp.xml` 的 vector，路径 / 颜色 / 线宽逐字对应（填充 `#FFD700`、描边 `#999999`），只是 CMP 的 compose resources 只认 svg/png，所以补了一份等价的 svg —— 评级那一栏的星星就是它俩。
+
+#### 4. 切片 2 的桌面化改写点（逐条）
+
+每条都写在代码注释里，行号是这次提交后的 `EditMetadataScreen.kt`。
+
+1. **外部编辑的宿主从 `Activity` 变成 `CompositionLocal`**（334、348 行）：安卓是 `context as? ExternalAudioEditHost` → `finishExternalAudioEdit(requestId, saved)`。桌面没有 `Activity`，调用方也不在进程外 —— 就是拥有整张导航图的窗口。于是接缝是 `LocalExternalAudioEditHost`（`staticCompositionLocalOf`，缺省 `null`）。**没有宿主时记日志而不是静默吞掉**：请求 id 与「存没存」对调用方是有意义的（下面有一条用例专钉这句日志）。
+2. **`activity.finish()` 变成日志**（358 行）：没有外部请求时，返回就是普通 `popBackStack()`；`popBackStack` 返回 false 说明编辑页不在返回栈里 —— 而编辑页**永远不是窗口的根目的地**，所以「结束」在桌面上没有意义，只记一条警告。
+3. **两个 `BackHandler` 整段删掉**（711 行）：外部编辑时按返回键 = 关编辑页、展开的浮动菜单按返回键 = 收起菜单。桌面没有系统返回键 / 手势（见第 9 节第 1 条）。
+4. **`WindowInsets.isImeVisible`（安卓专属扩展）删掉**（443 行）：没有软键盘，也就没有「键盘弹出时收起浮动工具栏」，浮动工具栏始终可见。
+5. **SAF / `ActivityResultLauncher` → 原生对话框**（517–525 行）：选封面、选海报、导入歌词、导出封面、导出艺人图全改成 `rememberFileOpenPicker` / `rememberFileSavePicker`，拿到的是真 `File`。
+6. **`permissionIntentSender` 那整段 `LaunchedEffect` 删掉**（613 行）：往 SAF 文档里写之前要先跟用户要一次授权；桌面写的是真实文件，没有这层授权。
+7. **`Toast` → 状态 + snackbar**（702 行）：`PlayerPickerBottomSheet`（`Intent` chooser）按已裁决的播放策略换成 `PlaybackRepository`，结果落在 `uiState.playMessage`，界面用 snackbar 显示 —— 跟 `sameAlbumCoverMessage` 同一条策略。
+8. **`ClipData` → `ClipEntry(StringSelection(...))`**（1482 行）：桌面没有 `ClipData`，直接包纯文本。
+9. **导出艺人图先拿保存路径再交给视图模型**（1660 行）：安卓是 `exportArtistImage(context, target)`，内部再弹 `CreateDocument`。
+10. **封面来源的解码与量尺寸不再需要 `Context`**（318、548、1996 行）：`file://` 包装也不需要，歌曲路径就是绝对路径本身。
+11. **图片过滤改成文件名扩展名列表**（267 行）：`LocalImageExtensions = jpg/jpeg/png/webp/bmp/gif`（含 `ImageIO` 解得开的格式，否则选进来也读不出像素）。安卓把「什么算图片」交给系统（`PickVisualMedia`），桌面端只能自己列 —— 这是行为偏差，记在第 9 节第 6 条。
+12. **导入歌词不过滤**（270 行）：`listOf("*")` 等价于安卓 `OpenDocument` 传通配 MIME（`matchesExtensions` 支持 `"*"` 这一条也是切片 2 加的）。
+
+#### 5. 结果回传的两半（`ResultRecipient.kt`）
+
+`ResultBackNavigator.kt`（**发送半**，前一批就写好了）当时在 KDoc 里写着「接收半等 `EditMetadataScreen` 那批」。这批把它补上：
+
+* 键由**发送方**的基础路由决定（`resultKey(route)`）：一个屏幕会从几个子屏幕收结果（编辑页同时收「封面搜索 / 歌词搜索 / 歌词结果」三路），键必须分得开。NavHost 里把三个发送方的名字写**一次**，两半因此不会各说各话。
+* `rememberResultRecipient(handle, route)` 从 `SavedStateHandle` 取 `getStateFlow<T?>(key, null)`：**观察而不是轮询** —— 结果可能在这屏组合还没搭完时就落进来了。
+* `onResult { }` 在 `LaunchedEffect(value)` 里跑回调，跑完 `consume()`：同一个结果不会因为重组、或「返回再来一次」被重放；连续两次相同结果仍然各触发一次，因为中间 handle 回到了 `null`（键因此变了）。
+* 类型参数里的「目的地类型」没了：它原来只用来生成键，现在键是发送路由的函数，所以每个发送方一个 `ResultRecipient<T>` 就够。类名与调用形状（`onCoverSearchResult.onResult { ... }`）刻意保持 Android 原样，搬过来的屏幕主体读起来跟安卓一致。
+
+#### 6. 无头取证（新增 2 类 8 项；全量 124 类 / 1086 项 / 0 失败 / 0 错误 / 2 门控跳过）
+
+`EditMetadataScreenTest`（520 行 5 项）跑的是**真基础设施**：真 Koin 图（`desktopAppModule`）、真 Room、真 `LibraryScanManager` 扫描、真 TagLib 写夹具（`placeTaggedFixture` 把 `bladeenc.mp3` 写成 `Editor Song / Editor Artist / Editor Album`），挂的是**真 `LyricoNavHost`**（`LibraryHost()`）或「真 `NavHost` 条目里的编辑页」（`EditorInTestHost`）。只有两处 OS 接缝是假的，理由都写在类头上：`PlaybackRepository`（否则真去拉系统播放器）与 `PlatformLog` sink / `ExternalAudioEditHost` 记录器。
+
+1. `tapping a song in the library opens the editor on that file's tags`：扫描真的出一行 → 点它 → 等编辑页读出标签 → 点左上角返回 → 等「库里的行回来了**且**编辑页的表单走了」。这条钉的是 `edit_metadata` 的注册与编码路径参数（单测够不着的那半），以及「没有外部请求时返回就是普通 pop」。等待条件是**两个半边合起来才有意义**：歌曲页没有任何可编辑字段，而「正在离开的那一页」是行标题出现的另一个地方。
+2. `play hands the song to the shell, and a missing player reaches the user`：FAB → 播放 → 假 shell 收到的正是被打开那首的路径，且 `no_player_found` 到达界面。
+3. `the field-settings action logs the destination that has no screen yet`：点「字段设置」→ 导航器记一条含 `edit_field_settings` 与 `not ported yet` 的日志，并断言编辑页**仍是当前页**（降级可生存，不是崩）。
+4. `saving an external edit request tells the window that launched it`：带 `externalEditRequestId` 时点保存，先等到保存成功的提示，再断言 `(11L, true)` 这一对交给了宿主 —— 请求 id 就是「同时有两笔编辑在飞」时能分开的那一位。
+5. `an external edit with no host logs the miss instead of dropping the result`：没有宿主时保存**照样写文件、照样提示用户**，只有回传那条落进日志，且日志里点名了请求 id。
+
+`ResultRecipientTest`（177 行 3 项）钉上一节那三条断言：同一个结果只处理一次、重组不重放；结果按**发送路由**分命名空间；发送半与接收半在一张**真导航图**里对得上（`NavHost` + `ResultBackNavigator` + `rememberResultRecipient` 各取真实的那个）。
+
+账：122 类 1078 项 → **124 类 1086 项**（+2 类 +8 项 = 5 + 3）。
+
+#### 7. 真窗口取证（docs/port-evidence/c36-*）
+
+一次会话：重跑 seeder（24 首，与 C6c / C6e 的复现说明一致）→ `./gradlew :lyrico-app:run`（窗口 `hwnd=11209968`，标题 `Lyrico 1.6.0 (20c92b6)`，1166×773、客户端区 1164×741；数据目录 `lyrico-app/data` 便携模式；结束时杀掉窗口）→ 截图 → 点行 → 截图 → 点保存 → 截图。
+
+| 产物 | 内容 | 怎么证明它是真的 |
+| --- | --- | --- |
+| `c36-library.png`（+ `.ocr.txt` / `.analysis.txt`） | 会话起点：曲库「歌曲」页 24 首 | 像素分析 503 色 / 最常见色占比 0.831 / `text_pixels` 15396 / 28 行全有细节；OCR 47 行，含「歌曲（24）」与 `September`、`山丘` 等行文本 |
+| `c36-editor.png`（+ 同上） | 点第一行（客户端 (200, 97)）之后落的编辑页 | `text_pixels` 13345；密度图第 5–10 行（≈120–280 px）被封面块占满，300–1000 列除页边符号外全空 —— 版式那句「与安卓一致」见本节末 |
+| `c36-editor-crop.png` + `c36-editor-crop.ocr.txt` | 上图的字段区裁切，(0,320)-(520,773) 3× LANCZOS（按 C6d 的裁切约定，只是命名用了 `-crop` 而不是 `.crop`） | OCR 读出**评级 / 花心 / 周华健 / 专辑艺术家 / 朋友 / 日期**（标题值那一行被认成 `亻 心`，就是「花心」）。反推坐标 = `(x/3, 320 + y/3)`。标题字段值「花心」就是磁盘链里被写的那一首 —— 两处证据互相锁定 |
+| `c36-save-1.png`（+ 同上） | 点右上角保存（客户端 (1128, 25)）之后 | 落回曲库页 —— 保存成功即 `closeEditor(saved = true)`（`EditMetadataScreen.kt:637`），所以这张图证明的是「保存这条链跑完并按设计弹回」，不是「按钮没反应」 |
+| `c36-save-log.txt` | 同一会话的 app 运行日志（103 行，含开头三行说明） | `AudioTagWriter: Write tag:` 36 项（`TITLE` / `RATING` / `RATE` / `LYRICS` / `UNSYNCED LYRICS` / `ALBUM` / `ARTIST` …），紧接着 `AudioTagReader: Read tag:` 读出 `TITLE = 花心 / ARTIST = 周华健 / ALBUM = 朋友 / LYRICS = [00:00.00]花的心藏在蕊中…` —— 真窗口点保存 → TagLib 真写 → 曲库刷新真重读。**本批最强的一条** |
+
+磁盘链（数据目录在 `.gitignore` 里，没有进仓库）：`2 花心.wav` 的 size 58100 **不变**、sha256 `3dbacca7…` **不变**、mtime `09:26:01 → 09:28:35`（就是保存那一刻）；`1 朋友.mp3` 的 mtime / sha256 **完全未动**。两件事因此成立：保存写的是**被打开的那一首**，而且写回的是同一批字节（幂等重写，标签本来没被改动过）。
+
+两条如实记：
+
+* **「保存成功」的 snackbar 没被截到。** `LaunchedEffect(uiState.saveSuccess)` 先 `showSnackbar` 再 `closeEditor`，编辑页一弹回，snackbar 随它一起走，所以截图里已经是曲库页。无头那条用例钉的是 snackbar 文案与宿主回传，窗口里能钉的是 mtime 与日志；这里不拿「回到曲库」冒充「看到了成功提示」。
+* **整窗 OCR 读不出完的表单。** 编辑页的字段标签小且浅，整窗只读出 8 行（`text_pixels` 与库页相当，但可识别的**行**少得多：库页 47 行），所以配了 3× 裁切图 —— 跟 C6d「底部面板的小字要裁切放大后才 OCR」同一个教训，两种产物都进仓库。
+
+版式与安卓一致：`HEAD` 里的 java 版本同样是 `Scaffold` + `LazyColumn`（java 877 行）且封面是**第一个 item**（java 1004 行 `CoverSection(`），移植版在同一个位置（kotlin 957 / 1084 行）。窗口右侧大面积是页面底色，不是被裁掉的控件。
+
+#### 8. 这批实测出来的坑（都会再踩）
+
+1. **无头里导航需要主线程调度器**（这条花的时间最久）：lifecycle 2.11 的桌面实现在写返回栈条目的生命周期时会校验「在主线程上」，而无头测试里点击跑在测试 worker 线程、`closeScene` 跑在 Swing EDT —— 两者都不是对方的「主线程」，于是导航一写就挂。修法是 `Dispatchers.setMain(Dispatchers.Unconfined)`（`HeadlessMainDispatcher`，setUp 装 / tearDown 还原），`Unconfined` 让校验在任何线程都过。**这是测试夹具与线程模型的错配，不是移植 bug**：生产里点击与组合都在同一个 UI 线程上，一个字没改。
+2. **零尺寸节点会「假通过」位置 + 尺寸匹配器**：没被放置 / 已脱离的节点边界是全 0，`top < 32 && left < 32 && w < 64 && h < 64` 这类条件对它**恒真**。症状是 `Failed to inject mouse input ... found 3 nodes`。修法是匹配器一律要求 `bounds.width > 0f && bounds.height > 0f`，再叠一个 `config.contains(SemanticsActions.OnClick)`。
+3. **库里的行文本把艺术家和专辑并在一起**（`[MP3, Row Song, Editor Artist, · Editor Album, 0:03, 64kbps]`）：所以「现在是编辑页还是库页」不能用标签值判，要用 `hasSetTextAction()`（库页没有任何可编辑字段，这一条是用 `printToString` 倒出的文本树确认的）。
+4. **`action_add_folder` 只是空状态按钮的文案**（`screens/library/SongsPage.kt:198` / `ui/components/song/SongListEmptyState.kt:24`）：有行的时候断言它「不存在」是**恒真**的，等于没断言 —— 已经从等待条件里删掉。
+5. **`SemanticsConfiguration.getOrNull(...)` 在这个 Compose 版本里不存在**：判断有没有某个语义动作要写 `node.config.contains(SemanticsActions.OnClick)`。
+6. **失败信息里打印的节点边界可能是「之后某个状态」的**：它会与匹配器的判断互相矛盾，所以排查这类问题要在匹配器里临时 `println` 出真正被比较的值，别信失败信息里的那组数。
+7. **`data object` 目的地要按对象本身导航**（`navigator.navigate(EditFieldSettingsDestination)`）：写成 `Foo()` 会被报成 `Unresolved reference`。
+8. **中文注释里不能出现 `*/`**：KDoc 里写通配符 `"*/*"` 之类的串会提前结束块注释。
+9. **`StringFormattingGuardTest` 会拦下整棵 kotlin 主树里的多参 `stringResource`**：崩的是全量构建，报的是别处的行号（这次是 `label_artist_image_conflict_title`，当时的 1788 行、现在的 1800 行），改成 `formattedStringResource` 即可；迁移一批文件之前先按守卫的规则扫一遍更省事。
+10. **取证结束后应用窗口还开着会让 Gradle 报 `BUILD FAILED`**（与 #35 同）。
+
+#### 9. 用户可见缺口（如实记录）
+
+1. **两个 `BackHandler` 没了**：外部编辑时「返回 = 关编辑页」和「展开的浮动菜单按返回 = 收起」在桌面上都没有等价物。菜单还能点别处关，编辑页还有左上角那个返回箭头，所以是可达性上的损失，不是功能缺失。
+2. **`activity.finish()` 那条路只剩日志**：编辑页永远不是窗口的根目的地，所以「结束」在桌面上没有意义（真走到那一步也只记一条警告）。
+3. **外部编辑请求还没有宿主**：`LyricoDesktopApp` 已经把文件关联参数接进来了，但还没有 `provide` 一个 `ExternalAudioEditHost`，所以「双击关联文件打开编辑页」这条流目前会走「没有宿主」那条日志分支 —— 跟 P6 的文件关联一起做。
+4. **`EditFieldSettingsScreen` 还没搬**：编辑页的「字段设置」入口可达但目的地未注册，导航器记日志（无头用例 3 钉着）。这是本批唯一一个「入口在、屏幕不在」的地方。
+5. **`PlayerPickerBottomSheet` 不搬**：播放策略裁决为「交给系统默认关联程序」（`PlaybackRepository`），那个 java 文件因此不会被移植，将随清理批次删除。代价是用户不能像安卓那样在应用内选播放器。
+6. **图片选择按文件名过滤**：只认 `jpg/jpeg/png/webp/bmp/gif`，选不到列表以外的格式（例如 `heic`）。安卓把这判断交给系统，桌面端只能自己列。
+7. **没有 Toast**：播放失败 / 无可用播放器只剩 snackbar 一条可见通道（与 `sameAlbumCoverMessage` 同策略）。
+8. **保存成功的提示在真窗口里几乎看不到**：保存成功立刻弹回上一页（安卓原样行为），桌面上弹回更快，所以提示更短命（见第 7 节）。
+
+#### 10. 前沿（本批收口）
+
+`src/main/java` 树 64 → **63** 个文件；前沿（依赖已满足、现在就能搬）33 → **33**；被挡 31 → **30**；陈旧副本 **0**。
+
+算术只有一处要解释：这批搬走的 `EditMetadataScreen.kt` 本来**不在前沿上** —— 它被 `ui/components/player/PlayerPickerBottomSheet.kt` 挡着（就是第 9 节第 5 条那个不搬的 chooser），所以它属于「被挡」那一列；而 java 树里没有任何文件 import 它，于是它一走也没有邻居被解锁（前沿因此不动）。`PlayerPickerBottomSheet.kt` 现在少了一个依赖者，但它自己标着 `[ANDROID]`（依赖 `Intent`），等清理批次删掉。
+
+下一批（#37）继续搬 screen：前沿那 33 个里已经有 `OpenSourceLicenceScreen.kt` 这种成品，被挡的 30 个里是设置 / 专辑详情 / 艺人详情 / 本地搜索 / 文件夹管理那一串。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
