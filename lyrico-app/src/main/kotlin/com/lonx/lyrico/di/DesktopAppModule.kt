@@ -57,6 +57,8 @@ import com.lonx.lyrico.domain.song.usecase.RenameSongUseCase
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.SynchronizeLibraryUseCase
 import com.lonx.lyrico.platform.AppDirectories
+import com.lonx.lyrico.platform.AwtDesktopOpener
+import com.lonx.lyrico.platform.DesktopOpener
 import com.lonx.lyrico.plugin.i18n.PluginLocales
 import com.lonx.lyrico.plugin.runtime.HostAppInfo
 import com.lonx.lyrico.plugin.runtime.QuickJsHostApi
@@ -84,6 +86,7 @@ import com.lonx.lyrico.worker.processor.MatchLyricsProcessor
 import com.lonx.lyrico.worker.processor.MatchMetadataProcessor
 import com.lonx.lyrico.worker.processor.RenameFilesProcessor
 import com.lonx.lyrico.worker.processor.ReplayGainProcessor
+import com.lonx.lyrico.viewmodel.AboutViewModel
 import com.lonx.lyrico.viewmodel.AlbumActionsViewModel
 import com.lonx.lyrico.viewmodel.AlbumDetailViewModel
 import com.lonx.lyrico.viewmodel.ArtistDetailViewModel
@@ -211,6 +214,10 @@ fun desktopAppModule(directories: AppDirectories) = module {
     // component that knows both how big the cover cache is and how to clear it safely on Windows
     // (its journal file is open for as long as the process lives).
     single<ImageCache> { CoilImageCache() }
+    // The shell hand-off (open a file, open a URL). Bound rather than defaulted so the about page's browser
+    // call can be faked in a test -- `PlaybackRepository` still constructs its own by default, which is a
+    // cleanup for the hygiene batch, not a difference this slice needs.
+    single<DesktopOpener> { AwtDesktopOpener() }
     single { CacheManager(get(), get()) }
     single<BatchTaskRepository> { BatchTaskRepositoryImpl(get()) }
 
@@ -445,6 +452,14 @@ fun desktopAppModule(directories: AppDirectories) = module {
     // positional swap.
     // The batch-edit page (E-2). Same shape as the rename view model's, plus the edit-field config it
     // renders from.
+    viewModel {
+        AboutViewModel(
+            settingsRepository = get(),
+            updateManager = get(),
+            contributorRepository = get(),
+            desktopOpener = get(),
+        )
+    }
     viewModel {
         BatchEditViewModel(
             songLibraryRepository = get(),

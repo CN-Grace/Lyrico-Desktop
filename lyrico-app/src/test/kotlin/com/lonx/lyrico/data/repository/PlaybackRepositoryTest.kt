@@ -31,6 +31,7 @@ class PlaybackRepositoryTest {
     ) = PlaybackRepositoryImpl(
         desktopOpener = object : DesktopOpener {
             override fun isSupported(): Boolean = supported
+            override fun browse(url: String) = Unit
             override fun open(file: File) {
                 opened += file
                 onOpen?.invoke(file)

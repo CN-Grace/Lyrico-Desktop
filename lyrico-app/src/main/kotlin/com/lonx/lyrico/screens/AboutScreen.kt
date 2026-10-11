@@ -18,28 +18,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.lonx.lyrico.App.Companion.OWNER_ID
-import com.lonx.lyrico.App.Companion.REPO_NAME
-import com.lonx.lyrico.App.Companion.TELEGRAM_GROUP_LINK
-import com.lonx.lyrico.BuildConfig
+import com.lonx.lyrico.BuildInfo
 import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.about_app_info
+import com.lonx.lyrico.resources.about_app_version
+import com.lonx.lyrico.resources.about_auto_check_update
+import com.lonx.lyrico.resources.about_auto_check_update_sub
+import com.lonx.lyrico.resources.about_check_update
+import com.lonx.lyrico.resources.about_check_update_default
+import com.lonx.lyrico.resources.about_contribution_count
+import com.lonx.lyrico.resources.about_contributors
+import com.lonx.lyrico.resources.about_no_contributors
+import com.lonx.lyrico.resources.about_project_url
+import com.lonx.lyrico.resources.about_project_url_sub
+import com.lonx.lyrico.resources.about_title
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.load_failed
+import com.lonx.lyrico.resources.title_opensource_licence
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
 import com.lonx.lyrico.utils.UpdateEffect
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.AboutViewModel
 import com.lonx.lyrico.viewmodel.UiError
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.OpensourceLicenceDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.ui.components.update.UpdateDialog
+import com.lonx.lyrico.ui.navigation.OpensourceLicenceDestination
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
@@ -59,24 +70,26 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
+/** Android kept this in `App.Companion`; the desktop shell has no such object, and this page is its only user. */
+private const val TELEGRAM_GROUP_LINK = "https://t.me/lyrico_app"
+
 @Composable
-@Destination<RootGraph>(route = "about")
 fun AboutScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: AboutViewModel = koinViewModel()
     val checkUpdateEnabled by viewModel.checkUpdateEnabled.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val updateEffect by viewModel.updateEffect.collectAsStateWithLifecycle(
-        initialValue = UpdateEffect(R.string.about_check_update_default)
+        initialValue = UpdateEffect(Res.string.about_check_update_default)
     )
+    val releaseInfo by viewModel.releaseInfo.collectAsStateWithLifecycle()
     val contributors by viewModel.contributors.collectAsStateWithLifecycle()
     val loading by viewModel.loadingContributors.collectAsStateWithLifecycle()
     val error by viewModel.contributorsError.collectAsStateWithLifecycle()
 
     val errorText = when (val e = error) {
         null -> null
-        UiError.LoadFailed -> stringResource(R.string.load_failed)
+        UiError.LoadFailed -> stringResource(Res.string.load_failed)
         is UiError.Message -> e.text
     }
     val topAppBarScrollBehavior = MiuixScrollBehavior()
@@ -87,14 +100,14 @@ fun AboutScreen(
                 SmallTopAppBar(
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
-                    title = stringResource(R.string.about_title),
+                    title = stringResource(Res.string.about_title),
                     navigationIcon = {
                         IconButton(
                             onClick = { navigator.popBackStack() }
                         ) {
                             Icon(
                                 MiuixIcons.Back,
-                                contentDescription = stringResource(R.string.action_back)
+                                contentDescription = stringResource(Res.string.action_back)
                             )
                         }
                     },
@@ -117,17 +130,17 @@ fun AboutScreen(
             overscrollEffect = null,
         ) {
             item {
-                SmallTitle(text = stringResource(R.string.about_app_info))
+                SmallTitle(text = stringResource(Res.string.about_app_info))
                 Card(
                     modifier = Modifier.padding(horizontal = 12.dp)
                 ) {
                     BasicComponent(
-                        title = stringResource(R.string.about_app_version),
-                        summary = "${BuildConfig.VERSION_NAME}(${BuildConfig.VERSION_CODE})"
+                        title = stringResource(Res.string.about_app_version),
+                        summary = "${BuildInfo.VERSION_NAME}(${BuildInfo.VERSION_CODE})"
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.about_project_url),
-                        summary = stringResource(R.string.about_project_url_sub),
+                        title = stringResource(Res.string.about_project_url),
+                        summary = stringResource(Res.string.about_project_url_sub),
                         endActions = {
                             Text(
                                 text = "GitHub",
@@ -137,8 +150,7 @@ fun AboutScreen(
                         },
                         onClick = {
                             viewModel.openBrowser(
-                                context,
-                                "https://github.com/$OWNER_ID/$REPO_NAME"
+                                "https://github.com/${BuildInfo.UPDATE_OWNER}/${BuildInfo.UPDATE_REPO}"
                             )
                         }
                     )
@@ -153,24 +165,24 @@ fun AboutScreen(
                             )
                         },
                         onClick = {
-                            viewModel.openBrowser(context, TELEGRAM_GROUP_LINK)
+                            viewModel.openBrowser(TELEGRAM_GROUP_LINK)
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.title_opensource_licence),
+                        title = stringResource(Res.string.title_opensource_licence),
                         onClick = {
-                            navigator.navigate(OpensourceLicenceDestination())
+                            navigator.navigate(OpensourceLicenceDestination)
                         }
                     )
                     SwitchPreference(
-                        title = stringResource(R.string.about_auto_check_update),
-                        summary = stringResource(R.string.about_auto_check_update_sub),
+                        title = stringResource(Res.string.about_auto_check_update),
+                        summary = stringResource(Res.string.about_auto_check_update_sub),
                         checked = checkUpdateEnabled,
                         onCheckedChange = viewModel::setCheckUpdateEnabled
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.about_check_update),
-                        summary = stringResource(
+                        title = stringResource(Res.string.about_check_update),
+                        summary = formattedStringResource(
                             updateEffect.messageRes,
                             *updateEffect.formatArgs.toTypedArray()
                         ),
@@ -180,7 +192,7 @@ fun AboutScreen(
             }
 
             item {
-                SmallTitle(text = stringResource(R.string.about_contributors))
+                SmallTitle(text = stringResource(Res.string.about_contributors))
             }
 
             when {
@@ -227,7 +239,7 @@ fun AboutScreen(
                                 .fillMaxWidth()
                         ) {
                             BasicComponent(
-                                title = stringResource(R.string.about_no_contributors)
+                                title = stringResource(Res.string.about_no_contributors)
                             )
                         }
                     }
@@ -245,8 +257,8 @@ fun AboutScreen(
                         ) {
                             ArrowPreference(
                                 title = contributor.login,
-                                summary = stringResource(
-                                    R.string.about_contribution_count,
+                                summary = formattedStringResource(
+                                    Res.string.about_contribution_count,
                                     contributor.contributions
                                 ),
                                 startAction = {
@@ -268,7 +280,7 @@ fun AboutScreen(
                                     )
                                 },
                                 onClick = {
-                                    viewModel.openBrowser(context, contributor.html_url)
+                                    viewModel.openBrowser(contributor.html_url)
                                 }
                             )
                         }
@@ -276,5 +288,20 @@ fun AboutScreen(
                 }
             }
         }
+    }
+
+    // 安卓把更新对话框挂在 Activity 外壳上（那样它能在任何页面之上弹出）；桌面端的关于页是触发检查、
+    // 也是展示结果的地方，所以这一页自己兼。`PLAN.md` 里记了两者的差别。
+    releaseInfo?.let { release ->
+        UpdateDialog(
+            show = true,
+            versionName = release.versionName,
+            releaseNote = release.releaseNotes,
+            onConfirm = {
+                viewModel.openBrowser(release.url)
+                viewModel.dismissUpdate()
+            },
+            onDismissRequest = { viewModel.dismissUpdate() },
+        )
     }
 }

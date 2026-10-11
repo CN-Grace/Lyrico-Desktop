@@ -1,0 +1,20 @@
+file: docs\port-evidence\c37f-opensource_licence.png
+engine: zh-Hans-CN
+lines: 17
+  y=10 x=31 :: Lyrico 1 ℃ 〔 1 化 〔 4g1 ）
+  y=104 x=30 :: kotlinx.coroutlnes
+  y=146 x=29 :: Apache-2.0
+  y=209 x=30 :: kotlinx.se ial•zation
+  y=251 x=29 :: Apache-2.0
+  y=314 x=29 :: AndroidX Room
+  y=337 x=30 :: 2 ． & 5
+  y=356 x=29 :: Apache-2.0
+  y=419 x=29 :: AndroidX DataSto e
+  y=461 x=29 :: Apache-2.0
+  y=524 x=29 :: OkHttp
+  y=547 x=30 :: 5 ． 5 ℃
+  y=566 x=29 :: Apache-2.0
+  y=629 x=29 :: Coil
+  y=671 x=29 :: Apache-2.0
+  y=734 x=29 :: TagLib
+  y=51 x=488 :: open source licenses

@@ -1,6 +1,7 @@
 package com.lonx.lyrico.platform
 
 import java.awt.Desktop
+import java.net.URI
 import java.awt.HeadlessException
 import java.io.File
 
@@ -25,6 +26,16 @@ interface DesktopOpener {
      * throw when the shell refuses, so the caller can tell "opened" from "did not open".
      */
     fun open(file: File)
+
+    /**
+     * Asks the shell to open [url] in the user's default browser.
+     *
+     * Separate from [open] because `java.awt.Desktop` treats them as two different actions (OPEN vs
+     * BROWSE) and either can be unsupported on its own; a desktop with no browser is not a desktop that
+     * cannot open a file. Added for the about page, whose Android version started an `ACTION_VIEW`
+     * intent -- the same call the settings screen's project links need.
+     */
+    fun browse(url: String)
 }
 
 /** The real thing: `java.awt.Desktop` in OPEN mode, which is what a double-click in Explorer does. */
@@ -42,5 +53,9 @@ class AwtDesktopOpener : DesktopOpener {
 
     override fun open(file: File) {
         Desktop.getDesktop().open(file)
+    }
+
+    override fun browse(url: String) {
+        Desktop.getDesktop().browse(URI(url))
     }
 }

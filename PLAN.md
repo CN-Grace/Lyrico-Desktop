@@ -2615,3 +2615,66 @@ java 主树 31 → **26**（5 个：2 个本在前沿、3 个本在被挡）；�
 java 主树 26 → **23**（3 个：`BatchEditViewModel` 与两个屏幕，都不在前沿）；前沿 15 → **15**；被挡 11 → **8**；陈旧副本 **0**。
 
 算术：三个搬走的文件都在被挡名单（两个等 `BatchEditViewModel`、一个等 `getUri` 那个符号），所以被挡 `11 - 3 = 8`，前沿不变、`26 - 3 = 23`。剩下的 15 个前沿里 5 个 `[ANDROID]` 待作废（`PainterUtils` / `QuickJsTestScreen` / `PlayerIntentFactory` / `InstalledAppChecker` / `LyricoApp`），其余是 F（关于页/更新对话框/许可页）、`App.kt`+`di/AppModule`+`MainActivity` 这条安卓外壳尾巴与几个尾部杂项。
+
+### P5 施工批次（#37-F：关于页 + 更新对话框 + 开源许可页，2026-10-11）
+
+#### 1. 搬了什么（`git mv` 4 个 + 路由 2 条 + DI 1 条 + 新文件 1 个 + 接缝扩展 1 处）
+
+| 文件 | 行数 | 说明 |
+|---|---|---|
+| `screens/AboutScreen.kt` | 280 | `App.Companion` 三个常量 → `BuildInfo.UPDATE_OWNER/UPDATE_REPO` + 页内常量；`BuildConfig` → `BuildInfo`；`openBrowser(context, url)` → `openBrowser(url)`；路由形式；2 处 `stringResource(res, args)` → `formattedStringResource`；**新增：托管更新对话框** |
+| `viewmodel/AboutViewModel.kt` | 86 | 去掉 `Context`/`Intent`（浏览器交给 `DesktopOpener`）；贡献者查询改用 `BuildInfo.UPDATE_OWNER/UPDATE_REPO`；新增 `releaseInfo` 流与 `dismissUpdate()` |
+| `ui/components/update/UpdateDialog.kt` | 55 | `MarkdownText`（安卓专用库）→ 端口已有的 `MiuixMarkdownText`；1 处 `formattedStringResource` |
+| `screens/OpenSourceLicenceScreen.kt` | 130 | 数据源从 `produceLibraries(R.raw.aboutlibraries)` 换成手维护的 `AppLicences.all`；滚动条从 `my.nanihadesuka`（安卓库）换成端口的 `LibraryScrollbar` 覆盖层 |
+| 新文件 | `data/model/AppLicence.kt` | 许可条目模型 + 手维护清单（12 项） |
+
+接缝扩展：`DesktopOpener` 增加 `browse(url: String)`（`java.awt.Desktop` 的 BROWSE 动作与 OPEN 是两个可分别不受支持的动作）。DI：`AboutViewModel` 与 `DesktopOpener` 各一条；路由：`about` 与 `opensource_licence`（安卓拼写就是小写 s，照抄）。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **`ACTION_VIEW` intent → `DesktopOpener.browse`**：`openBrowser(context, url)` 变成 `openBrowser(url)`，调用点少一个参数；VM 不再碰 `Context`，而这个接缝是**可注入**的，所以测试能断言「把哪个 URL 交给了系统」。
+2. **`App.Companion` → `BuildInfo`**：安卓那两个常量在 `App.kt`（整个安卓外壳都在作废清单上），桌面端用的是生成出来的 `BuildInfo.UPDATE_OWNER/UPDATE_REPO`（fork 决策写在那份生成文件的注释里）。`TELEGRAM_GROUP_LINK` 没有对应物，作为页内常量保留原值。
+3. **`MarkdownText` → `MiuixMarkdownText`**（`com.github.jeziellago:compose-markdown` 是安卓专用；端口已经有基于 multiplatform-markdown-renderer 的实现，见 `libs.versions.toml` 里那段注释）。
+4. **许可页的数据源从头换了**：安卓由 `aboutlibraries` 插件在编译期从依赖图生成；桌面构建没有这个插件。新清单是手维护的 12 项（UI 工具包 → 应用自身管道 → 媒体/引擎），`AppLicence` 的 KDoc 把代价写清楚了：**加到 `libs.versions.toml` 而没加到这里的东西不会出现在这一页**；`AppLicencesTest` 机器化地钉住能钉的部分（id 唯一、每项有 name/version/licence/URL）。
+5. **版本号全部对着权威文件核过一遍**：初稿我凭印象写了几个（Koin 4.1.1、Room 2.8.2、OkHttp 5.1.0、miuix 0.6.0、ffmpeg 7.1/LGPL-2.1…），随后逐个改成 `gradle/libs.versions.toml`、`lyrico-audiotag/src/main/cpp/taglib/taglib/toolkit/taglib.h`（TagLib 2.3.0）与 `docs/third-party/ffmpeg-lgpl.md`（`N-127271-gba987fe24d`，**LGPL-3.0** 而不是 v2.1）里的值；quickjs-ng 在仓库里没有固定版本，就写 `bundled` 而不是编一个。
+6. **滚动条换成端口自己的 `LibraryScrollbar`**：它是覆盖层（`libraryScrollbarOverlay` 让开顶栏/底栏），所以它是列表的兄弟节点；`LazyColumnScrollbar` 那个包装式写法随之删掉。
+
+#### 3. 无头取证（新增 2 类 6 项；全量 144 类 / 1190 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+| 测试类 | 项 | 钉住的东西 |
+|---|---|---|
+| `data/model/AppLicencesTest` | 4 | 每项都有 id/名字/版本/至少一个许可证；id 唯一（列表用它当 key）；每项都有 https 的 URL；编译期真正依赖的那几个组件在清单里 |
+| `viewmodel/AboutViewModelTest` | 2 | `openBrowser` 把 URL 交给注入的 `DesktopOpener`；**贡献者查询问的是 fork（`CN-Grace/Lyrico-Desktop`）而不是安卓上游** |
+
+顺带修了两处因接缝扩展而挂掉的既有测试假体（`PlaybackRepositoryTest` 与 `EditMetadataViewModelTest` 里的匿名 `DesktopOpener`）——这是接口加成员时的正常连锁，两处各补一行 `browse`。
+
+全量：E-2 那节的 1184 → **1190**（+6）。
+
+#### 4. 真窗口取证（`docs/port-evidence/c37f-*`，两页各用 `-Plyrico.start.route` 起一次）
+
+| 文件 | 内容 | OCR 关键行 | 分析 |
+|---|---|---|---|
+| `c37f-about.png` | About：App Version `1.6.0(20)`（`BuildInfo`）、GitHub、Telegram（`https://t.me/lyrico_app`）、Open source licenses 行、Auto-check for updates 开关、Check for updates，以及**真实拉到的贡献者**（Replica0110 565 commits / CN-Grace 53 commits） | `y=50 :: About`、`y=213 :: GitHub`、`y=287 :: Telegram`、`y=366 :: source licenses`、`y=557 :: Contributors`、`y=709 :: 53 commits` | `VERDICT: OK` |
+| `c37f-opensource_licence.png` | Open source licenses：手维护清单的前几项（kotlinx.coroutines 1.10.2 / kotlinx.serialization 1.11.0 / AndroidX Room 2.8.5 / DataStore 1.2.1 / OkHttp 5.5.0 / Coil 3.6.2 / TagLib…），右侧能看到端口的滚动条 | `y=104 :: kotlinx.coroutlnes`、`y=314 :: AndroidX Room`、`y=524 :: OkHttp`、`y=629 :: Coil` | `VERDICT: OK` |
+
+关于页那张图的**左上角有一条第三方输入法候选窗残留**（我早前试「点击+打字」时留下的系统 IME 候选窗，恰好叠在窗口框架上）；它不是应用的一部分，许可页那张（后拍的）是干净的。这里如实记下来，免得以后有人以为界面多了个控件。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **给接口加一个成员会让所有测试假体挂掉**：`DesktopOpener` 加 `browse` 之后，两个既有匿名实现当场编译不过；加成员前先 `grep "object : DesktopOpener"`，比等编译器告诉你便宜。
+2. **手维护的清单里不要凭印象写版本号**：本批初稿六个版本号是错的（我把 ffmpeg 写成 LGPL-2.1，而仓库自己的 `docs/third-party/ffmpeg-lgpl.md` 明写着 `--enable-version3` 即 LGPL v3）。正确做法是先找到权威文件（`libs.versions.toml` / 上游头文件 / `docs/third-party/`），找不到就写「bundled」之类的实话，不要编。
+3. **`my.nanihadesuka` 与 `MarkdownText` 都是安卓专用库**，端口各有替换（`LibraryScrollbar` 覆盖层、`MiuixMarkdownText`）；它们各自的使用形状不一样（一个包装列表、一个是兄弟覆盖层），别照着旧调用形状改。
+4. **`stringResource(res, args)` 的机械检查还是要靠守卫**：本批 `AboutScreen` 又有 2 处，`build/tmp-probe/format-calls.py` 一次改对。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. **启动时的自动检查更新没有接线**：安卓的 Activity 外壳在启动时触发检查，桌面端只有关于页的「Check for updates」按钮会触发（`SongListViewModel.checkForUpdate()` 已存在但无人调用）。设置了「自动检查更新」也只在打开关于页时才生效 —— 要接就得一并决定对话框挂在哪里（见下一条），归到后续批次。
+2. **更新对话框现在只挂在关于页上**：安卓挂在 Activity 外壳上，所以它在任何页面之上都能弹出；桌面端把它放在了触发检查的那一页。若把启动检查接上，这个宿主位置需要重新决定。
+3. **许可清单是手维护的**（第 2 节第 4 条）：比安卓那份「全量依赖」短，且会滞后于 `libs.versions.toml`。
+4. 桌面端没有系统返回手势（同前几片）。
+
+#### 7. 前沿（本批收口）
+
+java 主树 23 → **19**；前沿 15 → **13**；被挡 8 → **6**；陈旧副本 **0**（三个数来自 `port-frontier.py` 的实测输出）。
+
+算术：四个搬走的文件里**两个本在前沿**（`UpdateDialog` 与 `OpenSourceLicenceScreen`），**两个本在被挡名单**（`AboutScreen` / `AboutViewModel`，它们等的就是 `App.kt` 里的两个常量 —— 本批把那两个常量改成读 `BuildInfo`，所以没有新增任何文件，阻塞是「换掉依赖」而不是「搬进来」解除的）。于是前沿 `15 - 2 = 13`、被挡 `8 - 2 = 6`、`23 - 4 = 19`，三者自洽。剩下的 13 个前沿里 5 个是 `[ANDROID]` 待作废，其余是安卓外壳尾巴（`App.kt` / `di/AppModule.kt` / `MainActivity.kt` / `LyricoApp.kt`）、播放器选择与 `FriendlyPlayer` 簇、`ReferenceFloatingBar` + 6 个 liquid 组件、以及 `DeleteRawPropertiesMigration`。

@@ -186,6 +186,7 @@ class EditMetadataViewModelTest {
         val playback = PlaybackRepositoryImpl(
             desktopOpener = object : DesktopOpener {
                 override fun isSupported(): Boolean = true
+            override fun browse(url: String) = Unit
                 override fun open(file: File) {
                     openFailure?.let { throw it }
                     openedFiles += file

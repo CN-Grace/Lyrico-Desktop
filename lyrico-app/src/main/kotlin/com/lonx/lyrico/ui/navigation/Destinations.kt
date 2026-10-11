@@ -287,6 +287,13 @@ class ArtistSplitSettingsDestination : NavDirection {
     }
 }
 
+/** The open-source licence list. Reached from the about page; registered with it in F. */
+data object OpensourceLicenceDestination : NavDirection {
+    override val route: String = ROUTE
+
+    const val ROUTE = "opensource_licence"
+}
+
 /** The character-mapping editor. Reached from the batch-rename screen; its screen arrives with E-2. */
 class CharacterMappingDestination : NavDirection {
     override val route: String = ROUTE

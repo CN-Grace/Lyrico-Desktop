@@ -1,0 +1,31 @@
+file: docs\port-evidence\c37f-about.png
+engine: zh-Hans-CN
+lines: 28
+  y=2 x=39 :: 2
+  y=96 x=29 :: App lnfo
+  y=2 x=92 :: 3
+  y=2 x=144 :: 4
+  y=2 x=198 :: 5
+  y=2 x=250 :: 6
+  y=2 x=373 :: 8
+  y=50 x=554 :: About
+  y=140 x=29 :: App Verslon
+  y=162 x=30 :: 1 ． 5 ℃ 〔 2 引
+  y=213 x=29 :: GitHub
+  y=236 x=29 :: Vlevv source an GitHub
+  y=287 x=29 :: Telegram
+  y=310 x=30 :: https://t.me/lyrica_app
+  y=366 x=76 :: source licenses
+  y=417 x=29 :: Auto-check for updates
+  y=440 x=29 :: Check for updates when the app starts
+  y=491 x=29 :: Check for updates
+  y=514 x=29 :: Check for updates ncn,v
+  y=557 x=29 :: Contributors
+  y=600 x=90 :: Replica0110
+  y=623 x=90 :: 555 cammits
+  y=687 x=89 :: CN-Grace
+  y=709 x=90 :: 53 commits
+  y=224 x=1075 :: GitHub 〉
+  y=298 x=1062 :: Telegram 〉
+  y=611 x=1075 :: GitHub 〉
+  y=697 x=1075 :: GitHub 〉

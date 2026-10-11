@@ -15,6 +15,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.SavedState
 import androidx.savedstate.read
+import com.lonx.lyrico.screens.AboutScreen
+import com.lonx.lyrico.screens.OpenSourceLicenceScreen
 import com.lonx.lyrico.screens.AlbumDetailScreen
 import com.lonx.lyrico.screens.AppLogScreen
 import com.lonx.lyrico.screens.ArtistDetailScreen
@@ -163,6 +165,13 @@ fun LyricoNavHost(
             }
             composable(route = CharacterMappingDestination.ROUTE) {
                 CharacterMappingScreen(navigator = navigator)
+            }
+            // The about page and the licence list it links to (F).
+            composable(route = AboutDestination.ROUTE) {
+                AboutScreen(navigator = navigator)
+            }
+            composable(route = OpensourceLicenceDestination.ROUTE) {
+                OpenSourceLicenceScreen(navigator = navigator)
             }
             // The three settings sub-pages: their destinations were declared by C3 (so the settings
             // screen's rows could navigate), and their screens arrive here.
