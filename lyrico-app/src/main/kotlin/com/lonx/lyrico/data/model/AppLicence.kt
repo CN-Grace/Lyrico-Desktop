@@ -9,7 +9,10 @@ package com.lonx.lyrico.data.model
  * and the engine/decoder ones ship as sidecars (`docs/third-party/`).
  *
  * That difference is a real limitation, recorded rather than papered over: a dependency added to
- * `libs.versions.toml` and not added here will be missing from this page. `AppLicencesTest` pins the parts
+ * `libs.versions.toml` and not added here will be missing from this page. The **versions** of the components
+ * that Gradle does know about are generated from that catalog (`LicenceVersions`, written by the
+ * `generateLicenceVersions` task) rather than typed here, because the first hand-written version of this list
+ * had six wrong version numbers in it. `AppLicencesTest` pins the parts
  * that can be checked mechanically (every entry names its licence and, unless it is the app itself, a URL),
  * and the licence texts themselves are the ones the upstream projects publish.
  */
@@ -35,63 +38,63 @@ object AppLicences {
         AppLicence(
             id = "compose-multiplatform",
             name = "Compose Multiplatform",
-            version = "1.12.0",
+            version = LicenceVersions.COMPOSE_MULTIPLATFORM,
             licences = listOf("Apache-2.0"),
             url = "https://github.com/JetBrains/compose-multiplatform",
         ),
         AppLicence(
             id = "miuix",
             name = "Miuix",
-            version = "0.9.4",
+            version = LicenceVersions.MIUIX,
             licences = listOf("Apache-2.0"),
             url = "https://github.com/miuix-kotlin/miuix",
         ),
         AppLicence(
             id = "koin",
             name = "Koin",
-            version = "4.2.2",
+            version = LicenceVersions.KOIN,
             licences = listOf("Apache-2.0"),
             url = "https://github.com/InsertKoinIO/koin",
         ),
         AppLicence(
             id = "kotlinx-coroutines",
             name = "kotlinx.coroutines",
-            version = "1.10.2",
+            version = LicenceVersions.COROUTINES,
             licences = listOf("Apache-2.0"),
             url = "https://github.com/Kotlin/kotlinx.coroutines",
         ),
         AppLicence(
             id = "kotlinx-serialization",
             name = "kotlinx.serialization",
-            version = "1.11.0",
+            version = LicenceVersions.SERIALIZATION,
             licences = listOf("Apache-2.0"),
             url = "https://github.com/Kotlin/kotlinx.serialization",
         ),
         AppLicence(
             id = "room",
             name = "AndroidX Room",
-            version = "2.8.5",
+            version = LicenceVersions.ROOM,
             licences = listOf("Apache-2.0"),
             url = "https://developer.android.com/jetpack/androidx/releases/room",
         ),
         AppLicence(
             id = "datastore",
             name = "AndroidX DataStore",
-            version = "1.2.1",
+            version = LicenceVersions.DATASTORE,
             licences = listOf("Apache-2.0"),
             url = "https://developer.android.com/jetpack/androidx/releases/datastore",
         ),
         AppLicence(
             id = "okhttp",
             name = "OkHttp",
-            version = "5.5.0",
+            version = LicenceVersions.OKHTTP,
             licences = listOf("Apache-2.0"),
             url = "https://square.github.io/okhttp/",
         ),
         AppLicence(
             id = "coil",
             name = "Coil",
-            version = "3.6.2",
+            version = LicenceVersions.COIL,
             licences = listOf("Apache-2.0"),
             url = "https://coil-kt.github.io/coil/",
         ),

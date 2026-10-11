@@ -2932,6 +2932,16 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 
 **仍缺**：对话框只在「真的有新版本」时出现，而本 fork 尚无 release，所以那张图拍不到 —— 由 `LyricoDesktopAppTest` 的第三项覆盖（假 manager 发一个 9.9.9 的 release）。
 
+#### 6d. 后续工作第 4 条：许可清单的版本号改为构建期生成
+
+`AppLicence.kt` 里「Gradle 管得着的那半」不再手写版本号：新增 Gradle 任务 `generateLicenceVersions`，从 `gradle/libs.versions.toml` 读出 10 个组件的版本，生成 `com.lonx.lyrico.data.model.LicenceVersions`（与 `BuildInfo` 同一套 `generated/` + `kotlin.srcDir` + `dependsOn` 接线）。许可页那 9 项现在写 `LicenceVersions.MIUIX` 之类，谁改了 catalog、页面就跟着变。
+
+**仍然手写的只剩「Gradle 不知道的那半」**：TagLib（版本来自上游头文件）、libebur128（同理）、quickjs-ng（仓库里没有固定版本，写 `bundled`）、ffmpeg 边车（来自 `docs/third-party/ffmpeg-lgpl.md`）。这几项不引入生成器，而是加了一条**对权威文档的交叉校验**测试：`the ffmpeg entry agrees with the sidecar document` 会读 `docs/third-party/ffmpeg-lgpl.md`，要求页面上的版本串出现在文档里，且许可证族/主版本一致（文档写 `LGPL v3`，页面写 `LGPL-3.0`，所以比较是族 + 主版本，不是字面串）。这样「文档与页面互相漂移」会挂测试。
+
+理由：这份清单的第一版有**六个版本号是错的**（凭印象写的），而生成器让这类错误在对 Gradle 管理的组件上不可能再发生。
+
+全量：161 类 / 1288 项 / 0 失败 / 0 错误 / 4 门控跳过。
+
 #### 7. 这一版的结论
 
 - **代码层面**：安卓源树（main/test/androidTest/res/manifest）全部处置完，端口在自己的一套源里自洽；`port-frontier.py` 三项为零。

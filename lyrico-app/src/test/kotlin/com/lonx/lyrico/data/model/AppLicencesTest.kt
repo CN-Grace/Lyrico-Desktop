@@ -56,4 +56,31 @@ class AppLicencesTest {
             assertTrue(required in ids, "$required is missing from the licence list")
         }
     }
+
+    @Test
+    fun `the ffmpeg entry agrees with the sidecar document`() {
+        // `docs/third-party/ffmpeg-lgpl.md` is where the pinned ffmpeg build is recorded (release, hash,
+        // licence). The page is hand-written for that entry, so this is the cross-check that keeps the two
+        // from drifting: it reads the document and requires the strings it states to appear on the page.
+        val doc = java.io.File("../docs/third-party/ffmpeg-lgpl.md")
+        org.junit.Assume.assumeTrue("run from the lyrico-app project directory", doc.isFile)
+        val text = doc.readText()
+
+        val entry = AppLicences.all.single { it.id == "ffmpeg" }
+        assertTrue(
+            text.contains(entry.version),
+            "the document does not mention the version the page shows: ${entry.version}",
+        )
+        val haystack = text.lowercase()
+        for (licence in entry.licences) {
+            // The document writes "LGPL v3" in prose where the page carries the SPDX-shaped `LGPL-3.0`, so the
+            // comparison looks for the family and the major version rather than for the literal string.
+            val family = licence.substringBefore('-').lowercase()
+            val major = licence.substringAfter('-').takeWhile { it.isDigit() }
+            assertTrue(
+                listOf("$family v$major", "$family-$major", "$family $major").any { it in haystack },
+                "the document does not mention the licence the page shows: $licence",
+            )
+        }
+    }
 }
