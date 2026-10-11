@@ -2824,3 +2824,78 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 2. **扁平拷贝 jar 会按文件名互撞**：Compose 的同一个传递依赖会出现两个同名但不同内容的 jar（真 jar 与 stub），`duplicatesStrategy = EXCLUDE` 留下错的那个，症状是启动时 `NoClassDefFoundError: androidx/compose/runtime/Composer`。做法是 `eachFile` 里重名就加 `-altN` 后缀，一起进 `app/`（类路径会按顺序取到需要的那份）。
 3. **不要把 `build/compose/tmp` 手动删掉**：Gradle 的执行历史会认为运行时镜像任务仍然 up-to-date，于是它不再重建，而 `createDistributable` 的输入校验会说目录不存在。要么 `--rerun-tasks`，要么干脆别删。
 4. **`Zip`/`Sync` 的清单脚本要按第一段路径解析**：我第一版把 `Lyrico/` 当成 zip 里的前缀，写出来的清单看起来像「jar 全在根目录」；实际布局是对的（`app/`、`native/`、`ffmpeg/`），错的是那份统计脚本。
+
+### P6 收口（#6：端到端验收与交接，2026-10-11）
+
+#### 1. 移植完成的结构
+
+| 项 | 状态 |
+|---|---|
+| `lyrico-app/src/main/java`（安卓主源） | **0 个文件**（#38） |
+| `lyrico-app/src/test/java` / `src/androidTest`（安卓测试） | **0 个文件**（#62） |
+| `AndroidManifest.xml` / `src/main/res` | 已删除（#7 顺带） |
+| `lyrico-app/src/main/kotlin` | 365 个 Kotlin 文件 |
+| `lyrico-app/src/test/kotlin` | 169 个 Kotlin 文件 |
+| `port-frontier.py` | java 主树 0 / 前沿 0 / 被挡 0 / 陈旧副本 0 |
+| 源码之外的资产 | `src/main/composeResources`（字符串/图形）、`src/main/cpp`（native 边车）、`dist/`（便携启动器） |
+
+#### 2. 验收口径（三条，各自可复现）
+
+1. **全量无头测试**：`./gradlew :lyrico-app:test --rerun-tasks` → **158 类 / 1279 项 / 0 失败 / 0 错误 / 3 门控跳过**，收口前连跑三次全绿（各约 1 分 50 秒）。3 个跳过是门控探针（`DevLibrarySeederTest` / `DevPluginSeederTest` / `DevPreferencesProbeTest`，不带 `-Plyrico.*` 时自我跳过）。
+2. **真实窗口证据**：`docs/port-evidence/` 下 237 个文件，按阶段分组（`c35` 22 个、`c36` 12、`c4c` 18、`c5b` 12、`c6c` 12、`c6d` 24、`c6e` 18、`c37a` 16、`c37b` 33、`c37c2` 6、`c37c3` 12、`c37c4` 9、`c37c5` 9、`c37d` 3、`c37e1` 3、`c37e2` 6、`c37f` 6、`c7` 4…）。每个 `*.png` 都配 `*.ocr.txt`（Windows OCR 的行级输出）与 `*.analysis.txt`（像素分析），命名与切片对应。
+3. **打包产物**：`./gradlew :lyrico-app:portableZip` → 115.0 MiB 便携包（sha256 `841b7c0b…`），在分发目录里启动后渲染首次运行空白态（`c7-portable*`），并且启动日志显示原生库从**打包布局**（`<app>/native/taglib.dll`）加载成功。
+
+#### 3. 本会话（#37-C → #6）推进的切片与提交
+
+| 提交 | 切片 |
+|---|---|
+| `be63cba` | #37-C-2 设置视图模型 + 语言接缝 + DI |
+| `62d7240` | #37-C-5 文件夹管理页（含 1312 行界面）+ UriUtils/SafDocuments 作废 |
+| `2ae6c7a` | #37-C-3 设置页（836 行）+ `settings` 路由 + 语言实时切换取证 |
+| `20a4983` | #37-C-4 三个设置子页（1537 行） |
+| `4106653` | #37-C-6 设置簇收口 |
+| `e9b9f97` | #37-D 本地搜索页（767 行） |
+| `177ec0d` | #37-E-1 批量重命名链 + RenameEngine 真文件测试 |
+| `1fcc491` | #37-E-2 批量编辑页（1427 行）+ 字符映射页 |
+| `6c52076` | #37-F 关于页 + 更新对话框 + 开源许可页 |
+| `68937ec` | #38 安卓遗留源收口（java 主树归零） |
+| `c5d9bcf` | #62 死测试 15 个全部处置 + #42 测试卫生收口 |
+| `96a76ac` | #7 Windows 便携包 + 安卓资源残余清理 |
+
+（C-1 `e6526bd` 与本会话之前的 P1–P4、C5a–C6e、37-A、37-B 在同一分支上。）
+
+#### 4. 用户可见缺口（全仓汇总，逐条都有出处）
+
+按「影响用户的程度」排，不按切片排：
+
+1. **MSI/EXE 安装包在本环境构建不出来**（#7）：WiX v3 缺失 + Gradle 9 与 Compose 1.12 的 `jlink --output` 冲突。交付物是便携包（解压即用，需 Java 21+）。
+2. **没有系统返回手势**：安卓 `BackHandler` 的所有用法在桌面端都删了（`FolderManagerScreen` / `AlbumDetailScreen` / `LibraryHomeScreen` / `LocalSearchScreen` / `BatchEditScreen` / `BatchRenameScreen`），补救是各页自带的关闭/返回控件。
+3. **启动时自动检查更新没接线**（#37-F）：只有「关于」页的按钮会触发；`SongListViewModel.checkForUpdate()` 存在但无人调用。
+4. **命令行传入的文件不会自动打开**（#37-C-2）：`externalFilePath` 至今无人消费。
+5. **液态玻璃悬浮栏没搬**（#38）：保留毛玻璃与纯色；`LIQUID_GLASS` 枚举值仍在（旧偏好要能读）。
+6. **主题键色的两个已知限制**：默认项不再跟壁纸取色（#37-C-3）；薄荷模式下键色不生效（安卓原样，#37-C-2）。
+7. **歌词清理页默认规则里有全角/半角冒号的对子**（#37-C-4）：同一字体下看起来像重复项（安卓同源）。
+8. **英文文案的复数**（#37-C-3）：`1 folders found` 这类；字符串逐字保持的后果。
+9. **开源许可清单是手维护的**（#37-F）：比安卓那份全量依赖短，且会滞后于 `libs.versions.toml`。
+10. **缓存确认框内容没有无头断言**（#37-C-3）：原因未查到，已按缺口记录。
+11. **`EditFieldSettingsScreen` 歌曲 sheet 高度固定 420dp**（#37-C-4）：不再随窗口变化。
+12. **本页查询框的实时输入没能在真窗口取证**（#37-D）：工具链缺「点击+打字」，行为由无头测试覆盖。
+
+#### 5. 测试套件的时序敏感点（#42 的遗留部分）
+
+收口过程中修掉了五处「等 A 却断言 B」的竞态（`BatchTaskSchedulerTest` 两处、`SongSelectionViewModelTest`、`BatchMatchViewModelTest`，外加把该类的 5 个 10 秒等待放宽到 20 秒并写明理由）。审计脚本留在 `build/tmp-probe/audit-await-assert.py`：它会列出「`awaitUntil` 之后立刻断言另一个可观察量」的候选点，供后续逐个判断（多数候选其实是安全的）。**判据不变**：全量偶发挂一次且单独重跑通过，就是时序敏感；修法一律是等**要断言的那个条件**。
+
+#### 6. 后续可做（如果还要继续）
+
+1. 修 jlink 那条（换 Compose/Gradle 组合或在插件任务上做正确的输出目录处理）→ MSI/EXE 随之可用，并把本仓的 `appResourcesRootDir` 设置直接利用起来。
+2. 把「点击 + 打字」加进取证脚本（`click-window.ps1 -Text`），补齐 #37-D 那种输入链的窗口证据。
+3. 接上启动检查更新并决定对话框宿主（关于页 vs 外壳）。
+4. 用构建期生成的依赖清单替换手维护的 `AppLicence.kt`（例如解析 `libs.versions.toml` 或引入 KMP 许可证库）。
+5. 按 `audit-await-assert.py` 的输出逐条加固剩余的时序敏感断言。
+
+#### 7. 这一版的结论
+
+- **代码层面**：安卓源树（main/test/androidTest/res/manifest）全部处置完，端口在自己的一套源里自洽；`port-frontier.py` 三项为零。
+- **行为层面**：全量 1279 项测试绿；关键路径（曲库、详情、设置簇、本地搜索、批量重命名/编辑、关于页与许可、语言切换、文件夹管理、缓存、导出导入）都有真实窗口证据。
+- **交付层面**：有一个能双击（`Lyrico.bat`）跑起来的 Windows 便携包，native 与 ffmpeg 侧车按加载器期望的布局随包，LGPL 的许可文本随 ffmpeg 一起分发。
+- **诚实记账**：12 条用户可见缺口、5 处已修的时序竞态、1 条 MSI 的构建阻塞，全部写在上面，没有藏。

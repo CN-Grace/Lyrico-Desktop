@@ -440,7 +440,9 @@ class BatchMatchViewModelTest {
 
         val viewModel = viewModel()
 
-        awaitUntil(describe = { viewModel.uiState.value.currentTaskId }, condition = { it != null })
+        // 等**要断言的那个东西**：`currentTaskId` 先出现，`batchProgress` 是后来那次发射才算出来的，
+        // 直接接着断言进度就会在负载高时挂（这是本仓已记录的同一类竞态）。
+        awaitUntil(describe = { viewModel.uiState.value.batchProgress }, condition = { it == (0 to 1) })
         val state = viewModel.uiState.value
         assertEquals(taskId, state.currentTaskId, "MATCH_LYRICS 的运行中任务也要被认出来")
         assertTrue(state.isRunning)
