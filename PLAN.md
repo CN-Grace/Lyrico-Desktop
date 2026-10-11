@@ -2261,6 +2261,66 @@ java 主树 37 → **34**（三个都在前沿）；前沿 22 → **19**；被�
 
 下一片 C-6：本簇收口（全量 + 真窗口证据汇总 + 本批已写好的 PLAN 段落回查）。C-6 原本还要拍「语言切换前后两张图」，**这个已经在 C-3 完成了**（`c37c3-settings-en.png` 就是切换后），所以 C-6 只剩汇总与校验。
 
+### P5 施工批次（#37-C-6：设置簇收口，2026-10-11）
+
+本簇切了五刀，每一刀都单独提交并单独带证据（前四节就是各自的记录，下面只做汇总与回查）。
+
+#### 1. 五刀的提交与体量
+
+| 切片 | 提交 | 搬了什么 | 无头 | 真窗口 |
+|---|---|---|---|---|
+| C-1 叶子 | `e6526bd` | `git mv` 6 个（含 `CacheManager` 整篇重写） | 新增 1 类 7 项 + 迁移死测试 4 项 | — |
+| C-2 视图模型 + 语言接缝 | `be63cba` | `git mv` 2 + 新文件 2 + 接线 8 处 | 新增 4 类 21 项 + 扩 2 类 | `c37c2-*`（2 张） |
+| C-5 文件夹管理 | `62d7240` | `git mv` 2（含 1312 行页）+ 作废 2 | 新增 2 类 10 项 | `c37c5-*`（3 张） |
+| C-3 设置页 | `2ae6c7a` | `git mv` 1（836 行）+ 路由 | 新增 1 类 7 项 | `c37c3-*`（4 张） |
+| C-4 三个子页 | `20a4983` | `git mv` 3（1537 行）+ 路由 3 条 | 新增 1 类 6 项 | `c37c4-*`（3 张） |
+
+顺序上 C-5 在 C-3 之前（依赖逼出来的，见 C-5 节开头）；其余与 `todo` 一致。共 `git mv` 14 个文件、`git rm` 2 个、新增 4 个主源文件（`ui/AppLocale.kt`、`utils/coil/CoilImageCache.kt` + 路由/接线如各节所述）。
+
+#### 2. 收口时的全量口径
+
+**138 类 / 1169 项 / 0 失败 / 0 错误 / 3 门控跳过**（空载全量；本簇起点是 37-B 的 128 类 / 1112 项 / 2 跳过）。本簇共新增 10 类、57 项；跳过从 2 到 3 是多出来的那一个探针。
+
+口径的两个注意点：
+
+* 这个数**不包含** `src/test/java` 里那 15 个从未编译过的安卓期测试（C-1 第 2 节 / #62）；#62 收口时口径会再变一次。
+* 全量跑里偶发过三次不同类的失败（`ArtistPosterFoldersScreenTest` / `BatchTaskSchedulerTest` / `LibraryHomeScreenTest` 族），根因是「DI 的 `CoroutineScope` 不随 `stopKoin()` 取消」 —— C-5 把本批新引入的那一半修了（新屏幕测试在 `tearDown` 里先 `cancel()`）；#42 记的旧的那一半仍在。
+
+#### 3. 原始 recon 清单的回查（一件一件对）
+
+设置簇开工时的 recon 列了七个「必须处理」项，逐条对账：
+
+| recon 里的项 | 结果 |
+|---|---|
+| `SettingsScreen` 836 行搬迁 | ✅ C-3 |
+| `Formatter.formatFileSize` 三处 → `FileSizeFormatter` | ✅ C-3（还额外修了 4 处 `stringResource(res, args)`） |
+| `AppCompatDelegate` + `LocalConfiguration` 的语言行 | ✅ C-2 做接缝、C-3 接上（真窗口证了实时切换） |
+| `BuildConfig.DEBUG` 两处 → `BuildInfo.DEBUG` | ✅ C-3 |
+| 删掉 QuickJS 测试行 | ✅ C-3 |
+| 壁纸取色的偏差 | ✅ C-3（回落 `MiuixTheme.colorScheme.primary`，记入缺口） |
+| 海报文件夹入口行 + settings 路由 + 海报页证据 | ✅ C-3（行与路由）+ `c37c3-poster-row.png`（证明点得进） |
+
+recon 之外、实际撞上并处理了的额外三件：**`FolderManagerViewModel` 的 SAF 退场**（C-5）、**文件夹名分隔符 bug**（C-5，三处）、**`UriUtils`/`SafDocuments` 的作废**（C-5，`git rm`）。
+
+#### 4. 本簇的缺口（汇总，各自展开在对应节）
+
+1. **主题键色的「默认」不跟壁纸取色**（C-3）：唯一的行为偏差，因为桌面端没有壁纸/Material You。
+2. **主题键色在薄荷模式下不生效**（C-2）：`LyricoTheme` 只在 `monetEnabled` 为假时把 `keyColor` 交给 `ThemeController`（安卓原样）。
+3. **缓存确认框内容无无头断言**（C-3）：点那一行后 `WindowDialog` 在测试里没打开，原因未查到；清理语义由 `SettingsViewModelTest` 覆盖。
+4. **桌面端没有系统返回手势**（C-5）：从文件夹回上一层只能点面包屑/子目录列表（其它已搬屏幕同一缺口）。
+5. **命令行传入的文件不会自动打开**（C-2）：`externalFilePath` 至今无人消费，双击关联文件只会打开曲库首页。
+6. **英文文案里的复数**（C-3）：`1 folders found` 这类；字符串逐字保持的后果。
+7. **歌词清理默认芯片的全角/半角冒号对子**（C-4）：存量默认列表。
+8. **`EditFieldSettingsScreen` 的歌曲 sheet 高度固定 420dp**（C-4）：不再随窗口大小变。
+
+#### 5. 前沿（本簇收口）
+
+java 主树 50 → **34**（本簇推平 16 个：14 个搬走 + 2 个作废）；前沿 28 → **19**；被挡 22 → **15**；陈旧副本从始至终 **0**。
+
+剩下的 19 个前沿里，**5 个是 [`ANDROID`] 待作废**（`PainterUtils` / `QuickJsTestScreen` / `PlayerIntentFactory` / `InstalledAppChecker` / `LyricoApp`），其余属于 D（本地搜索）、E（批量重命名/编辑）与尾部杂项；被挡的 15 个集中在 `App.kt` / `di/AppModule` / `MainActivity` / `AboutScreen` / `FolderManager` 的尾巴与批量编辑。
+
+下一片是 #37-D（本地搜索页），它的 recon 已经在本会话早期做过（`LocalSearchField` / `SearchSectionHeader` / `LocalSearchScreen` / `LocalSearchViewModel` + 依赖）。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：
