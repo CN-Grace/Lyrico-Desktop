@@ -1,35 +1,23 @@
 package com.lonx.lyrico.viewmodel
 
-import android.app.RecoverableSecurityException
-import android.content.ContentValues
-import android.content.Context
-import android.content.IntentSender
-import android.graphics.Bitmap
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
-import android.util.Log
-import androidx.core.net.toUri
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toAwtImage
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
 import com.lonx.audiotag.model.AudioTagData
 import com.lonx.audiotag.model.CustomTagField
-import com.lonx.audiotag.model.addPicture
-import com.lonx.audiotag.model.artistPictureTypes
 import com.lonx.audiotag.model.frontCoverOrFallback
 import com.lonx.audiotag.model.pictureOfType
 import com.lonx.audiotag.model.removePictureType
 import com.lonx.audiotag.model.replacePicture
-import com.lonx.audiotag.model.type
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.editfield.CustomTagKey
 import com.lonx.lyrico.data.editfield.EditFieldConfigRepository
 import com.lonx.lyrico.data.editfield.EditFieldDefinition
+import com.lonx.lyrico.data.editfield.EditFieldRegistry
 import com.lonx.lyrico.data.editfield.EditFieldScene
-import com.lonx.lyrico.data.exception.RequiresUserPermissionException
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.artist.ArtistSplitConfig
 import com.lonx.lyrico.data.model.entity.SongEntity
@@ -49,15 +37,29 @@ import com.lonx.lyrico.data.model.plugin.defaultPluginFieldProcessConfig
 import com.lonx.lyrico.data.model.search.LyricsSearchResult
 import com.lonx.lyrico.data.repository.AppLogRepository
 import com.lonx.lyrico.data.repository.PlaybackRepository
+import com.lonx.lyrico.data.repository.PlaybackResult
 import com.lonx.lyrico.data.repository.SettingsDefaults
 import com.lonx.lyrico.data.repository.SettingsRepository
 import com.lonx.lyrico.data.song.library.SongLibraryRepository
 import com.lonx.lyrico.data.utils.ArtistNameSplitter
 import com.lonx.lyrico.domain.poster.ArtistPosterEdits
-import com.lonx.lyrico.domain.poster.ArtistPosterGrouping
 import com.lonx.lyrico.domain.song.usecase.OverwriteSongTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.ReadAudioTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsResult
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.msg_load_same_album_cover_failed
+import com.lonx.lyrico.resources.msg_no_same_album_cover_found
+import com.lonx.lyrico.resources.msg_same_album_cover_applied
+import com.lonx.lyrico.resources.no_player_found
+import com.lonx.lyrico.resources.replay_gain_calculate_cancelled
+import com.lonx.lyrico.resources.replay_gain_calculate_failed
+import com.lonx.lyrico.resources.replay_gain_calculate_success
+import com.lonx.lyrico.resources.replay_gain_error_codec_exception
+import com.lonx.lyrico.resources.replay_gain_error_general
+import com.lonx.lyrico.resources.replay_gain_error_no_audio_track
+import com.lonx.lyrico.resources.replay_gain_error_unknown_mime_type
+import com.lonx.lyrico.resources.replay_gain_error_zero_sample_count
+import com.lonx.lyrico.resources.unknown_error
 import com.lonx.lyrico.utils.CoverSourceType
 import com.lonx.lyrico.utils.LyricDecoder
 import com.lonx.lyrico.utils.LyricEncoder
@@ -65,9 +67,10 @@ import com.lonx.lyrico.utils.PluginFieldPostProcessor
 import com.lonx.lyrico.utils.ReplayGainCalculateState
 import com.lonx.lyrico.utils.ReplayGainError
 import com.lonx.lyrico.utils.ReplayGainScanner
-import com.lonx.lyrico.utils.SafSiblingFileWriter
+import com.lonx.lyrico.utils.SiblingFileWriter
 import com.lonx.lyrico.utils.UiMessage
 import com.lonx.lyrico.utils.getCoverSourceType
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.utils.lyrics.LyricsColumnSorter
 import com.lonx.lyrico.utils.lyrics.LyricsTextCleanup
 import com.lonx.lyrico.utils.lyrics.document.LyricsDocumentPipeline
@@ -84,8 +87,21 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Locale
+import kotlinx.coroutines.withContext
+import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
 import java.io.OutputStream
+import java.net.URL
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
+import java.util.Locale
+import javax.imageio.IIOImage
+import javax.imageio.ImageIO
+import javax.imageio.ImageWriteParam
+import javax.imageio.stream.MemoryCacheImageOutputStream
 
 data class EditMetadataUiState(
     val songInfo: SongInfo? = null,
@@ -96,6 +112,7 @@ data class EditMetadataUiState(
     val replayGainCalculateProgress: Float? = null,
     val isEditing: Boolean = false,
     val fileName: String? = null,
+
     /**
      * 编辑态封面（只要不为 null，就代表用户替换过封面）
      */
@@ -106,7 +123,6 @@ data class EditMetadataUiState(
     val saveSuccess: Boolean? = null,
     val originalCover: Any? = null,
     val picture: AudioPicture? = null,
-    val permissionIntentSender: IntentSender? = null,
     val isReplayGainCalculating: Boolean = false,
     val replayGainScanMessage: UiMessage? = null,
     val saveFailureMessage: String? = null,
@@ -121,17 +137,62 @@ data class EditMetadataUiState(
     /**
      * 同专辑封面加载结果消息
      */
-    val sameAlbumCoverMessage: UiMessage? = null
+    val sameAlbumCoverMessage: UiMessage? = null,
+
+    /**
+     * 「播放音乐」的结果消息。
+     *
+     * Android 直接弹 Toast；桌面端和 [sameAlbumCoverMessage] 一样把结果留在状态里，由界面弹 snackbar。
+     */
+    val playMessage: UiMessage? = null,
 )
 
-private data class LyricsFormatConversionSession(
-    val sourceFormat: LyricFormat,
-    val sourceLyrics: String,
-    val lastRenderedLyrics: String
-)
-
-private const val LYRICS_EXPORT_MIME_TYPE = "application/octet-stream"
-
+/**
+ * The single-song metadata editor: it reads a file's tags, edits them in memory and writes them back.
+ *
+ * The Android version was the port's heaviest `Context` consumer, and almost all of that is gone
+ * rather than emulated:
+ *
+ * - **`Context` and `Uri` leave every signature.** Android needed a `ContentResolver` to read the
+ *   picked image, to write an export and to ask the storage framework for a sibling document; on
+ *   Windows the picker seams ([com.lonx.lyrico.platform.FileOpenPicker] /
+ *   [com.lonx.lyrico.platform.FileSavePicker]) hand this class a real [File]. Songs are identified by
+ *   their absolute path everywhere (`songs.uri`), so `uriString` keeps its Android name but *is* a
+ *   Windows path -- the same reading [com.lonx.lyrico.utils.ReplayGainScanner] already gives it.
+ * - **The permission flow is deleted, not ported.** Android's `SaveAudioTagsResult` had a
+ *   `PermissionRequired` case carrying an `IntentSender`, and `saveMetadata` caught
+ *   `RequiresUserPermissionException` / `RecoverableSecurityException` to hand that sender to the
+ *   screen. The ported [SaveAudioTagsResult] has only `Success` and `Failed` -- the app owns the files
+ *   it writes -- so the state field, both catch arms, the `Build.VERSION.SDK_INT` check and
+ *   `consumePermissionRequest()` all go with it.
+ * - **MediaStore is gone.** Android exported an artist poster through
+ *   `MediaStore.Images.Media.insert` into `Pictures/ArtistPosters`; on desktop the destination is the
+ *   save dialog the screen owns, so [exportArtistImage] writes the file the user picked and
+ *   [getArtistImageFileName] keeps the Android name (`Artist_<timestamp>.jpg`) as the dialog default.
+ * - **`play(context)` became [play]**, funnelling [PlaybackRepository]'s system-association result
+ *   through `SongSelectionViewModel`'s message mapping and reporting it in
+ *   [EditMetadataUiState.playMessage] -- the `sameAlbumCoverMessage` shape, because there is no
+ *   `Toast` to draw.
+ * - **Pictures are Compose `ImageBitmap`s.** Android's crop result was a `Bitmap` whose *bytes* went
+ *   into the tag and into the UI state; here the [ImageBitmap] is what the state displays (that is
+ *   where `CoverSourceType.IMAGE_BITMAP` gets its producer) and it is encoded to JPEG for the tag with
+ *   `ImageIO` -- the encoder [com.lonx.lyrico.worker.processor.BatchExportProcessor] and the export
+ *   tests already use.
+ * - **Three Android leftovers are not ported**: `LyricsFormatConversionSession` with its
+ *   `getOrCreateLyricsFormatConversionSession()` accessor, which nothing ever called (the field was
+ *   only ever assigned); `LYRICS_EXPORT_MIME_TYPE`, which existed only to type a SAF document; and
+ *   the `updateCover(uri: Uri)` overload, which no caller ever reached (the screen always picked
+ *   through the `context` overload), so [updateCover] has one file-carrying entry point instead of two.
+ * - **The two lyric file paths moved off the calling thread.** Android read and wrote them on the
+ *   main dispatcher; file IO on Windows is slow enough to be visible, so both now run on
+ *   [Dispatchers.IO] like every other export in the port.
+ *
+ * Everything else is the Android behaviour, including the parts that look odd: `readMetadata` leaves
+ * the editing state alone when the user is already editing, `filterHiddenEditFields` copies hidden
+ * fields back from the original rather than dropping them, `revertCover` re-inserts the original front
+ * cover *after* removing the current one, and every failure both updates the UI state and writes an
+ * app log entry.
+ */
 class EditMetadataViewModel(
     private val songLibraryRepository: SongLibraryRepository,
     private val readAudioTagsUseCase: ReadAudioTagsUseCase,
@@ -170,10 +231,9 @@ class EditMetadataViewModel(
 
     private var currentSong: SongEntity? = null
 
-    // 存储当前正在操作的 URI 字符串
+    // 存储当前正在操作的歌曲路径字符串
     private var currentSongUri: String? = null
     private var preOffsetLyrics: String? = null
-    private var lyricsFormatConversionSession: LyricsFormatConversionSession? = null
     private var scanJob: Job? = null
     // 记录当前的累计偏移量，供 UI 显示
     private val _currentShiftOffset = MutableStateFlow(0L)
@@ -195,7 +255,6 @@ class EditMetadataViewModel(
 
     fun readMetadata(uriString: String) {
         currentSongUri = uriString
-        lyricsFormatConversionSession = null
 
         viewModelScope.launch {
             try {
@@ -228,7 +287,7 @@ class EditMetadataViewModel(
                     )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "读取音频元数据失败: $uriString", e)
+                PlatformLog.e(TAG, "读取音频元数据失败: $uriString", e)
                 recordMetadataException(
                     message = "Failed to read metadata",
                     relatedId = uriString,
@@ -310,6 +369,7 @@ class EditMetadataViewModel(
     }
 
     private fun normalizeCustomTagKey(input: String): String? = CustomTagKey.normalize(input)
+
     /**
      * 打开弹窗前准备：拍快照，并重置累计偏移量
      */
@@ -318,11 +378,12 @@ class EditMetadataViewModel(
         _currentShiftOffset.value = 0L
     }
 
-    fun setLimitLyricsInputLines( limit: Boolean ) {
+    fun setLimitLyricsInputLines(limit: Boolean) {
         viewModelScope.launch {
             settingsRepository.saveLimitLyricsInputLines(limit)
         }
     }
+
     /**
      * 应用绝对偏移量（相对于快照）
      */
@@ -342,6 +403,7 @@ class EditMetadataViewModel(
             )
         }
     }
+
     /**
      * 重置回打开 BottomSheet 时的状态
      */
@@ -355,6 +417,7 @@ class EditMetadataViewModel(
             }
         }
     }
+
     fun updateMetadataFromSearchResult(result: LyricsSearchResult) {
         _uiState.update { state ->
             val current = state.editingTagData ?: AudioTagData()
@@ -389,9 +452,6 @@ class EditMetadataViewModel(
                 fields = processedFields,
                 policy = applyPolicy
             )
-            if (!result.lyrics.isNullOrBlank()) {
-                lyricsFormatConversionSession = null
-            }
             val nextCoverUri = if (applyPolicy.modeOf(MetadataFieldTarget.COVER) != MetadataWriteMode.DISABLED) {
                 applied.picUrl
                     ?.takeIf { it.isNotBlank() && it != current.picUrl }
@@ -406,23 +466,16 @@ class EditMetadataViewModel(
             )
         }
     }
+
     /**
      * 更新封面（从本地选择）
+     *
+     * 展示来源存的是**文件路径**而不是 [File]：状态里的 `coverUri` 只允许字节数组、路径/网址字符串
+     * 和 [ImageBitmap] 三种，多一种会让「这是哪类来源」的判断多一条分支（见 [CoverSourceType]）。
      */
-    fun updateCover(uri: Uri) {
-        _uiState.update { state ->
-            state.copy(
-                coverUri = uri,
-                isEditing = true,
-                editingTagData = state.editingTagData?.copy(picUrl = uri.toString())
-            )
-        }
-    }
-
-    fun updateCover(context: Context, uri: Uri) {
+    fun updateCover(file: File) {
         readPictureBytes(
-            context = context,
-            uri = uri,
+            file = file,
             onResult = { bytes, mimeType ->
                 if (bytes == null) return@readPictureBytes
 
@@ -435,7 +488,7 @@ class EditMetadataViewModel(
 
                 _uiState.update { state ->
                     state.withUpdatedFrontCover(
-                        displaySource = uri,
+                        displaySource = file.absolutePath,
                         audioPicture = audioPicture
                     )
                 }
@@ -453,8 +506,14 @@ class EditMetadataViewModel(
         }
     }
 
-    fun updateCover(bitmap: Bitmap) {
-        val byteArray = bitmap.toJpegBytes()
+    /**
+     * 更新封面（裁剪结果）
+     *
+     * Android 把裁剪出的 `Bitmap` 压成 JPEG 字节后，**字节数组**既是标签内容也是界面显示来源；桌面端
+     * 显示来源换成 [ImageBitmap]（界面层全程用它的代价是这里要再编码一次，见 [toJpegBytesOrNull]）。
+     */
+    fun updateCover(image: ImageBitmap) {
+        val byteArray = image.toJpegBytesOrNull() ?: return
         val audioPicture = AudioPicture(
             data = byteArray,
             mimeType = "image/jpeg",
@@ -464,7 +523,7 @@ class EditMetadataViewModel(
 
         _uiState.update { state ->
             state.withUpdatedFrontCover(
-                displaySource = byteArray,
+                displaySource = image,
                 audioPicture = audioPicture
             )
         }
@@ -478,10 +537,9 @@ class EditMetadataViewModel(
      * 一个艺术家只保留一张海报（ID3v2 规定同一个 content descriptor 只能挂一张图），
      * 所以「从本地选择」既是新增也是替换；[artistName] 会写进图片描述作为归属。
      */
-    fun setArtistImage(context: Context, uri: Uri, artistName: String) {
+    fun setArtistImage(file: File, artistName: String) {
         readPictureBytes(
-            context = context,
-            uri = uri,
+            file = file,
             onResult = { bytes, mimeType ->
                 if (bytes == null) return@readPictureBytes
                 val picture = newArtistPicture(bytes, mimeType, artistName)
@@ -503,8 +561,8 @@ class EditMetadataViewModel(
     }
 
     /** 裁剪结果：替换某一张艺术家图片的数据，保留它的归属描述。 */
-    fun replaceArtistImage(bitmap: Bitmap, target: AudioPicture) {
-        val bytes = bitmap.toJpegBytes()
+    fun replaceArtistImage(image: ImageBitmap, target: AudioPicture) {
+        val bytes = image.toJpegBytesOrNull() ?: return
         updateArtistPictures { pictures, _ ->
             ArtistPosterEdits.replaceData(pictures, target, bytes, "image/jpeg")
         }
@@ -539,17 +597,28 @@ class EditMetadataViewModel(
         }
     }
 
-    /** 导出某张艺术家海报到系统相册。 */
-    fun exportArtistImage(context: Context, target: AudioPicture) {
-        exportPictureToGallery(
-            context = context,
+    /**
+     * 导出某张艺术家海报到 [destination]。
+     *
+     * Android 这里写系统相册（MediaStore + `Pictures/ArtistPosters`），桌面端的落点是保存对话框，
+     * 目标路径由界面层先问用户要（默认名字见 [getArtistImageFileName]）。
+     */
+    fun exportArtistImage(target: AudioPicture, destination: File) {
+        exportPictureToFile(
             source = target.data,
-            albumName = "ArtistPosters",
-            filenamePrefix = "Artist",
+            destination = destination,
             failureLogMessage = "Failed to export artist poster",
             onResult = { success -> _uiState.update { it.copy(exportArtistImageResult = success) } }
         )
     }
+
+    /**
+     * 艺术家海报导出对话框的默认文件名。
+     *
+     * Android 把 `Artist_<时间戳>.jpg` 拼进 MediaStore 的 `DISPLAY_NAME`；桌面端名字由用户在保存
+     * 对话框里定，所以提前算出来当默认值，命名规则不变。
+     */
+    fun getArtistImageFileName(): String = "Artist_${System.currentTimeMillis()}.jpg"
 
     private fun newArtistPicture(
         bytes: ByteArray,
@@ -585,33 +654,29 @@ class EditMetadataViewModel(
 
     /** 读取本地图片字节；失败时记录日志并以 `null` 回调。 */
     private fun readPictureBytes(
-        context: Context,
-        uri: Uri,
+        file: File,
         onResult: (bytes: ByteArray?, mimeType: String) -> Unit
     ) {
-        val appContext = context.applicationContext
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val resolver = appContext.contentResolver
-                val bytes = resolver.openInputStream(uri)?.use { inputStream ->
-                    inputStream.readBytes()
-                }
-
-                if (bytes == null) {
+                // Android 走 `contentResolver.openInputStream`，返回 null 即「读不到」；桌面端读不到
+                // 就是文件不在或不是普通文件，报文一模一样。
+                if (!file.isFile) {
                     recordMetadataFailure(
                         message = "Failed to read image source",
                         relatedId = currentSongUri,
-                        detail = "Source URI: $uri"
+                        detail = "Source file: ${file.absolutePath}"
                     )
                     onResult(null, "image/jpeg")
                     return@launch
                 }
 
-                val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") }
-                    ?: "image/jpeg"
-                onResult(bytes, mimeType)
+                val bytes = file.readBytes()
+                // Android 问 `ContentResolver.getType`，桌面端没有这一层：按扩展名判断，认不出来时
+                // 也退回 `image/jpeg`（Android 对非 `image/*` 的类型同样是这个退路）。
+                onResult(bytes, file.imageMimeType())
             } catch (e: Exception) {
-                Log.e(TAG, "读取图片失败: $uri", e)
+                PlatformLog.e(TAG, "读取图片失败: ${file.absolutePath}", e)
                 recordMetadataException(
                     message = "Failed to read image source",
                     relatedId = currentSongUri,
@@ -622,11 +687,57 @@ class EditMetadataViewModel(
         }
     }
 
-    private fun Bitmap.toJpegBytes(): ByteArray =
-        java.io.ByteArrayOutputStream().use { stream ->
-            compress(Bitmap.CompressFormat.JPEG, 100, stream)
+    /**
+     * 图片文件的 MIME 类型，按扩展名判断。
+     */
+    private fun File.imageMimeType(): String = when (extension.lowercase(Locale.ROOT)) {
+        "png" -> "image/png"
+        "webp" -> "image/webp"
+        "gif" -> "image/gif"
+        "bmp" -> "image/bmp"
+        else -> "image/jpeg"
+    }
+
+    /**
+     * 把界面层的 [ImageBitmap] 编码成 JPEG 字节（标签里的封面/海报只存编码后的图片）。
+     *
+     * Android 交给 `Bitmap.compress(JPEG, 100, ...)`，桌面端交给 `ImageIO`：先经
+     * [toAwtImage] 拿到 AWT 图像，再摊到 `TYPE_INT_RGB`（JPEG 没有透明通道，带 alpha 的
+     * `TYPE_INT_ARGB` 会被 writer 拒掉），最后按质量 1.0 写 jpg（`ImageIO` 默认是 0.75，会把
+     * 用户刚裁好的 JPEG 再压一遍，和 Android 的 100 对不上）。
+     *
+     * 正常 JDK 一定带 JPEG writer；真缺失时记日志并返回 null，调用方按「这张图没法写」处理，
+     * 而不是抛异常打断界面（Android 那边 `compress` 返回 false 也是同一种落空）。
+     */
+    private fun ImageBitmap.toJpegBytesOrNull(): ByteArray? = try {
+        val awt = toAwtImage()
+        val rgb = BufferedImage(awt.width, awt.height, BufferedImage.TYPE_INT_RGB)
+        val graphics = rgb.createGraphics()
+        graphics.drawImage(awt, 0, 0, null)
+        graphics.dispose()
+        ByteArrayOutputStream().use { stream ->
+            val writer = ImageIO.getImageWritersByFormatName("jpg")
+                .let { if (it.hasNext()) it.next() else null }
+                ?: error("No JPEG writer available")
+            val params = writer.defaultWriteParam.apply {
+                compressionMode = ImageWriteParam.MODE_EXPLICIT
+                compressionQuality = 1.0f
+            }
+            MemoryCacheImageOutputStream(stream).use { imageOutput ->
+                writer.output = imageOutput
+                writer.write(null, IIOImage(rgb, null, null), params)
+            }
+            writer.dispose()
             stream.toByteArray()
         }
+    } catch (e: Exception) {
+        PlatformLog.e(TAG, "封面图片编码失败", e)
+        null
+    }
+
+    /** 把标签里的图片字节解码成界面层用的 [ImageBitmap]；解不出来返回 null。 */
+    private fun decodeImageBitmap(bytes: ByteArray): ImageBitmap? =
+        ImageIO.read(ByteArrayInputStream(bytes))?.toComposeImageBitmap()
 
     private fun EditMetadataUiState.withUpdatedFrontCover(
         displaySource: Any?,
@@ -670,22 +781,21 @@ class EditMetadataViewModel(
 
     fun getCoverFileName(): String = "${_uiState.value.fileName ?: "Cover"}.jpg"
 
-    fun exportCover(context: Context, destinationUri: Uri) {
-        exportPictureToUri(
-            context = context,
+    fun exportCover(destination: File) {
+        exportPictureToFile(
             source = currentCoverSource(),
-            destinationUri = destinationUri,
+            destination = destination,
             failureLogMessage = "Failed to export cover",
             onResult = { success -> _uiState.update { it.copy(exportCoverResult = success) } }
         )
     }
 
-    fun exportCoverToAudioDirectory(context: Context) {
+    fun exportCoverToAudioDirectory() {
         val source = currentCoverSource()
-        val audioUri = (currentSong?.uri ?: currentSongUri)?.toUri()
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (source == null || audioUri == null) {
+                val audioFile = currentAudioFile()
+                if (source == null || audioFile == null) {
                     recordMetadataFailure(
                         message = "Failed to export cover next to audio: source unavailable",
                         relatedId = currentSongUri
@@ -694,19 +804,14 @@ class EditMetadataViewModel(
                     return@launch
                 }
 
-                SafSiblingFileWriter.write(
-                    context = context,
-                    sourceDocumentUri = audioUri,
-                    mimeType = "image/jpeg",
-                    fileName = getCoverFileName()
-                ) { outputStream ->
-                    if (!writePictureSource(context, outputStream, source)) {
+                SiblingFileWriter.write(audioFile, getCoverFileName()) { outputStream ->
+                    if (!writePictureSource(outputStream, source)) {
                         throw IllegalStateException("Cover source stream unavailable")
                     }
                 }
                 _uiState.update { it.copy(exportCoverResult = true) }
             } catch (e: Exception) {
-                Log.e(TAG, "导出封面到音频同目录失败", e)
+                PlatformLog.e(TAG, "导出封面到音频同目录失败", e)
                 recordMetadataException(
                     message = "Failed to export cover next to audio",
                     relatedId = currentSongUri,
@@ -722,10 +827,20 @@ class EditMetadataViewModel(
         return state.coverUri ?: state.originalCover ?: state.picture?.data
     }
 
-    private fun exportPictureToUri(
-        context: Context,
+    /**
+     * 当前歌曲在磁盘上的文件。
+     *
+     * Android 要把 `uri` 转成 `Document Uri` 才能交给 `SafSiblingFileWriter` 找同目录；桌面端
+     * `songs.uri` 就是绝对路径，直接当 [File] 用。
+     */
+    private fun currentAudioFile(): File? {
+        val path = currentSong?.uri ?: currentSongUri ?: return null
+        return File(path)
+    }
+
+    private fun exportPictureToFile(
         source: Any?,
-        destinationUri: Uri,
+        destination: File,
         failureLogMessage: String,
         onResult: (Boolean) -> Unit
     ) {
@@ -739,90 +854,20 @@ class EditMetadataViewModel(
                     onResult(false)
                     return@launch
                 }
-                val wrotePicture = context.contentResolver.openOutputStream(destinationUri, "wt")
-                    ?.use { outputStream -> writePictureSource(context, outputStream, source) }
-                    ?: false
+                // Android 用的是 `openOutputStream(uri, "wt")`，截断重写；`File.outputStream()` 同样是截断。
+                val wrotePicture = destination.outputStream().use { outputStream ->
+                    writePictureSource(outputStream, source)
+                }
                 if (!wrotePicture) {
                     recordMetadataFailure(
                         message = "$failureLogMessage: source stream unavailable",
                         relatedId = currentSongUri,
-                        detail = "Destination: $destinationUri"
+                        detail = "Destination: ${destination.absolutePath}"
                     )
                 }
                 onResult(wrotePicture)
             } catch (e: Exception) {
-                Log.e(TAG, "导出图片失败: $destinationUri", e)
-                recordMetadataException(
-                    message = failureLogMessage,
-                    relatedId = currentSongUri,
-                    throwable = e
-                )
-                onResult(false)
-            }
-        }
-    }
-
-    /**
-     * 把内嵌/已选/原始图片写入系统相册，结果通过 [onResult] 回传
-     */
-    private fun exportPictureToGallery(
-        context: Context,
-        source: Any?,
-        albumName: String,
-        filenamePrefix: String,
-        failureLogMessage: String,
-        onResult: (Boolean) -> Unit
-    ) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (source == null) {
-                    recordMetadataFailure(
-                        message = "$failureLogMessage: no picture source",
-                        relatedId = currentSongUri,
-                        detail = "No embedded picture, selected picture, or original picture is available."
-                    )
-                    onResult(false)
-                    return@launch
-                }
-
-                val filename = "${filenamePrefix}_${System.currentTimeMillis()}.jpg"
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-                    put(
-                        MediaStore.MediaColumns.RELATIVE_PATH,
-                        Environment.DIRECTORY_PICTURES + "/" + albumName
-                    )
-                }
-
-                val resolver = context.contentResolver
-                val destUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-                if (destUri != null) {
-                    val wrotePicture = resolver.openOutputStream(destUri)?.use { outputStream ->
-                        writePictureSource(context, outputStream, source)
-                    } ?: false
-
-                    if (wrotePicture) {
-                        onResult(true)
-                    } else {
-                        recordMetadataFailure(
-                            message = "$failureLogMessage: source stream unavailable",
-                            relatedId = currentSongUri,
-                            detail = "Source: $source"
-                        )
-                        onResult(false)
-                    }
-                } else {
-                    recordMetadataFailure(
-                        message = "$failureLogMessage: MediaStore insert returned null",
-                        relatedId = currentSongUri,
-                        detail = "Destination image URI could not be created."
-                    )
-                    onResult(false)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "导出图片失败: $filenamePrefix", e)
+                PlatformLog.e(TAG, "导出图片失败: ${destination.absolutePath}", e)
                 recordMetadataException(
                     message = failureLogMessage,
                     relatedId = currentSongUri,
@@ -840,6 +885,7 @@ class EditMetadataViewModel(
     fun clearExportArtistImageStatus() {
         _uiState.update { it.copy(exportArtistImageResult = null) }
     }
+
     fun revertCover() {
         _uiState.update { state ->
             val original = state.originalTagData
@@ -933,7 +979,6 @@ class EditMetadataViewModel(
                 it.copy(
                     isSaving = true,
                     saveSuccess = null,
-                    permissionIntentSender = null,
                     saveFailureMessage = null,
                     saveFailureLogText = null
                 )
@@ -972,15 +1017,7 @@ class EditMetadataViewModel(
                         }
                         currentSong = saveResult.song
                     }
-                    is SaveAudioTagsResult.PermissionRequired -> {
-                        Log.w(TAG, "需要用户授权修改文件: $uriString")
-                        _uiState.update {
-                            it.copy(
-                                isSaving = false,
-                                permissionIntentSender = saveResult.intentSender
-                            )
-                        }
-                    }
+
                     is SaveAudioTagsResult.Failed -> {
                         val reason = saveResult.error.localizedMessage
                             ?: saveResult.error::class.java.simpleName
@@ -995,36 +1032,17 @@ class EditMetadataViewModel(
                         }
                     }
                 }
-
             } catch (e: Exception) {
-                if (e is RequiresUserPermissionException) {
-                    Log.w(TAG, "需要用户授权修改文件: $uriString")
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false,
-                            permissionIntentSender = e.intentSender
-                        )
-                    }
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && e is RecoverableSecurityException) {
-                    Log.w(TAG, "需要用户授权修改文件: $uriString")
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false, // 暂停保存状态
-                            permissionIntentSender = e.userAction.actionIntent.intentSender
-                        )
-                    }
-                } else {
-                    Log.e(TAG, "保存元数据发生未知错误", e)
-                    val reason = e.localizedMessage ?: e::class.java.simpleName
-                    recordSaveFailure(uriString, reason, e)
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false,
-                            saveSuccess = false,
-                            saveFailureMessage = reason,
-                            saveFailureLogText = buildSaveFailureLog(uriString, reason, e)
-                        )
-                    }
+                PlatformLog.e(TAG, "保存元数据发生未知错误", e)
+                val reason = e.localizedMessage ?: e::class.java.simpleName
+                recordSaveFailure(uriString, reason, e)
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        saveSuccess = false,
+                        saveFailureMessage = reason,
+                        saveFailureLogText = buildSaveFailureLog(uriString, reason, e)
+                    )
                 }
             }
         }
@@ -1040,9 +1058,9 @@ class EditMetadataViewModel(
 
         return copy(
             customFields = customFields.filter { field ->
-                visible(com.lonx.lyrico.data.editfield.EditFieldRegistry.customTagCode(field.key.uppercase(Locale.ROOT)))
+                visible(EditFieldRegistry.customTagCode(field.key.uppercase(Locale.ROOT)))
             } + base.customFields.filterNot { field ->
-                visible(com.lonx.lyrico.data.editfield.EditFieldRegistry.customTagCode(field.key.uppercase(Locale.ROOT)))
+                visible(EditFieldRegistry.customTagCode(field.key.uppercase(Locale.ROOT)))
             },
             title = if (visible("title")) title else base.title,
             artist = if (visible("artist")) artist else base.artist,
@@ -1115,7 +1133,7 @@ class EditMetadataViewModel(
                 )
             }
         } catch (logError: Exception) {
-            Log.w(TAG, "Failed to write metadata save log", logError)
+            PlatformLog.w(TAG, "Failed to write metadata save log", logError)
         }
     }
 
@@ -1135,7 +1153,7 @@ class EditMetadataViewModel(
                 relatedId = relatedId
             )
         } catch (logError: Exception) {
-            Log.w(TAG, "Failed to write metadata log", logError)
+            PlatformLog.w(TAG, "Failed to write metadata log", logError)
         }
     }
 
@@ -1153,7 +1171,7 @@ class EditMetadataViewModel(
                 relatedId = relatedId
             )
         } catch (logError: Exception) {
-            Log.w(TAG, "Failed to write metadata exception log", logError)
+            PlatformLog.w(TAG, "Failed to write metadata exception log", logError)
         }
     }
 
@@ -1215,23 +1233,25 @@ class EditMetadataViewModel(
                                         isEditing = true,
                                         isReplayGainCalculating = false,
                                         replayGainCalculateProgress = 1.0f,
-                                        replayGainScanMessage = UiMessage.StringResource(R.string.replay_gain_calculate_success)
+                                        replayGainScanMessage = UiMessage.Localized(Res.string.replay_gain_calculate_success)
                                     )
                                 }
                             }
 
                             is ReplayGainCalculateState.Cancelled -> {
                                 // 这里处理 Flow 内部抛出异常前发出的 Cancelled 状态
-                                _uiState.update { it.copy(
-                                    isReplayGainCalculating = false,
-                                    replayGainCalculateProgress = 0f,
-                                    replayGainScanMessage = UiMessage.StringResource(R.string.replay_gain_calculate_cancelled)
-                                )}
+                                _uiState.update {
+                                    it.copy(
+                                        isReplayGainCalculating = false,
+                                        replayGainCalculateProgress = 0f,
+                                        replayGainScanMessage = UiMessage.Localized(Res.string.replay_gain_calculate_cancelled)
+                                    )
+                                }
                             }
 
                             is ReplayGainCalculateState.Failed -> {
                                 // 根据 state.error 映射具体的错误信息
-                                val errorMsg = mapErrorToUiMessage(state.mimeType, state.error)
+                                val errorMsg = mapErrorToUiMessage(state.error)
                                 recordMetadataFailure(
                                     message = "ReplayGain scan failed",
                                     relatedId = uriString,
@@ -1242,11 +1262,13 @@ class EditMetadataViewModel(
                                         appendLine("Message: ${state.error.toLogMessage()}")
                                     }
                                 )
-                                _uiState.update { it.copy(
-                                    isReplayGainCalculating = false,
-                                    replayGainCalculateProgress = 0f,
-                                    replayGainScanMessage = errorMsg
-                                )}
+                                _uiState.update {
+                                    it.copy(
+                                        isReplayGainCalculating = false,
+                                        replayGainCalculateProgress = 0f,
+                                        replayGainScanMessage = errorMsg
+                                    )
+                                }
                             }
                         }
                     }
@@ -1254,52 +1276,56 @@ class EditMetadataViewModel(
                 // 协程被取消时，collect 可能会停止。如果是外部 job.cancel() 触发，
                 // 且 state 没有发回 Cancelled，这里可以补底线逻辑
                 if (_uiState.value.isReplayGainCalculating) {
-                    _uiState.update { it.copy(isReplayGainCalculating = false, replayGainScanMessage = UiMessage.StringResource(R.string.replay_gain_calculate_cancelled)) }
+                    _uiState.update {
+                        it.copy(
+                            isReplayGainCalculating = false,
+                            replayGainScanMessage = UiMessage.Localized(Res.string.replay_gain_calculate_cancelled)
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "扫描 ReplayGain 失败: $uriString", e)
+                PlatformLog.e(TAG, "扫描 ReplayGain 失败: $uriString", e)
                 recordMetadataException(
                     message = "ReplayGain scan crashed",
                     relatedId = uriString,
                     throwable = e
                 )
-                _uiState.update { it.copy(
-                    isReplayGainCalculating = false,
-                    replayGainCalculateProgress = 0f,
-                    replayGainScanMessage = UiMessage.StringResource(R.string.replay_gain_calculate_failed,e.localizedMessage?: "未知错误")
-                )}
+                _uiState.update {
+                    it.copy(
+                        isReplayGainCalculating = false,
+                        replayGainCalculateProgress = 0f,
+                        replayGainScanMessage = UiMessage.Localized(
+                            Res.string.replay_gain_calculate_failed,
+                            e.localizedMessage ?: "未知错误"
+                        )
+                    )
+                }
             } finally {
-                _uiState.update { it.copy(
-                    isReplayGainCalculating = false,
-                    replayGainCalculateProgress = if (it.replayGainCalculateProgress == 1f) 1f else null
-                )}
+                _uiState.update {
+                    it.copy(
+                        isReplayGainCalculating = false,
+                        replayGainCalculateProgress = if (it.replayGainCalculateProgress == 1f) 1f else null
+                    )
+                }
             }
         }
     }
 
     /**
-     * 具体的 UI 文本映射逻辑
+     * 具体的 UI 文本映射逻辑。
+     *
+     * 桌面端只有五种错误（见 [ReplayGainError]）：Android 的 `UnsupportedCodec` 和「ALAC 解码器
+     * 有问题」这两个分支描述的都是在写标签前先问系统要解码器的过程，ffmpeg 那条路上没有对应的问题，
+     * 所以它们连同 `mimeType` 参数一起删掉，解码失败一律报解码器自己给出的原因 —— 这比
+     * 「这个编码不支持」信息更多。
      */
-    private fun mapErrorToUiMessage(mimeType: String?, error: ReplayGainError): UiMessage {
-        val format = when (mimeType?.lowercase()) {
-            "audio/alac" -> "ALAC"
-            "audio/flac" -> "FLAC"
-            "audio/mpeg" -> "MP3"
-            "audio/mp4a-latm" -> "AAC"
-            null -> "unknown"
-            else -> mimeType
-        }
-
+    private fun mapErrorToUiMessage(error: ReplayGainError): UiMessage {
         return when (error) {
-            is ReplayGainError.NoAudioTrack -> UiMessage.StringResource(R.string.replay_gain_error_no_audio_track)
-            is ReplayGainError.UnknownMimeType -> UiMessage.StringResource(R.string.replay_gain_error_unknown_mime_type)
-            is ReplayGainError.ZeroSampleCount -> UiMessage.StringResource(R.string.replay_gain_error_zero_sample_count)
-            is ReplayGainError.UnsupportedCodec -> UiMessage.StringResource(R.string.replay_gain_error_unsupported_codec, format)
-            is ReplayGainError.CodecException -> {
-                if (error.isAlacIssue) UiMessage.StringResource(R.string.replay_gain_error_alac_issue)
-                else UiMessage.StringResource(R.string.replay_gain_error_codec_exception, error.message ?: "")
-            }
-            is ReplayGainError.GeneralException -> UiMessage.StringResource(R.string.replay_gain_error_general, error.message ?: "")
+            is ReplayGainError.NoAudioTrack -> UiMessage.Localized(Res.string.replay_gain_error_no_audio_track)
+            is ReplayGainError.UnknownMimeType -> UiMessage.Localized(Res.string.replay_gain_error_unknown_mime_type)
+            is ReplayGainError.ZeroSampleCount -> UiMessage.Localized(Res.string.replay_gain_error_zero_sample_count)
+            is ReplayGainError.CodecException -> UiMessage.Localized(Res.string.replay_gain_error_codec_exception, error.message ?: "")
+            is ReplayGainError.GeneralException -> UiMessage.Localized(Res.string.replay_gain_error_general, error.message ?: "")
         }
     }
 
@@ -1307,26 +1333,17 @@ class EditMetadataViewModel(
         is ReplayGainError.NoAudioTrack -> "No audio track"
         is ReplayGainError.UnknownMimeType -> "Unknown MIME type"
         is ReplayGainError.ZeroSampleCount -> "Zero sample count"
-        is ReplayGainError.UnsupportedCodec -> "Unsupported codec: ${mimeType ?: "unknown"}"
         is ReplayGainError.CodecException -> message.orEmpty()
         is ReplayGainError.GeneralException -> message.orEmpty()
     }
-    
+
     fun cancelScan() {
         scanJob?.cancel()  // 这会触发 ensureActive() 抛出 CancellationException
         scanJob = null
     }
-    
+
     fun clearReplayGainScanMessage() {
         _uiState.update { it.copy(replayGainScanMessage = null) }
-    }
-
-
-    /**
-     * UI层在成功发起弹窗或处理完权限请求后调用此方法清理状态
-     */
-    fun consumePermissionRequest() {
-        _uiState.update { it.copy(permissionIntentSender = null) }
     }
 
     fun clearSaveStatus() {
@@ -1339,27 +1356,30 @@ class EditMetadataViewModel(
         }
     }
 
+    fun clearPlayMessage() {
+        _uiState.update { it.copy(playMessage = null) }
+    }
+
     /**
      * 检测歌词格式：LRC 或 TTML
      * 返回 "lrc" 或 "ttml"
      */
     private fun getLyricsMimeType(lyrics: String?): String {
         if (lyrics.isNullOrBlank()) return "lrc"
-        
+
         // 检测 TTML 格式
         if (lyrics.contains("begin=") && lyrics.contains("end=") && lyrics.contains("<?xml")) {
             return "ttml"
         }
-        
+
         // 检测 LRC 格式时间戳 [mm:ss.xxx] 或 <mm:ss.xxx>
         if (Regex("[\\[<]\\d{1,2}:\\d{2}\\.\\d{2,3}[>\\]]").containsMatchIn(lyrics)) {
             return "lrc"
         }
-        
+
         // 默认返回 lrc
         return "lrc"
     }
-
 
     /**
      * 获取导出歌词的默认文件名
@@ -1368,36 +1388,37 @@ class EditMetadataViewModel(
         val lyrics = _uiState.value.editingTagData?.lyrics ?: return null
         val format = getLyricsMimeType(lyrics)
         val fileExtension = if (format == "ttml") ".ttml" else ".lrc"
-        val fileName = _uiState.value.fileName ?:""
+        val fileName = _uiState.value.fileName ?: ""
         return "$fileName$fileExtension"
     }
 
-
     /**
-     * 导出歌词
+     * 导出歌词到 [destination]。
+     *
+     * Android 往 `openOutputStream(uri)` 里写，且是在主线程上写的；桌面端换成 [File] 并挪到 IO。
      */
-    fun exportLyrics(context: Context, uri: Uri) {
-        viewModelScope.launch {
+    fun exportLyrics(destination: File) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val lyrics = _uiState.value.editingTagData?.lyrics
                 if (lyrics.isNullOrBlank()) {
                     recordMetadataFailure(
                         message = "Failed to export lyrics: lyrics are empty",
                         relatedId = currentSongUri,
-                        detail = "Destination: $uri",
+                        detail = "Destination: ${destination.absolutePath}",
                         level = AppLogLevel.WARNING
                     )
                     _uiState.update { it.copy(exportLyricsResult = false) }
                     return@launch
                 }
 
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                destination.outputStream().use { outputStream ->
                     outputStream.write(lyrics.toByteArray(Charsets.UTF_8))
                 }
                 _uiState.update { it.copy(exportLyricsResult = true) }
-                Log.d(TAG, "歌词导出成功: ${uri.path}")
+                PlatformLog.d(TAG, "歌词导出成功: ${destination.absolutePath}")
             } catch (e: Exception) {
-                Log.e(TAG, "导出歌词失败", e)
+                PlatformLog.e(TAG, "导出歌词失败", e)
                 recordMetadataException(
                     message = "Failed to export lyrics",
                     relatedId = currentSongUri,
@@ -1409,7 +1430,6 @@ class EditMetadataViewModel(
     }
 
     private fun writePictureSource(
-        context: Context,
         outputStream: OutputStream,
         source: Any
     ): Boolean = when (getCoverSourceType(source)) {
@@ -1418,51 +1438,37 @@ class EditMetadataViewModel(
             true
         }
 
+        CoverSourceType.IMAGE_BITMAP -> (source as ImageBitmap).toJpegBytesOrNull()?.let { bytes ->
+            outputStream.write(bytes)
+            true
+        } ?: false
+
         CoverSourceType.NETWORK_URL -> {
-            java.net.URL(source.toString().trim()).openStream().use { inputStream ->
+            // 和 Android 一样不设超时（继承 JVM 默认的无限等待）：这是「写标签/导出」的路径，
+            // 半途放弃会留下半个文件。探测用的 [com.lonx.lyrico.utils.readRemoteImageSize] 另当别论。
+            URL(source.toString().trim()).openStream().use { inputStream ->
                 inputStream.copyTo(outputStream)
             }
             true
-        }
-
-        CoverSourceType.CONTENT_OR_FILE_URI,
-        CoverSourceType.URI -> {
-            val sourceUri = when (source) {
-                is Uri -> source
-                is String -> source.trim().toUri()
-                else -> null
-            }
-            sourceUri?.let {
-                context.contentResolver.openInputStream(it)?.use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                    true
-                }
-            } ?: false
         }
 
         CoverSourceType.FILE_PATH -> {
-            java.io.FileInputStream(source.toString().trim()).use { inputStream ->
+            FileInputStream(source.toString().trim()).use { inputStream ->
                 inputStream.copyTo(outputStream)
             }
             true
         }
-
-        CoverSourceType.BITMAP -> (source as Bitmap).compress(
-            Bitmap.CompressFormat.JPEG,
-            100,
-            outputStream
-        )
 
         CoverSourceType.UNSUPPORTED -> false
     }
 
-    fun exportLyricsToAudioDirectory(context: Context) {
-        viewModelScope.launch {
+    fun exportLyricsToAudioDirectory() {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val lyrics = _uiState.value.editingTagData?.lyrics
-                val audioUri = (currentSong?.uri ?: currentSongUri)?.toUri()
+                val audioFile = currentAudioFile()
                 val fileName = getLyricsFileName()
-                if (lyrics.isNullOrBlank() || audioUri == null || fileName == null) {
+                if (lyrics.isNullOrBlank() || audioFile == null || fileName == null) {
                     recordMetadataFailure(
                         message = "Failed to export lyrics next to audio: source or lyrics unavailable",
                         relatedId = currentSongUri,
@@ -1472,17 +1478,15 @@ class EditMetadataViewModel(
                     return@launch
                 }
 
-                val outputUri = SafSiblingFileWriter.write(
-                    context = context,
-                    sourceDocumentUri = audioUri,
-                    mimeType = LYRICS_EXPORT_MIME_TYPE,
+                val outputFile = SiblingFileWriter.write(
+                    audioFile = audioFile,
                     fileName = fileName,
                     bytes = lyrics.toByteArray(Charsets.UTF_8)
                 )
                 _uiState.update { it.copy(exportLyricsResult = true) }
-                Log.d(TAG, "歌词已导出到音频同目录: ${outputUri.path}")
+                PlatformLog.d(TAG, "歌词已导出到音频同目录: ${outputFile.absolutePath}")
             } catch (e: Exception) {
-                Log.e(TAG, "导出歌词到音频同目录失败", e)
+                PlatformLog.e(TAG, "导出歌词到音频同目录失败", e)
                 recordMetadataException(
                     message = "Failed to export lyrics next to audio",
                     relatedId = currentSongUri,
@@ -1494,32 +1498,31 @@ class EditMetadataViewModel(
     }
 
     /**
-     * 导入歌词文件
+     * 导入歌词文件。
+     *
+     * Android 在主线程上读文件，桌面端挪到 IO（见类注释）。
      */
-    fun importLyrics(context: Context, uri: Uri) {
-        viewModelScope.launch {
+    fun importLyrics(file: File) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                val lyrics = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    inputStream.bufferedReader(Charsets.UTF_8).readText()
-                }
+                val lyrics = file.readText(Charsets.UTF_8).takeIf { it.isNotBlank() }
 
-                if (!lyrics.isNullOrBlank()) {
-                    lyricsFormatConversionSession = null
+                if (lyrics != null) {
                     updateTag { copy(lyrics = lyrics) }
                     _uiState.update { it.copy(importLyricsResult = true) }
-                    Log.d(TAG, "歌词导入成功")
+                    PlatformLog.d(TAG, "歌词导入成功")
                 } else {
                     _uiState.update { it.copy(importLyricsResult = false) }
-                    Log.w(TAG, "歌词导入失败: 文件内容为空")
+                    PlatformLog.w(TAG, "歌词导入失败: 文件内容为空")
                     recordMetadataFailure(
                         message = "Failed to import lyrics: file content is empty",
                         relatedId = currentSongUri,
-                        detail = "Source: $uri",
+                        detail = "Source: ${file.absolutePath}",
                         level = AppLogLevel.WARNING
                     )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "导入歌词失败", e)
+                PlatformLog.e(TAG, "导入歌词失败", e)
                 recordMetadataException(
                     message = "Failed to import lyrics",
                     relatedId = currentSongUri,
@@ -1542,7 +1545,6 @@ class EditMetadataViewModel(
         if (currentLyrics.isBlank()) return
 
         val convertedLyrics = LyricEncoder.convertLyricsText(currentLyrics, conversionMode)
-        lyricsFormatConversionSession = null
         updateTag { copy(lyrics = convertedLyrics) }
     }
 
@@ -1565,11 +1567,10 @@ class EditMetadataViewModel(
         viewModelScope.launch {
             try {
                 if (options.formatLineOrder) {
-                    val converted = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val converted = withContext(Dispatchers.Default) {
                         LyricsColumnSorter.apply(currentLyrics, options.twoColumnMapping, options.threeColumnMapping)
                     }
                     if (converted != currentLyrics && _uiState.value.editingTagData?.lyrics == currentLyrics) {
-                        lyricsFormatConversionSession = null
                         updateTag { copy(lyrics = converted) }
                     }
                     if (options.targetFormat == null && !options.removeEmptyLines && !options.removeTagLines) return@launch
@@ -1601,34 +1602,16 @@ class EditMetadataViewModel(
                 } ?: return@launch
 
                 if (_uiState.value.editingTagData?.lyrics == currentLyrics) {
-                    lyricsFormatConversionSession = null
                     updateTag { copy(lyrics = converted) }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "歌词处理失败", e)
+                PlatformLog.e(TAG, "歌词处理失败", e)
                 recordMetadataException(
                     message = "Failed to process lyrics",
                     relatedId = currentSongUri,
                     throwable = e
                 )
             }
-        }
-    }
-
-    private fun getOrCreateLyricsFormatConversionSession(
-        currentLyrics: String
-    ): LyricsFormatConversionSession? {
-        lyricsFormatConversionSession
-            ?.takeIf { it.lastRenderedLyrics == currentLyrics }
-            ?.let { return it }
-
-        val sourceFormat = LyricDecoder.detectFormat(currentLyrics) ?: return null
-        return LyricsFormatConversionSession(
-            sourceFormat = sourceFormat,
-            sourceLyrics = currentLyrics,
-            lastRenderedLyrics = currentLyrics
-        ).also {
-            lyricsFormatConversionSession = it
         }
     }
 
@@ -1655,9 +1638,39 @@ class EditMetadataViewModel(
         _uiState.update { it.copy(importLyricsResult = null) }
     }
 
-    fun play(context: Context) {
-        val uriStr = currentSong?.uri ?: currentSongUri ?: return
-        playbackRepository.play(context, uriStr.toUri())
+    /**
+     * 「播放音乐」。
+     *
+     * Android 拿 `Context` 发 `ACTION_VIEW` 让系统挑播放器；桌面端交给 [PlaybackRepository] 用系统
+     * 关联打开（等价于在资源管理器里双击），结果按 `SongSelectionViewModel.play` 的同一套文案映射，
+     * 但因为这里没有 `Toast`，消息落在 [EditMetadataUiState.playMessage] 上，由界面弹 snackbar。
+     */
+    fun play() {
+        val pathString = currentSong?.uri ?: currentSongUri ?: return
+        val path = try {
+            Path.of(pathString)
+        } catch (e: InvalidPathException) {
+            // 路径本身不合法（Windows 保留字符等）：等同「没有可播放的文件」。
+            PlatformLog.w(TAG, "无法解析歌曲路径: $pathString", e)
+            _uiState.update { it.copy(playMessage = UiMessage.Localized(Res.string.no_player_found)) }
+            return
+        }
+
+        when (val result = playbackRepository.open(path)) {
+            PlaybackResult.Opened -> Unit
+            is PlaybackResult.Failed -> _uiState.update {
+                it.copy(
+                    playMessage = UiMessage.Localized(
+                        Res.string.unknown_error,
+                        result.throwable.message.orEmpty()
+                    )
+                )
+            }
+
+            is PlaybackResult.FileUnavailable, PlaybackResult.Unsupported -> _uiState.update {
+                it.copy(playMessage = UiMessage.Localized(Res.string.no_player_found))
+            }
+        }
     }
 
     /**
@@ -1673,7 +1686,7 @@ class EditMetadataViewModel(
 
         for (song in sameAlbumSongs) {
             if (song.uri == currentSongUri) continue // 跳过当前歌曲
-            
+
             try {
                 val tagData = readAudioTagsUseCase(song.uri)
                 val cover = tagData.pictures.frontCoverOrFallback()?.data
@@ -1682,7 +1695,7 @@ class EditMetadataViewModel(
                     covers.add(title to cover)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "读取同专辑歌曲封面失败: ${song.uri}", e)
+                PlatformLog.e(TAG, "读取同专辑歌曲封面失败: ${song.uri}", e)
                 recordMetadataException(
                     message = "Failed to read same-album cover",
                     relatedId = song.uri,
@@ -1705,23 +1718,23 @@ class EditMetadataViewModel(
                     val (_, cover) = covers.first()
                     when (cover) {
                         is String -> updateCover(cover)
-                        is ByteArray -> {
-                            val bitmap = android.graphics.BitmapFactory.decodeByteArray(cover, 0, cover.size)
-                            updateCover(bitmap)
-                        }
+                        // Android 那边 `BitmapFactory.decodeByteArray` 解不出来时返回 null，紧接着的
+                        // `bitmap.toJpegBytes()` 抛 NPE 落到下面的 catch，报「加载失败」。这里保留同一
+                        // 结果：解不出来就当成加载失败，而不是贴上一张空封面。
+                        is ByteArray -> updateCover(checkNotNull(decodeImageBitmap(cover)))
                     }
-                    _uiState.update { it.copy(sameAlbumCoverMessage = UiMessage.StringResource(R.string.msg_same_album_cover_applied)) }
+                    _uiState.update { it.copy(sameAlbumCoverMessage = UiMessage.Localized(Res.string.msg_same_album_cover_applied)) }
                 } else {
-                    _uiState.update { it.copy(sameAlbumCoverMessage = UiMessage.StringResource(R.string.msg_no_same_album_cover_found)) }
+                    _uiState.update { it.copy(sameAlbumCoverMessage = UiMessage.Localized(Res.string.msg_no_same_album_cover_found)) }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "加载同专辑封面失败", e)
+                PlatformLog.e(TAG, "加载同专辑封面失败", e)
                 recordMetadataException(
                     message = "Failed to load same-album cover",
                     relatedId = currentSongUri,
                     throwable = e
                 )
-                _uiState.update { it.copy(sameAlbumCoverMessage = UiMessage.StringResource(R.string.msg_load_same_album_cover_failed)) }
+                _uiState.update { it.copy(sameAlbumCoverMessage = UiMessage.Localized(Res.string.msg_load_same_album_cover_failed)) }
             }
         }
     }

@@ -96,6 +96,7 @@ import com.lonx.lyrico.viewmodel.BatchTaskListViewModel
 import com.lonx.lyrico.viewmodel.CharacterMappingViewModel
 import com.lonx.lyrico.viewmodel.CoverSearchViewModel
 import com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel
+import com.lonx.lyrico.viewmodel.EditMetadataViewModel
 import com.lonx.lyrico.viewmodel.LocalSearchViewModel
 import com.lonx.lyrico.viewmodel.LyricsSearchViewModel
 import com.lonx.lyrico.viewmodel.PluginViewModel
@@ -383,6 +384,18 @@ fun desktopAppModule(directories: AppDirectories) = module {
             songLibraryRepository = get(),
             batchTaskRepository = get(),
             batchTaskScheduler = get(),
+        )
+    }
+    viewModel {
+        EditMetadataViewModel(
+            songLibraryRepository = get(),
+            readAudioTagsUseCase = get(),
+            overwriteSongTagsUseCase = get(),
+            settingsRepository = get(),
+            playbackRepository = get(),
+            replayGainScanner = get(),
+            appLogRepository = get(),
+            editFieldConfigRepository = get(),
         )
     }
     viewModel { SongListViewModel(get(), get(), get(), get(), get(), get()) }

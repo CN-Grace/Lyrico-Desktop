@@ -38,8 +38,9 @@ data class AlbumReplayGainAnalysis(
 // reason on stderr, and its ALAC decoder has no such defect. Codec problems are therefore reported as
 // `CodecException` carrying ffmpeg's own message, and no branch here claims to know whether a codec
 // "should" have been available. The `replay_gain_error_unsupported_codec` /
-// `replay_gain_error_alac_issue` strings stay unused in the resources until the EditMetadata screen
-// is ported and its error mapping is rewritten for the desktop.
+// `replay_gain_error_alac_issue` strings are therefore never shown: the single-song editor's error
+// mapping (`EditMetadataViewModel.mapErrorToUiMessage`) is this same five-arm version, so those two
+// strings stay in the resources unused on purpose.
 sealed interface ReplayGainError {
     data object NoAudioTrack : ReplayGainError
     data object UnknownMimeType : ReplayGainError
