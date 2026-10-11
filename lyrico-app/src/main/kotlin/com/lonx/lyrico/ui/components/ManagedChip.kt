@@ -17,10 +17,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.common_delete
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -128,7 +129,7 @@ fun ManagedChip(
         if (onDelete != null) {
             Icon(
                 imageVector = MiuixIcons.Delete,
-                contentDescription = stringResource(R.string.common_delete),
+                contentDescription = stringResource(Res.string.common_delete),
                 modifier = Modifier
                     .size(18.dp)
                     .clip(CircleShape)

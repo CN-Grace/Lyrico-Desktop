@@ -6,10 +6,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.cd_more_actions
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -35,7 +36,7 @@ fun FolderManagementItem(
         BasicComponent(
             endActions = {
                 OverlayIconDropdownMenu(entry = actions, enabled = enabled) {
-                    Icon(MiuixIcons.More, stringResource(R.string.cd_more_actions))
+                    Icon(MiuixIcons.More, stringResource(Res.string.cd_more_actions))
                 }
             },
             bottomAction = {
