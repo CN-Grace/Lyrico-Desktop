@@ -76,7 +76,10 @@ class LibraryHomeDestination : NavDirection {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Not ported yet. `SongsPage` navigates to these three, exactly as the Android page did.
+// Not ported yet: the settings screen and the in-library search. `SongsPage` navigates to both,
+// exactly as the Android page did. The metadata editor in between has since been ported and is
+// registered in `LyricoNavHost`; it stays in this block only because the list mirrors the order the
+// Android graph declared these routes in.
 // ---------------------------------------------------------------------------------------------
 
 /** The settings screen. Reached from the songs page's navigation icon. */
@@ -126,8 +129,11 @@ data object EditFieldSettingsDestination : NavDirection {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Not ported yet. `AlbumsPage` and `ArtistsPage` navigate to these two, exactly as the Android pages
-// did. Both screens arrive in a later batch; until then the navigator logs the miss.
+// The two entity-detail screens. `AlbumsPage` and `ArtistsPage` navigate to them exactly as the
+// Android pages did. `album_detail` was ported in the batch that ported `AlbumDetailScreen` and is
+// registered in `LyricoNavHost` -- it is the first registered route whose argument is a *number*, read
+// back with `NavType.LongType` rather than as a path string. The artist detail screen is still in the
+// Android tree, so until its batch lands the navigator logs the miss for `artist_detail`.
 // ---------------------------------------------------------------------------------------------
 
 /** One album's detail screen. Reached by tapping a card in the albums grid. */

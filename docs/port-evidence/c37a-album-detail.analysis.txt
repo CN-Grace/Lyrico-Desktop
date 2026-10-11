@@ -1,0 +1,36 @@
+file: docs\port-evidence\c37a-album-detail.png
+size: 1166x773
+distinct_colours: 431  most_common_share: 0.939  text_pixels: 6784
+accent_blue_pixels: 158  accent_warm_pixels: 166
+top_colours: (247, 247, 247)=846536, (255, 255, 255)=40039, (25, 25, 25)=2792, (243, 243, 243)=2294
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+++##++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                           .+.                                           .. +
+  # ++                                          +#++                                          .. +
+  #                                                                                              +
+  #  .++   ###.+++...                                                                            +
+  #  .+.   #+##.+++++                                                                            +
+  #        ..                                                                                    +
+  #     ### ##+                                                                                . +
+  #    +#+#                                                                                    . +
+  #     +#+ #+.                                                                                . +
+  #    +### ++.                                                                                + +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.

@@ -1,0 +1,14 @@
+file: docs/port-evidence/c37a-album-rows.png
+engine: zh-Hans-CN
+lines: 11
+  y=10 x=31 :: Lyrico 1 ℃ 〔 8521da0
+  y=109 x=110 :: 朋 友
+  y=133 x=109 :: 未 知 专 辑 艺 术 家
+  y=157 x=110 :: 2 首
+  y=225 x=121 :: 周 华 儺 。 朋 友
+  y=289 x=121 :: 周 华 儺 。 朋 友
+  y=50 x=564 :: 朋 友
+  y=208 x=1082 :: 住 03
+  y=226 x=1068 :: 128kbps
+  y=272 x=1082 :: 住 03
+  y=290 x=1072 :: 64kbps

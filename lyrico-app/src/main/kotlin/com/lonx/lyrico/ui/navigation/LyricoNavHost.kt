@@ -15,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.SavedState
 import androidx.savedstate.read
+import com.lonx.lyrico.screens.AlbumDetailScreen
 import com.lonx.lyrico.screens.AppLogScreen
 import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
@@ -43,10 +44,12 @@ import androidx.compose.foundation.layout.fillMaxSize
  * which is now complete: the shell's three tabs are the ported songs, artists and albums pages. It is
  * the default of [startDestination], so a bare `LyricoNavHost()` boots the shipped entry screen, and a
  * test that wants to start elsewhere (e.g. straight on the app log) passes the route in.
- * `app_logs` stays registered; local search and the metadata editor are still declared-only and are
- * registered by the batches that port their screens. The batch task list and detail (`batch_task_list`,
- * `batch_task_detail/{taskId}`) were registered by C6c, the first pair of routes that navigate to each
- * other inside the ported graph.
+ * `app_logs` stays registered; settings, local search, the artist detail page and the two batch
+ * screens are still declared-only and are registered by the batches that port their screens. The batch
+ * task list and detail (`batch_task_list`, `batch_task_detail/{taskId}`) were registered by C6c, the
+ * first pair of routes that navigate to each other inside the ported graph, and `album_detail` was
+ * registered by the batch that ported `AlbumDetailScreen` -- the first *argument-carrying* route whose
+ * argument is a number rather than a path string.
  *
  * ### Dev start route
  *
@@ -98,6 +101,21 @@ fun LyricoNavHost(
             }
             composable(LibraryHomeDestination.ROUTE) {
                 LibraryHomeScreen(navigator = navigator)
+            }
+            composable(
+                route = AlbumDetailDestination.PATTERN,
+                // A path argument, so it is required rather than optional, exactly like the batch task
+                // id: the route only matches with a non-empty segment, and a library album id is
+                // always present. `NavType.LongType` is what makes the reader decode it back into a
+                // `Long` instead of a string.
+                arguments = listOf(
+                    navArgument(AlbumDetailDestination.ARG_ALBUM_ID) { type = NavType.LongType }
+                ),
+            ) { entry ->
+                AlbumDetailScreen(
+                    navigator = navigator,
+                    albumId = entry.arguments.readLong(AlbumDetailDestination.ARG_ALBUM_ID),
+                )
             }
             composable(
                 route = SearchResultsDestination.PATTERN,
@@ -241,6 +259,17 @@ private fun optionalStringArgument(name: String) = navArgument(name) {
  */
 private fun SavedState?.readOptionalString(key: String): String? =
     this?.read { getStringOrNull(key) }
+
+/**
+ * Reads the required `Long` path argument of the routes that carry an entity id (an album id today).
+ *
+ * `0L` is the fallback for the one case the graph cannot produce -- a matched route whose argument the
+ * reader cannot decode -- and it is deliberately *not* a library id: the albums table never holds 0,
+ * so a mistake shows an empty page rather than the wrong album's songs. The reader's own shape is
+ * documented in `Destinations.kt`.
+ */
+private fun SavedState?.readLong(key: String, default: Long = 0L): Long =
+    this?.read { getLongOrNull(key) } ?: default
 
 /**
  * The route the app boots into: the library shell, unless the developer asked for another one.

@@ -1723,7 +1723,82 @@ hub 的 KDoc 把四条写在类头上，其中只有第一条是行为改动：
 
 算术只有一处要解释：这批搬走的 `EditMetadataScreen.kt` 本来**不在前沿上** —— 它被 `ui/components/player/PlayerPickerBottomSheet.kt` 挡着（就是第 9 节第 5 条那个不搬的 chooser），所以它属于「被挡」那一列；而 java 树里没有任何文件 import 它，于是它一走也没有邻居被解锁（前沿因此不动）。`PlayerPickerBottomSheet.kt` 现在少了一个依赖者，但它自己标着 `[ANDROID]`（依赖 `Intent`），等清理批次删掉。
 
-下一批（#37）继续搬 screen：前沿那 33 个里已经有 `OpenSourceLicenceScreen.kt` 这种成品，被挡的 30 个里是设置 / 专辑详情 / 艺人详情 / 本地搜索 / 文件夹管理那一串。
+下一批（#37）继续搬 screen：前沿那 33 个里已经有 `AlbumDetailScreen.kt`、`ui/components/album/AlbumListItem.kt`、`OpenSourceLicenceScreen.kt`、`ArtistSplitSettingsScreen.kt` 这几种成品，被挡的 30 个里是设置 / 艺人详情 / 本地搜索 / 文件夹管理那一串（`AlbumDetailScreen` 从 #35 起就在前沿上：它当时唯一的依赖 `SongSelectionSupport.kt` 被改写成 hub，所以它是「已就绪、只等改写」，不是被挡；它在下一节 #37-A 里搬走了）。
+
+### P5 施工批次（#37-A：专辑详情页 + 第一个「数字参数」的已注册路由，2026-10-11）
+
+#37 是「继续搬 screen」，按「视图模型/基础设施先行、一屏一片」切成 6 片：#37-A 专辑详情、#37-B 设置、#37-C 艺人详情、#37-D 本地搜索、#37-E 文件夹管理、#37-F 海报与批量重命名这类尾部。本节只记 A 片；其余五片每一片落盘时各自成节。
+
+#### 1. 搬了什么（`git mv` 1 个文件；java 主树 63 → 62）
+
+`screens/AlbumDetailScreen.kt`（约 490 行）搬进 kotlin 树并完成桌面化改写。没有新文件：它依赖的 `AlbumDetailViewModel` / `AlbumActionsViewModel` / `SongSelectionViewModel`、四个组件（`SongListItem`、`SongActionSheets`、`SongBatchSelectionActions`、`AlbumReplayGainProgressBottomSheet`）与 `CoverImage` 全部在之前的批次里就位。
+
+搬之前先按「消费者先行」确认了它的邻居：java 树里只有 `AlbumsPage` 的卡片导航到它；`ui/components/album/AlbumListItem.kt` 名字像它的一部分，但两个消费者是 `ArtistDetailScreen` / `LocalSearchScreen`（都还在 java 树里），所以那一个留给 C/D 片，不在这批动。
+
+`LyricoNavHost.kt` 侧三处：
+
+* 注册 `composable(route = AlbumDetailDestination.PATTERN, arguments = listOf(navArgument(ARG_ALBUM_ID) { type = NavType.LongType }))`；
+* 新增私有 `SavedState?.readLong(key, default = 0L)`（默认值 0 不是合法专辑 id，所以参数丢了只会渲染一张空页，不会渲染成别人的专辑）；
+* `Destinations.kt` / `AlbumsPage.kt` 里「这条路由声明了但没注册、导航器会记一条日志」的 KDoc 同步改成事实（«某路由已注册» 这类陈旧注释是每批都要顺手清的，已列进清理批次的检查项）。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **`Toast` → `SnackbarHost`**：专辑动作的回报走 `UiMessage.resolve()` + snackbar，与 `AlbumsPage` 收同一条 `AlbumActionsViewModel.events`。
+2. **`LocalContext` 丢掉**：它只用来 `Toast` 和 `shareAlbum(context, songs)`，而分享在桌面是「在资源管理器里定位」，不需要 `Context`。
+3. **`BackHandler` 丢掉**（`LibraryHomeScreen` 同款）：FAB 菜单靠点 `ExpandableFabMenu` 铺的遮罩关，退出选择模式靠选择栏的关闭按钮。
+4. **`@Destination` / 生成的 `EditMetadataDestination` / `DestinationsNavigator` → 手写 `Navigator`**：点一行导航到 `ui.navigation.EditMetadataDestination`，与库页是同一个手写条目。
+5. **`koinActivityViewModel` → `koinViewModel()`**（对 `NavBackStackEntry`）：即安卓那个 activity 级作用域的等价物。
+6. **两处调用点差异**：`SongActionSheets` 现在收 `onShare` / `onCopy`（安卓从 `Context` 推出 `ACTION_SEND` 与 `ClipData`）；`batchShare` → `share`（两条分享路在桌面是同一条）。
+7. **歌曲数走 `formattedStringResource(Res.string.song_count, n)`**：`StringFormattingGuardTest` 会拦多参 `stringResource`；迁这批之前按它的规则预扫过整批，报出来的两处（`song_count` 与 `dialog_delete_album_content`）就在这个文件里，改写时一并修掉。
+
+#### 3. 无头取证（新增 1 类 5 项；全量 125 类 / 1091 项 / 0 失败 / 0 错误 / 2 门控跳过）
+
+`AlbumDetailScreenTest` 全栈是真的：临时目录由应用自己的扫描器扫，tag 由真 tag 仓库写、真 tag 仓库读回，专辑与曲目从真 Room 库经 `LibraryIndexRepository` 出来，页面渲染的就是那条 observable 查询的结果。
+
+1. **表头 + 本专辑自己的顺序**：两个夹具的文件名与 track number **故意相反**（`b.mp3` 是第 1 首、`a.flac` 是第 2 首），断言按 `boundsInRoot.top` 排下来第 1 首在上；行首两个 track number 都在，且 `—` 不出现（两首都写了 track number）。另外钉 `2 首` 这条**代入后的**文案：整窗 OCR 曾经抓到过「%d 首」这种占位符漏出去的画面，这条断言就是防它。
+2. **点一行 → `EditMetadataDestination(songFileUri = song.uri)`**，按值断言：路由名对、参数错也会过，所以只比路由名等于没测。
+3. **长按进选择模式**：选中计数 1、`action_back` 1 → 0、FAB（a11y 标签 `Actions`）出现；点关闭后三者全部还原。
+4. **表头菜单删整专辑**：三个菜单行都在 → 确认对话框带上曲数与专辑名 → **真文件从磁盘消失**、索引里的行消失、`album_delete_success` snackbar、`popCount == 1`。
+5. **走真图**：`LyricoNavHost()` → 专辑页签 → 点卡片 → 详情页 → 点返回退回 grid，证明注册与 `LongType` 参数往返都没被假件遮住。
+
+所以这批的替换只有「记录导航的假 Navigator」，而且只用在断言回调的那四项里；注册、参数解码、`koinViewModel(parameters)` 对返回栈条目解析都由第 5 项的真图覆盖。
+
+#### 4. 真窗口取证（docs/port-evidence/c37a-*：4 张整窗 + 2 张裁切，各配 `.ocr.txt` / `.analysis.txt`）
+
+复现：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（本机 `lyrico-app/data` 里已有 24 首 / 4 专辑）→ `./gradlew :lyrico-app:run -Plyrico.start.route=album_detail/22`（22 = `朋友`，2 首）→ `capture-window.ps1 -TitleLike "Lyrico 1.6"` → 点表头右侧 `⋮`（客户区 `(1128,25)`）→ 再截一张 → 点空白关掉菜单后截行区；第二组换 `-Plyrico.start.route=album_detail/24`（`山丘`，1 首，文件的 `trackerNumber` = 2）。
+
+| 图 | 拍到了什么 |
+|---|---|
+| `c37a-album-detail.png`（+ocr/analysis） | 顶栏标题 `朋友`、表头 `朋友` / `未知专辑艺术家` / `2 首`、两行歌曲（行文本 `周华健 。 朋友`） |
+| `c37a-album-rows-crop.png`（裁 `(56,190)-(1160,340)` 后 3× LANCZOS） | 行里的小字读得出来：`亻心`（就是 `花心`，C36 编辑页那次同款误读）、`周华健 · 朋友`、右侧 `0:03` / `128kbps`；反推坐标 = `(x/3, 190 + y/3)` |
+| `c37a-album-menu.png`（+ocr/analysis） | 点 `⋮` 后菜单的三行：`计算专辑回放增益` / `分享专辑` / `删除专辑` —— 与安卓 overflow 的三行一一对应 |
+| `c37a-album-track.png`（+ocr/analysis） | `album_detail/24`：顶栏 `山丘`、表头 `未知专辑艺术家` / `1 首`、行 `山丘` + **行首 `2`（PNG x=28,y=215）** —— 那个 `2` 是 FLAC 标签里的 `trackerNumber`，而同一位置在 `朋友` 那张里什么都不显示（两首都无 track number，走的是 `—` 那条分支） |
+| `c37a-album-track-crop.png`（裁 `(56,90)-(1160,240)` 后 3×） | 表头小字放大后读得出：`山丘` / `未知专辑艺术家` / `1 首` |
+| `c37a-album-rows.png`（+ocr/analysis） | 关掉菜单后的整窗，行区与 `c37a-album-detail.png` 一致（证明菜单只是覆盖层，没有改页面状态） |
+
+两处证据互相锁定：无头用例 1 钉的是「夹具写了 `albumArtist` 时**不许**出现 `未知专辑艺术家`」，而真窗口里种子库的这两首歌没有 `albumArtist` 标签，表头就真的显示了 `未知专辑艺术家` —— 回退分支两边都有人看着。另外表头的封面槽位不是背景色（`(14,100)-(90,176)` 均值 `250.2`、R 通道标准差 `24.4`；同一张图下方的空白区是 `247.0` 且标准差 `0`），也就是说 80dp 的封面（这里是占位图）确实画了东西。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **一个 `runComposeUiTest` 只能 `setContent` 一次**：所以「先扫库拿到专辑 id、再用这个 id 组合页面」不能写成「先组合、等扫描完再重组合」。专辑 id 是**参数**，必须在 compose 之前算出来 —— 这也决定了扫描不能用页面的 `waitUntil` 等。
+2. **本地 host 的 `startDestination` 不能是「带必填参数的模式」**：`NavHost(startDestination = AlbumDetailDestination.PATTERN)` 配 `navArgument(...)` 会在图创建时直接抛 `Cannot navigate to startDestination ... Missing required arguments [[albumId]]`。夹具里的 host **不声明**这个参数（id 直接当形参传给页面），参数解码由走真图的那一项负责；`BatchTaskDetailScreenTest` 早就是这么写的，这次是把它背后的原因写清楚。
+3. **`LibraryScanManager` 没有 suspend 的扫描 API**（`scanAll` / `scanFolders` / `addFolderAndScan` 都是发后不管，跑在它自己的 `Dispatchers.Default` 上），所以等待只能轮询页面读的那条 observable：`addFolderAndScan` 之后按 20ms 步进查 `observeAlbums().first()`，30 秒上限。测试里所有等待都等了具体的东西（专辑出现在索引里、行出现在树上），没有一个 `Thread.sleep` 是「睡够就该好了」。
+4. **图标坐标从像素里量，不靠猜**：`⋮` 没有文字，OCR 读不到。`build/tmp-probe/find-icon.py` 把顶栏那一条带里的暗像素按列分组，得到 `x=1127..1130, y=46..65`，于是点击坐标 = 框架坐标 − `(1,31)` = 客户区 `(1128,25)`。第一次点就中，说明这个量法够用。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. **删除确认对话框与结果 snackbar 只有无头证据**：真窗口那条链点开菜单就停了 —— 再点「删除专辑」就要对种子库动真格（确认后文件真没了，`/tmp` 之外的数据目录要重建才能再取证），而这条路的真假已经由无头用例 4 用**真文件**钉住（磁盘消失 + 索引消失 + snackbar + pop）。这一处是本批唯一的「证据分两半」：真窗口证明入口在、无头证明动作对，没有一张图同时证明两者。
+2. **`BackHandler` 没了**（与 `LibraryHomeScreen` 同款缺口）：FAB 菜单在桌面只能点遮罩关，选择模式只能点关闭按钮退。
+3. **封面没有内嵌图时是占位图**，与库页卡片一致（不是新缺口，但这一页 80dp 的封面槽位比卡片显眼）。
+4. **行首 track number 为空时显示 `—`**：两个证据分支（有值 / `—`）各拍到一张，`—` 这条在安卓上也一样，不算缺口，列在这里是为了说明那张 `朋友` 的图里行首空白是设计而不是漏画。
+
+#### 7. 前沿（本批收口）
+
+java 主树 63 → **62**；前沿（依赖已满足、现在就能搬）33 → **32**；被挡 **30**（不动）；陈旧副本 **0**。
+
+算术：`AlbumDetailScreen.kt` 本来在前沿上（它唯一的依赖 `SongSelectionSupport.kt` 在 #35 被改写成 hub），所以它一走只让前沿 −1，被挡那 30 个一个都没变；`62 = 32 + 30`。
+
+下一片 #37-B 是设置页：它现在还在被挡那一列（`SettingsScreen` 差 5 个依赖、`SettingsViewModel` 差 3 个），B 片开工时按 `port-frontier.py` 给出的链条按序搬，再搬屏幕本身；它的几个子页在 `Destinations.kt` 里还缺**新的** `NavDirection` 条目（具体缺哪几个条目在 B 片开工时逐条核，不在本节下结论）。
 
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 

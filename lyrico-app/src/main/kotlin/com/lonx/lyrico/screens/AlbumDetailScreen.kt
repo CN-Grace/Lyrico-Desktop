@@ -1,7 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -30,17 +28,33 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.model.entity.SongEntity
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.album_action_more
+import com.lonx.lyrico.resources.album_detail_title
+import com.lonx.lyrico.resources.dialog_delete_album_content
+import com.lonx.lyrico.resources.dialog_delete_album_title
+import com.lonx.lyrico.resources.menu_action_calculate_album_replay_gain
+import com.lonx.lyrico.resources.menu_action_delete_album
+import com.lonx.lyrico.resources.menu_action_share_album
+import com.lonx.lyrico.resources.msg_copied_to_clipboard
+import com.lonx.lyrico.resources.song_count
+import com.lonx.lyrico.resources.swipe_selection_enter_selection
+import com.lonx.lyrico.resources.swipe_selection_range_end
+import com.lonx.lyrico.resources.swipe_selection_range_start
+import com.lonx.lyrico.resources.unknown_album_artist
 import com.lonx.lyrico.ui.components.bar.SongBatchSelectionActions
 import com.lonx.lyrico.ui.components.bar.SongSelectionTopAppBar
 import com.lonx.lyrico.ui.components.base.YesNoDialog
@@ -50,15 +64,17 @@ import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
 import com.lonx.lyrico.ui.components.song.SongActionSheets
 import com.lonx.lyrico.ui.components.song.SongListItem
 import com.lonx.lyrico.ui.components.song.SongListItemActions
+import com.lonx.lyrico.ui.navigation.EditMetadataDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.utils.formattedStringResource
 import com.lonx.lyrico.viewmodel.AlbumActionsViewModel
 import com.lonx.lyrico.viewmodel.AlbumDetailViewModel
 import com.lonx.lyrico.viewmodel.SongSelectionViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.EditMetadataDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import java.awt.datatransfer.StringSelection
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
@@ -66,6 +82,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -75,11 +93,46 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
+/**
+ * The album detail page: the album's cover, name, artist and song count in a header, over its track
+ * list, with the same selection, batch-action and per-song sheets the library's songs page uses.
+ *
+ * The port keeps Android's structure and every user-visible string. Five Android mechanisms are gone
+ * rather than shimmed:
+ *
+ * * **`Toast` for the album-action reports** became a Miuix [SnackbarHost] fed by
+ *   `UiMessage.resolve()`, which is how every other ported screen reports a message -- `AlbumsPage`
+ *   collects the same `AlbumActionsViewModel.events` flow for the album actions it offers on a card.
+ * * **`LocalContext`**, which existed only to build the `Toast` and to pass the album to
+ *   `shareAlbum(context, songs)`. Sharing is "reveal in Explorer" on desktop and needs no `Context`
+ *   (`AlbumActionsViewModel` documents the decision), so that call lost its first argument.
+ * * **`BackHandler`.** Android used it to close the batch FAB menu and, otherwise, to leave selection
+ *   mode. Compose Desktop has no system back gesture -- `LibraryHomeScreen`'s KDoc drops the same
+ *   handler for the same reason -- so the FAB menu closes by tapping the scrim `ExpandableFabMenu`
+ *   draws over the window, and `SongSelectionTopAppBar`'s close button is how a user leaves selection
+ *   mode. `PLAN.md` records the resulting UX gap instead of hiding it.
+ * * **`@Destination<RootGraph>`, the generated `EditMetadataDestination` and `DestinationsNavigator`.**
+ *   The route is registered in `LyricoNavHost` and the screen takes the hand-written [Navigator];
+ *   clicking a song navigates to `ui.navigation.EditMetadataDestination`, the same hand-written entry
+ *   the library pages navigate to.
+ * * **`koinActivityViewModel`-style hoisting.** `koinViewModel()` resolves against this route's
+ *   `NavBackStackEntry`, so the `SongSelectionViewModel` this page observes is one instance for as long
+ *   as the page lives -- the activity scope Android was emulating (the shell documents this).
+ *
+ * Two call sites differ because the components they call were ported earlier:
+ *
+ * * `SongActionSheets` takes `onShare` and `onCopy` (Android derived both from the `Context`: an
+ *   `ACTION_SEND` intent, and a clipboard `ClipData`). Share is "reveal in Explorer" through
+ *   `SongSelectionViewModel.share`, and copy is the AWT-backed `LocalClipboard` the songs page uses.
+ * * `SongSelectionViewModel.batchShare` is [SongSelectionViewModel.share] here: on desktop the two
+ *   Android share paths -- the per-song intent and the batch one -- became the same reveal call, so the
+ *   batch FAB hands `onBatchShare` that method directly.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-@Destination<RootGraph>(route = "album_detail")
 fun AlbumDetailScreen(
-    navigator: DestinationsNavigator,
-    albumId: Long
+    navigator: Navigator,
+    albumId: Long,
 ) {
     val viewModel: AlbumDetailViewModel = koinViewModel(
         parameters = { parametersOf(albumId) }
@@ -99,21 +152,24 @@ fun AlbumDetailScreen(
     val swipeAnchorUri by selectionViewModel.swipeAnchorUri.collectAsStateWithLifecycle()
     val swipeSelectionLabel = stringResource(
         if (!isSelectionMode) {
-            R.string.swipe_selection_enter_selection
+            Res.string.swipe_selection_enter_selection
         } else if (swipeAnchorUri == null) {
-            R.string.swipe_selection_range_start
+            Res.string.swipe_selection_range_start
         } else {
-            R.string.swipe_selection_range_end
+            Res.string.swipe_selection_range_end
         }
     )
     val swipeSelectionSecondaryLabel = if (!isSelectionMode) {
-        stringResource(R.string.swipe_selection_range_start)
+        stringResource(Res.string.swipe_selection_range_start)
     } else {
         null
     }
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val listState = rememberLazyListState()
-    val context = LocalContext.current
+    val clipboardManager = LocalClipboard.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val copiedMessage = stringResource(Res.string.msg_copied_to_clipboard)
+    val scope = rememberCoroutineScope()
     var isFabMenuExpanded by remember { mutableStateOf(false) }
 
     var selectedSong by remember { mutableStateOf<SongEntity?>(null) }
@@ -123,24 +179,17 @@ fun AlbumDetailScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteAlbumDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(albumActionsViewModel, context) {
+    // Android showed these through `Toast.makeText(context, message.asString(context), SHORT)`; the
+    // message is resolved where it is displayed so it lands in the language the UI is showing now.
+    LaunchedEffect(albumActionsViewModel) {
         albumActionsViewModel.events.collect { message ->
-            message.asString(context)?.let { text ->
-                Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    BackHandler(enabled = isSelectionMode) {
-        if (isFabMenuExpanded) {
-            isFabMenuExpanded = false
-        } else {
-            selectionViewModel.exitSelectionMode()
+            message.resolve()?.let { text -> snackbarHostState.showSnackbar(text) }
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 AnimatedContent(
                     targetState = isSelectionMode,
@@ -179,12 +228,12 @@ fun AlbumDetailScreen(
                         )
                     } else {
                         SmallTopAppBar(
-                            title = albumName.ifBlank { stringResource(R.string.album_detail_title) },
+                            title = albumName.ifBlank { stringResource(Res.string.album_detail_title) },
                             navigationIcon = {
                                 IconButton(onClick = { navigator.popBackStack() }) {
                                     Icon(
                                         imageVector = MiuixIcons.Back,
-                                        contentDescription = stringResource(R.string.action_back)
+                                        contentDescription = stringResource(Res.string.action_back)
                                     )
                                 }
                             },
@@ -194,7 +243,7 @@ fun AlbumDetailScreen(
                                         albumActionsDropdownEntry(
                                             isCalculatingReplayGain = albumActionsUiState.isCalculatingAlbumReplayGain,
                                             onShare = {
-                                                albumActionsViewModel.shareAlbum(context, songs)
+                                                albumActionsViewModel.shareAlbum(songs)
                                             },
                                             onDelete = {
                                                 showDeleteAlbumDialog = true
@@ -207,7 +256,7 @@ fun AlbumDetailScreen(
                                 ) {
                                     Icon(
                                         imageVector = MiuixIcons.More,
-                                        contentDescription = stringResource(R.string.album_action_more)
+                                        contentDescription = stringResource(Res.string.album_action_more)
                                     )
                                 }
                             },
@@ -296,7 +345,16 @@ fun AlbumDetailScreen(
                     onShowDetail = { showDetailSheet = true },
                     onShowDelete = { showDeleteDialog = true },
                     onShowRename = { showRenameDialog = true },
-                    onPlay = { song -> selectionViewModel.play(context, song) },
+                    onPlay = { song -> selectionViewModel.play(song) },
+                    onShare = { song -> selectionViewModel.share(listOf(song)) },
+                    onCopy = { text ->
+                        scope.launch {
+                            // The same AWT-backed clipboard call the songs page makes; in a headless
+                            // test Compose resolves `LocalClipboard` to a no-op, so it stays safe.
+                            clipboardManager.setClipEntry(ClipEntry(StringSelection(text)))
+                            snackbarHostState.showSnackbar(copiedMessage)
+                        }
+                    },
                     onDelete = { song -> selectionViewModel.delete(song) },
                     onRename = { song, newFileName ->
                         selectionViewModel.renameSong(song, newFileName)
@@ -306,12 +364,12 @@ fun AlbumDetailScreen(
         }
 
         YesNoDialog(
-            title = stringResource(R.string.dialog_delete_album_title),
+            title = stringResource(Res.string.dialog_delete_album_title),
             show = showDeleteAlbumDialog,
-            summary = stringResource(
-                R.string.dialog_delete_album_content,
+            summary = formattedStringResource(
+                Res.string.dialog_delete_album_content,
                 songs.size,
-                albumName.ifBlank { stringResource(R.string.album_detail_title) }
+                albumName.ifBlank { stringResource(Res.string.album_detail_title) }
             ),
             onConfirm = {
                 showDeleteAlbumDialog = false
@@ -337,7 +395,8 @@ fun AlbumDetailScreen(
             onExpandedChange = { isFabMenuExpanded = it },
             onSetSelectionUris = selectionViewModel::setSelectionUris,
             onBatchDelete = selectionViewModel::batchDelete,
-            onBatchShare = selectionViewModel::batchShare
+            // Android's `batchShare`; see the class KDoc -- both share paths became the reveal call.
+            onBatchShare = selectionViewModel::share
         )
     }
 }
@@ -352,7 +411,7 @@ private fun albumActionsDropdownEntry(
     return DropdownEntry(
         items = listOf(
             DropdownItem(
-                text = stringResource(R.string.menu_action_calculate_album_replay_gain),
+                text = stringResource(Res.string.menu_action_calculate_album_replay_gain),
                 onClick = {
                     if (!isCalculatingReplayGain) {
                         onCalculateReplayGain()
@@ -360,11 +419,11 @@ private fun albumActionsDropdownEntry(
                 }
             ),
             DropdownItem(
-                text = stringResource(R.string.menu_action_share_album),
+                text = stringResource(Res.string.menu_action_share_album),
                 onClick = onShare
             ),
             DropdownItem(
-                text = stringResource(R.string.menu_action_delete_album),
+                text = stringResource(Res.string.menu_action_delete_album),
                 onClick = onDelete
             )
         )
@@ -393,21 +452,23 @@ private fun AlbumDetailHeader(
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = album.ifBlank { stringResource(R.string.album_detail_title) },
+                text = album.ifBlank { stringResource(Res.string.album_detail_title) },
                 style = MiuixTheme.textStyles.title3,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = albumArtist?.takeIf { it.isNotBlank() }
-                    ?: stringResource(R.string.unknown_album_artist),
+                    ?: stringResource(Res.string.unknown_album_artist),
                 style = MiuixTheme.textStyles.main,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            // Android passed the count to the library's vararg `stringResource`; Compose Multiplatform
+            // only substitutes positional placeholders there, so it goes through the project helper.
             Text(
-                text = stringResource(R.string.song_count, songCount),
+                text = formattedStringResource(Res.string.song_count, songCount),
                 style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )

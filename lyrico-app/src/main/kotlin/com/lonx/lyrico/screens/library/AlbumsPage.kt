@@ -114,9 +114,9 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  * grid needs the index to land on the first row that *contains* the section, so the stored position
  * is snapped back by `index % columns` instead of being the item's own index.
  *
- * Clicking a card navigates to `AlbumDetailDestination`, whose screen comes in a later batch; the
- * route is declared and unregistered, so the navigator logs the miss rather than crashing (see
- * `Destinations.kt`).
+ * Clicking a card navigates to `AlbumDetailDestination`. The route and the screen's argument are
+ * paired in `LyricoNavHost`, so a tap really opens the album's songs rather than asking for a route
+ * that nothing registered; the argument's round-trip is covered by `AlbumDetailScreenTest`.
  */
 @Composable
 fun AlbumsPage(
