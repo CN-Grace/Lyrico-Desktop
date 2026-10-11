@@ -1,0 +1,29 @@
+file: docs\port-evidence\c7-update-via-release.png
+engine: zh-Hans-CN
+lines: 26
+  y=10 x=31 :: Lyrico 1 ℃ 〔 10a 〔 g4 引
+  y=83 x=29 :: Check tor updates
+  y=105 x=29 :: 、 ℃ u are already on the latest version
+  y=148 x=29 :: Contributors
+  y=191 x=90 :: Replica0110
+  y=214 x=90 :: 555 cammits
+  y=278 x=89 :: CN-Grace
+  y=300 x=90 :: 55 commits
+  y=367 x=89 :: qngyue-Y1n
+  y=386 x=89 :: 3 commits
+  y=450 x=90 :: Mo iafly
+  y=472 x=90 :: 5 commits
+  y=535 x=90 :: Kif anel
+  y=558 x=90 :: 2 commits
+  y=621 x=90 :: mochenya
+  y=644 x=90 :: 1 commits
+  y=708 x=89 :: X21SPANDA
+  y=730 x=90 :: 1 commits
+  y=50 x=554 :: About
+  y=202 x=1075 :: GitHub 〉
+  y=288 x=1075 :: GitHub 〉
+  y=374 x=1075 :: GitHub 〉
+  y=460 x=1075 :: GitHub 〉
+  y=546 x=1075 :: GitHub 〉
+  y=632 x=1075 :: GitHub 〉
+  y=718 x=1075 :: GitHub 〉

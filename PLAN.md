@@ -2984,6 +2984,24 @@ properly delegate isDispatchNeeded and dispatch calls.
 
 **验收**：`forkEvery = 1` + 内联调度器 + 六处断言加固之后，**连跑 3 次全量全绿**：161 类 / 1288 项 / 0 失败 / 0 错误 / 4 门控跳过（各约 3 分 50 秒）。
 
+#### 6f. 发第一个 Release（v1.6.0）—— 并把产物与 git 分开
+
+**产物不进仓库，进 Release。** 这一点先核实过再回答（用户问「是不是传到仓库了」）：追踪文件 972 个，二进制只有 `gradle/wrapper/gradle-wrapper.jar`（这个本来就该入库）；`.zip/.msi/.exe/.dll` 一个都没被追踪；仓库对象库 `size-pack` 12.46 MiB，历史里最大的 blob 是 2.40 MB 的旧 vendored `libtag.a`。另有一个硬理由：**GitHub 单文件上限 100 MiB，而 `Lyrico-1.6.0.msi` 有 140.1 MiB** —— 就算想塞进 git 也推不上去；Release asset 的单文件上限是 2 GiB。
+
+**发布内容**（`gh release create`，账号 CN-Grace，正式发布、标记 latest）：
+
+| 项 | 值 |
+|---|---|
+| tag | `v1.6.0`（指向 `10ac943`，即含 release notes 的那次提交） |
+| 标题 | Lyrico 1.6.0（Windows x64 桌面版） |
+| assets | `Lyrico-1.6.0.msi`（140.1 MiB）、`Lyrico-1.6.0-windows-x64-portable.zip`（115.0 MiB），`state=uploaded` |
+| notes | `docs/releases/v1.6.0.md`（同时入库留档）：下载选择、本版要点、**两个产物的 sha256**、ffmpeg LGPL v3 的随包义务（未修改 / 独立进程 / 许可证同目录）、7 条已知限制 |
+| URL | https://github.com/CN-Grace/Lyrico-Desktop/releases/tag/v1.6.0 |
+
+**顺带把「检查更新」真正跑通了**：发布前仓库零 release，所以它走的是一直显示「接口错误」的 404 分支（§6c 修成「已是最新」）；现在真有一个 release 可比，日志变成 `最新版本: v1.6.0 当前版本: 1.6.0`，关于页显示 **"You are already on the latest version"**（证据 `docs/port-evidence/c7-update-via-release.*`）。以后发了 v1.6.1，1.6.0 的用户就会走 `NewVersion` 分支弹出更新对话框。
+
+**一处操作教训（记下来，避免再犯）**：取证脚本按窗口标题匹配，而用户自己也在跑一个 Lyrico 实例（标题同样以 `Lyrico 1.6` 开头），于是第一次截图抓到的是**用户自己的曲库**（347 项选中、周杰伦的歌）。发现后立刻删掉了那张图和它的 OCR，改成用 `capture-window.ps1 -Hwnd <句柄>` 精确指定自己的实例（并用 `Stop-Process -Id` 只杀自己那个），用户的实例（PID 153652）全程未被触碰。结论：**同时可能开着多个实例时，不要用标题匹配截图，也不要用模糊命令行匹配杀进程。**
+
 #### 7. 这一版的结论
 
 - **代码层面**：安卓源树（main/test/androidTest/res/manifest）全部处置完，端口在自己的一套源里自洽；`port-frontier.py` 三项为零。

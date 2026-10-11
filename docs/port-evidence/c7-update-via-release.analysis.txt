@@ -1,0 +1,36 @@
+file: docs\port-evidence\c7-update-via-release.png
+size: 1166x773
+distinct_colours: 415  most_common_share: 0.747  text_pixels: 8106
+accent_blue_pixels: 162  accent_warm_pixels: 159
+top_colours: (255, 255, 255)=673122, (247, 247, 247)=213152, (25, 40, 43)=1865, (0, 0, 0)=1838
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++#+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                           .. .                                             +
+  # ++                                         .+###.                                            +
+  # +#+#+#+#+##+... ...                                                                          +
+  #  ........  .......                                                                           +
+  #                                                                                              +
+  #         .                                                                                    +
+  #      +++####+                                                                                +
+  #        .   .                                                                                 +
+  #                                                                                              +
+  #      +#+#+++                                                                                 +
+  #      ..+....                                                                                 +
+  #                                                                                              +
+  #      +###+#++                                                                                +
+  #      . ....                                                                                  +
+  #                                                                                              +
+  #      ++##++                                                                                  +
+  #      ..+..+                                                                                  +
+  #                                                                                              +
+  #      ++++++                                                                                  +
+  #      . ....                                                                                  +
+  #                                                                                              +
+  #      ++++#++                                                                                 +
+  #      + ....                                                                                  +
+  #                                                                                              +
+  #      +++#+#++                                                                                +
+  #      +++++++.                                                                                +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.
