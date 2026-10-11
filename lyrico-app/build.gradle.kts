@@ -93,13 +93,6 @@ kotlin {
     }
 }
 
-// The legacy Android source tree is not part of the build yet (see the source layout note above).
-// KGP adds src/main/java to the *Kotlin* source set, so it has to be cleared explicitly.
-sourceSets {
-    main { java.setSrcDirs(emptyList<String>()) }
-    test { java.setSrcDirs(emptyList<String>()) }
-}
-
 tasks.withType<KotlinCompile>().configureEach {
     dependsOn(generateBuildInfo)
 }

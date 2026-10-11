@@ -2,7 +2,7 @@ package com.lonx.lyrico.ui.components
 
 import com.lonx.audiotag.model.AudioPictureType
 import org.junit.Assert.assertNotEquals
-import org.junit.Test
+import kotlin.test.Test
 
 class CoverRequestCacheKeyTest {
 

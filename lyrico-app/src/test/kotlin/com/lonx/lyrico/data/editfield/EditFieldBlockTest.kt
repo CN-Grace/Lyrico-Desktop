@@ -1,7 +1,7 @@
 package com.lonx.lyrico.data.editfield
 
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.*
+import kotlin.test.Test
 
 class EditFieldBlockTest {
     @Test
@@ -30,7 +30,7 @@ class EditFieldBlockTest {
             .withEnabled("track_gain", false)
         val blocks = config.visibleFieldsForScene(EditFieldScene.SingleEdit).toEditFieldBlocks()
         assertEquals(listOf("component:ReplayGain", "title"), blocks.take(2).map { it.key })
-        assertEquals("track_peak", blocks.first().fields.first().code)
+        assertEquals(blocks.first().fields.first().code, "track_peak")
     }
 
     @Test
@@ -68,7 +68,7 @@ class EditFieldBlockTest {
     @Test
     fun `lyrics offset stays independent and batch only`() {
         val config = EditFieldConfig().withOrder(listOf("lyrics_offset", "lyrics", "title"))
-        assertEquals("lyrics", config.visibleFieldsForScene(EditFieldScene.SingleEdit).first().code)
-        assertEquals("lyrics_offset", config.visibleFieldsForScene(EditFieldScene.BatchEdit).first().code)
+        assertEquals(config.visibleFieldsForScene(EditFieldScene.SingleEdit).first().code, "lyrics")
+        assertEquals(config.visibleFieldsForScene(EditFieldScene.BatchEdit).first().code, "lyrics_offset")
     }
 }

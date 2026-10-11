@@ -3,11 +3,11 @@ package com.lonx.lyrico.data.song.tag
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
 import com.lonx.audiotag.model.AudioTagData
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 /**
  * 换封面与「删光图片」的交互。
@@ -44,8 +44,8 @@ class AudioTagMutationFactoryPicturesTest {
             picturesAuthored = true
         )
 
-        assertNotNull("空列表是有效基准", update.basePictures)
-        assertTrue("不能退回磁盘旧图片", update.basePictures!!.isEmpty())
+        assertNotNull(update.basePictures, "空列表是有效基准")
+        assertTrue(update.basePictures!!.isEmpty(), "不能退回磁盘旧图片")
     }
 
     @Test
@@ -57,7 +57,7 @@ class AudioTagMutationFactoryPicturesTest {
             picturesAuthored = false
         )
 
-        assertNull("没读到图片时沿用磁盘内容", update.basePictures)
+        assertNull(update.basePictures, "没读到图片时沿用磁盘内容")
     }
 
     @Test

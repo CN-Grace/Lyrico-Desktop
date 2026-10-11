@@ -225,12 +225,13 @@ class SongSelectionViewModelTest {
 
         viewModel.batchDelete(listOf(first, second))
 
-        awaitUntil(describe = { songCount() }, condition = { it == 0 })
-        assertFalse(
-            viewModel.isSelectionMode.value,
+        // Wait for the state the test is about, not for the rows: the rows disappearing is a *weaker* signal,
+        // and under load the selection update lands a moment later (which is what made this flake).
+        awaitUntil(describe = { viewModel.isSelectionMode.value }) { it.not() }
+        assertTrue(
+            viewModel.selectedSongUris.value.isEmpty(),
             "with nothing left to act on, the selection bar has to close itself",
         )
-        assertTrue(viewModel.selectedSongUris.value.isEmpty())
     }
 
     @Test

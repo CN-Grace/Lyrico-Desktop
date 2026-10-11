@@ -2718,3 +2718,56 @@ java 主树 23 → **19**；前沿 15 → **13**；被挡 8 → **6**；陈旧�
 | #42 测试卫生 | 全量偶发挂一次（不同类）的根因之一已修（C-5），旧的一半仍在 |
 | #7 打包 | jpackage/MSI + portable zip、ffmpeg 许可随包（`docs/third-party/ffmpeg-lgpl.md` 的 P6 open item） |
 | #6 收口 | P6 端到端验收 |
+
+### P5 施工批次（#62 死测试分类 + #42 测试卫生收口，2026-10-11）
+
+#### 1. #62：`src/test/java` 里 15 个从未编译过的测试
+
+C-1 发现这批文件时（见 #37-C-1 第 2 节）定下的规则是：**主语已在本树 → 迁移 + 真跑；否则记录，不删成覆盖空洞**。这一批把 15 个全部处置完：
+
+| 原文件 | 处置 | 结果 |
+|---|---|---|
+| `EditFieldBlockTest`（74 行） | 迁移 | ✅ 通过 |
+| `EditFieldComponentOrderTest`（60） | 迁移 | ✅ 通过 |
+| `EditFieldConfigOrderTest`（72） | 迁移 | ✅ 通过 |
+| `EditFieldConfigTest`（130） | 迁移 | ✅ 通过（1 处断言参数顺序） |
+| `EditFieldMigrationTest`（125） | 迁移 | ✅ 通过 |
+| `SongFieldBlankTest`（71） | 迁移 | ✅ 通过 |
+| `ArtistPosterFolderSettingTest`（33） | 迁移 | ✅ 通过（2 处断言参数顺序） |
+| `AudioTagMutationFactoryPicturesTest`（122） | 迁移 | ✅ 通过（3 处断言参数顺序） |
+| `ArtistPosterEmbeddingTest`（198） | 迁移 | ✅ 通过（9 处） |
+| `ArtistPosterFileNamingTest`（90） | 迁移 | ✅ 通过（17 处） |
+| `ArtistPosterMatcherTest`（103） | 迁移 | ✅ 通过 |
+| `CoverRequestCacheKeyTest`（28） | 迁移 | ✅ 通过 |
+| `BatchExportTaskConfigTest`（32） | 迁移 + **改写两处断言**（见下） | ✅ 通过 |
+| `MatchMetadataProcessorTest`（91） | 迁移 | ✅ 通过（5 处） |
+| `ExampleUnitTest`（16） | 删除 | Android 模板的 `2+2` 样板 |
+
+迁移是**机械**的：这 14 个文件**没有 import 任何安卓 API**（只有 `androidx.datastore` 这类跨平台的），所以脚本只做三件事 —— `org.junit.Test/Before/After/Ignore` → `kotlin.test.Test/BeforeTest/AfterTest/Ignore`、`org.junit.Assert.*` → `kotlin.test.*`、`assertArrayEquals` → `assertContentEquals`。测试用例本身逐字保持。
+
+第二处机械差异是**断言参数顺序**：JUnit4 是 `assertTrue("为什么", 条件)`，`kotlin.test` 是 `assertTrue(条件, "为什么")`。写了个括号/引号感知的转换脚本（`build/tmp-probe/swap-assert-args.py`），只在**第一个参数是字符串字面量**时把消息挪到最后，共处理 37 处。
+
+唯一需要**判断**的是 `BatchExportTaskConfigTest`：它断言 `destinationTreeUri` 能往返 —— 那是安卓 SAF 的字段，端口把它换成了 `destinationDirectory` 路径。按 C6e 定下的约定（`CONFIG_JSON` 用 `ignoreUnknownKeys`，好让安卓时代的任务行还能解开），两处断言改成「安卓时代的 JSON **能解开**、`concurrency` 保留、被忽略的字段不会变成目录」，并让测试用与生产同一份宽松 `Json`（初版用严格默认值，当场就被自己的测试教育了一次）。
+
+**结果**：`src/test/java` 与 `src/main/java` 都归零，`lyrico-app/src/androidTest` 里两个安卓仪器化测试也一并处置（`ExampleInstrumentedTest` 删除；`PluginI18nRuntimeTest` 删除 —— 它测的是安卓 `Configuration`/`LocaleList` 那套语言机制，桌面端的等价物已由 `PluginLocalesTest` / `PluginStringsTest` / `QuickJsRuntimeTest` 覆盖）。
+
+**并且**：`lyrico-app/build.gradle.kts` 里那两行为了绕开 java 源集而写的 `java.setSrcDirs(emptyList<String>())` **现在删掉了** —— 它们是 #38 第 2 节记下的耦合，两个 java 树都空了之后就不需要了；删掉后全量重跑仍是 158 类 / 1279 项 / 0 失败。
+
+#### 2. #42：全量套件的偶发失败 —— 查清并修掉
+
+症状（C 簇期间记录）：全量跑**偶尔**挂一项，且每次挂的类都不一样（`ArtistPosterFoldersScreenTest`、`BatchTaskSchedulerTest`、`LibraryScanManagerTest`、`SongSelectionViewModelTest` 都轮到过），单独重跑一律通过；把新测试的 DI 作用域取消（C-5）只治了一半。
+
+这一批做了两个实验、一个结论：
+
+1. **假设「跨用例的进程内状态泄漏」→ 用 `forkEvery = 1`（每个测试类一个新 JVM）验证。** 结果：**不能修**（4 分 05 秒跑完，`BatchTaskSchedulerTest` 照样挂），而且把套件从 1 分 50 秒拖到 4 分多。于是这条假设被排除，`forkEvery` 改动撤掉（不留一个既无效又慢的配置）。
+2. **直接读失败信息**：两处都不是「慢」，而是**在更弱的信号上就下了断言**：
+   * `BatchTaskSchedulerTest` 等的是任务**状态**变成 `SUCCEEDED`，然后立刻断言日志**条数** —— 而日志是在状态之后写的；同一测试里第二段早就用了「轮询等日志」的写法，第一段漏了。
+   * `SongSelectionViewModelTest` 等的是「歌都没了」，然后立刻断言「选择模式已退出」—— 而选择模式的更新在其后。
+   两处都改成**等被测的那个条件本身**（这正是本仓在别处写明的约定：不要等 `isLoading == false`，要等那几行出现）。
+3. 顺带把 `BatchTaskSchedulerTest` 里 5 处 `withTimeout(10_000)` 提到 20 秒并写明理由：这些等待背后是**真的任务引擎在开真文件、写真行**，10 秒是空闲机器上的预算。
+
+**证据**：连跑 3 次全量，全部 **158 类 / 1279 项 / 0 失败 / 0 错误 / 3 门控跳过**（每次 `--rerun-tasks`，耗时各约 1 分 48 秒）；再加删掉 `setSrcDirs` 之后的一次全量重跑，同样全绿。
+
+#### 3. 口径变化
+
+全量从 C 簇结束时的 144 类 / 1190 项变成 **158 类 / 1279 项**：+14 类 / +89 项，全部来自这一批迁进来的死测试（它们此前从未在桌面端跑过，其中 `ArtistPosterFileNamingTest`、`ArtistPosterEmbeddingTest`、`MatchMetadataProcessorTest` 是 90–198 行的大文件）。**从此「全量」的口径第一次覆盖了那些测试原本想覆盖的逻辑**。

@@ -1,9 +1,9 @@
 package com.lonx.lyrico.data.model.entity
 
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class SongFieldBlankTest {
 

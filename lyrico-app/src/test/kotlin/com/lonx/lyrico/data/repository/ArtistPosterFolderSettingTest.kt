@@ -1,26 +1,20 @@
 package com.lonx.lyrico.data.repository
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 class ArtistPosterFolderSettingTest {
 
     @Test
     fun legacyMultipleFoldersKeepOnlyTheFirstFolder() {
-        assertEquals(
-            "content://posters/first",
-            decodeArtistPosterFolder(
+        assertEquals(decodeArtistPosterFolder(
                 """["content://posters/first","content://posters/second"]"""
-            )
-        )
+            ), "content://posters/first")
     }
 
     @Test
     fun selectingAFolderStoresOnlyThatFolder() {
-        assertEquals(
-            "content://posters/new",
-            decodeArtistPosterFolder(encodeArtistPosterFolder("content://posters/new"))
-        )
+        assertEquals(decodeArtistPosterFolder(encodeArtistPosterFolder("content://posters/new")), "content://posters/new")
     }
 
     @Test

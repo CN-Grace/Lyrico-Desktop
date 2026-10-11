@@ -6,9 +6,9 @@ import com.lonx.lyrico.data.model.metadata.MetadataApplyPolicy
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
 import com.lonx.lyrico.data.model.metadata.MetadataWriteMode
 import com.lonx.lyrico.data.model.metadata.SearchResultApplier
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.Test
 
 class MatchMetadataProcessorTest {
     @Test
@@ -30,9 +30,9 @@ class MatchMetadataProcessorTest {
 
         val normalized = result.normalizedFields()
 
-        assertEquals("Field Title", normalized["title"])
-        assertEquals("lyric body", normalized["lyrics"])
-        assertEquals("Display Artist", normalized["artist"])
+        assertEquals(normalized["title"], "Field Title")
+        assertEquals(normalized["lyrics"], "lyric body")
+        assertEquals(normalized["artist"], "Display Artist")
         assertFalse(normalized.containsKey("song_mid"))
         assertFalse(normalized.containsKey("duration"))
     }
@@ -47,7 +47,7 @@ class MatchMetadataProcessorTest {
             )
         )
 
-        assertEquals("candidate comment", patch.comment)
+        assertEquals(patch.comment, "candidate comment")
     }
 
     @Test
@@ -86,6 +86,6 @@ class MatchMetadataProcessorTest {
             )
         )
 
-        assertEquals("candidate title", patch.title)
+        assertEquals(patch.title, "candidate title")
     }
 }

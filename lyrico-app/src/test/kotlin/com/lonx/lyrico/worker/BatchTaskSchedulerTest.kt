@@ -45,6 +45,15 @@ import kotlin.test.assertTrue
  */
 class BatchTaskSchedulerTest {
 
+    private companion object {
+        /**
+         * Waits are for real engine work: a real processor opens real files and writes real rows. The budget
+         * used to be 10 s, which a loaded machine (the whole suite running next to other work) can exceed --
+         * that was the observed flake, and the assertion it guarded is about the *outcome*, not the speed.
+         */
+        const val TIMEOUT_MILLIS = 20_000L
+    }
+
     private lateinit var library: TestLibrary
     private lateinit var repository: BatchTaskRepository
     private lateinit var log: RecordingAppLogRepository
@@ -106,13 +115,16 @@ class BatchTaskSchedulerTest {
         awaitStatus(taskId, BatchTaskStatus.SUCCEEDED)
         val firstJobId = workId(taskId)
         drain(processor)
+        // The status flips before the log line is written, so waiting for the status is not enough -- the
+        // entry itself is what this test is about (see the same pattern below for the second run).
+        withTimeout(TIMEOUT_MILLIS) { while (log.entries.isEmpty()) delay(10) }
         assertEquals(1, log.entries.size)
 
         // The scheduler clears its entry in the job's `finally`, which runs a moment after the last
         // row write the test just observed, so the request is retried until it is accepted. The new
         // job id is the signal that it was.
         var secondJobId: String? = null
-        withTimeout(10_000) {
+        withTimeout(TIMEOUT_MILLIS) {
             while (secondJobId == null) {
                 scheduler.enqueue(taskId)
                 val now = workId(taskId)
@@ -120,7 +132,7 @@ class BatchTaskSchedulerTest {
             }
         }
         assertNotNull(secondJobId)
-        withTimeout(10_000) { while (log.entries.size < 2) delay(10) }
+        withTimeout(TIMEOUT_MILLIS) { while (log.entries.size < 2) delay(10) }
 
         assertEquals(
             "Batch task finished: EDIT_TAGS (0/1 processed)",
@@ -145,7 +157,7 @@ class BatchTaskSchedulerTest {
 
         processor.blocking = false
         scheduler.enqueue(taskId)
-        assertNotNull(withTimeout(10_000) { processor.started.receive() })
+        assertNotNull(withTimeout(TIMEOUT_MILLIS) { processor.started.receive() })
         awaitStatus(taskId, BatchTaskStatus.SUCCEEDED)
 
         // The cancelled run booked the file it was writing as FAILED, so the second run has only the
@@ -187,7 +199,7 @@ class BatchTaskSchedulerTest {
         awaitStatus(first, BatchTaskStatus.SUCCEEDED)
         awaitStatus(second, BatchTaskStatus.SUCCEEDED)
         // The log entry is the last thing a run writes, so waiting for both is waiting for both runs.
-        withTimeout(10_000) { while (log.entries.size < 2) delay(10) }
+        withTimeout(TIMEOUT_MILLIS) { while (log.entries.size < 2) delay(10) }
 
         assertTrue(workId(first) != workId(second))
         assertEquals(2, processor.startCount.get())
@@ -238,7 +250,7 @@ class BatchTaskSchedulerTest {
     private suspend fun workId(taskId: String): String? = dao.getTask(taskId)?.workId
 
     private suspend fun awaitStatus(taskId: String, status: BatchTaskStatus) {
-        withTimeout(10_000) { repository.observeTask(taskId).first { it?.status == status } }
+        withTimeout(TIMEOUT_MILLIS) { repository.observeTask(taskId).first { it?.status == status } }
     }
 
     /** Throws away the start signals of a run that has already finished. */

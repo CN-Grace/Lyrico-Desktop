@@ -1,8 +1,8 @@
 package com.lonx.lyrico.utils.coil
 
 import com.lonx.lyrico.data.model.CharacterMappingDefaults
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.*
+import kotlin.test.Test
 
 class ArtistPosterMatcherTest {
     @Test fun supportsAllExtensionsAndCaseInsensitiveNames() {

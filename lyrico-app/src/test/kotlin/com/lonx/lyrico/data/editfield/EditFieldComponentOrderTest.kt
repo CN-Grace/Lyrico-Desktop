@@ -1,7 +1,7 @@
 package com.lonx.lyrico.data.editfield
 
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.*
+import kotlin.test.Test
 
 class EditFieldComponentOrderTest {
     @Test
@@ -47,7 +47,7 @@ class EditFieldComponentOrderTest {
             .withAddedCustomTag("NEW").withBlockOrder(oldKeys + "unknown")
         assertEquals(listOf("album_gain", "track_gain", "track_peak", "album_peak", "reference_loudness"), changed.allFields.toEditFieldBlocks()
             .single { it.key == "component:ReplayGain" }.fields.map { it.code })
-        assertEquals("tag:NEW", changed.orderedCodes().last())
+        assertEquals(changed.orderedCodes().last(), "tag:NEW")
         assertEquals(changed.orderedCodes().distinct(), changed.orderedCodes())
     }
 

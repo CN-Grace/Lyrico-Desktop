@@ -2,13 +2,13 @@ package com.lonx.lyrico.domain.poster
 
 import com.lonx.audiotag.model.AudioPicture
 import com.lonx.audiotag.model.AudioPictureType
-import org.junit.Assert.assertEquals
+import kotlin.test.assertEquals
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class ArtistPosterEmbeddingTest {
 
@@ -33,14 +33,14 @@ class ArtistPosterEmbeddingTest {
     @Test
     fun aSoleArtistKeepsTheDescriptionBlank() {
         // 描述为空在本应用里是「整首歌只有一个艺术家」的既有写法
-        assertEquals("", descriptionFor(listOf("A"), "A"))
+        assertEquals(descriptionFor(listOf("A"), "A"), "")
     }
 
     @Test
     fun severalArtistsForceTheNameIntoTheDescription() {
         // 描述为空时读取侧只认「整首歌只有一个艺术家」，多艺术家歌曲会变成「对不上」
-        assertEquals("A", descriptionFor(listOf("A", "B"), "A"))
-        assertEquals("A", descriptionFor(listOf("A", "B", "C"), " A "))
+        assertEquals(descriptionFor(listOf("A", "B"), "A"), "A")
+        assertEquals(descriptionFor(listOf("A", "B", "C"), " A "), "A")
     }
 
     /** 通过与 [ArtistPosterEmbedding.plan] 相同的输入拿到它会给的描述。 */
@@ -66,8 +66,8 @@ class ArtistPosterEmbeddingTest {
         )
 
         assertNotNull(binding)
-        assertNull("新增时不替换任何图片", binding!!.replaced)
-        assertEquals("", binding.description)
+        assertNull(binding!!.replaced, "新增时不替换任何图片")
+        assertEquals(binding.description, "")
     }
 
     @Test
@@ -83,7 +83,7 @@ class ArtistPosterEmbeddingTest {
 
         assertNotNull(binding)
         assertSame("必须原地替换这位艺术家的那一张", existing, binding!!.replaced)
-        assertEquals("A", binding.description)
+        assertEquals(binding.description, "A")
     }
 
     @Test
@@ -139,7 +139,7 @@ class ArtistPosterEmbeddingTest {
         )
 
         assertNotNull(binding)
-        assertNull("B 的海报不能当成 A 的来覆盖", binding!!.replaced)
+        assertNull(binding!!.replaced, "B 的海报不能当成 A 的来覆盖")
     }
 
     @Test
@@ -154,7 +154,7 @@ class ArtistPosterEmbeddingTest {
         )
 
         assertNotNull(binding)
-        assertNull("描述为空又多艺术家时归属不明，只能新增", binding!!.replaced)
+        assertNull(binding!!.replaced, "描述为空又多艺术家时归属不明，只能新增")
     }
 
     @Test
@@ -191,7 +191,7 @@ class ArtistPosterEmbeddingTest {
         )
 
         assertEquals(1, replaced.size)
-        assertEquals("A", replaced.single().description)
+        assertEquals(replaced.single().description, "A")
         assertTrue(replaced.single().data.contentEquals(newData))
         assertNotEquals(existing, replaced.single())
     }

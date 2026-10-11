@@ -1,9 +1,9 @@
 package com.lonx.lyrico.data.editfield
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class EditFieldConfigTest {
 
@@ -57,7 +57,7 @@ class EditFieldConfigTest {
             .withAddedCustomTag("MOOD")
 
         val code = EditFieldRegistry.customTagCode("SOURCE")
-        assertEquals("SOURCE", EditFieldRegistry.customTagKeyOf(code))
+        assertEquals(EditFieldRegistry.customTagKeyOf(code), "SOURCE")
         assertTrue(config.isEnabled(code))
         assertEquals(listOf("SOURCE", "MOOD"), config.customTags)
         assertEquals(

@@ -1,8 +1,8 @@
 package com.lonx.lyrico.domain.poster
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.Test
 
 class ArtistPosterFileNamingTest {
 
@@ -10,21 +10,21 @@ class ArtistPosterFileNamingTest {
 
     @Test
     fun aPlainArtistNameBecomesTheFileName() {
-        assertEquals("周杰伦", ArtistPosterFileNaming.stemFor("周杰伦"))
-        assertEquals("AC_DC", ArtistPosterFileNaming.stemFor("AC_DC"))
+        assertEquals(ArtistPosterFileNaming.stemFor("周杰伦"), "周杰伦")
+        assertEquals(ArtistPosterFileNaming.stemFor("AC_DC"), "AC_DC")
     }
 
     @Test
     fun charactersAFileNameCannotHoldBecomeTheirFullWidthForm() {
         // 与「重命名文件」用的是同一套规则，写下去的文件名才认得出是同一位艺术家
-        assertEquals("AC／DC", ArtistPosterFileNaming.stemFor("AC/DC"))
-        assertEquals("Re：Zero", ArtistPosterFileNaming.stemFor("Re:Zero"))
-        assertEquals("A｜B", ArtistPosterFileNaming.stemFor("A|B"))
+        assertEquals(ArtistPosterFileNaming.stemFor("AC/DC"), "AC／DC")
+        assertEquals(ArtistPosterFileNaming.stemFor("Re:Zero"), "Re：Zero")
+        assertEquals(ArtistPosterFileNaming.stemFor("A|B"), "A｜B")
     }
 
     @Test
     fun surroundingWhitespaceIsDropped() {
-        assertEquals("Artist", ArtistPosterFileNaming.stemFor("  Artist  "))
+        assertEquals(ArtistPosterFileNaming.stemFor("  Artist  "), "Artist")
     }
 
     @Test
@@ -37,25 +37,25 @@ class ArtistPosterFileNamingTest {
 
     @Test
     fun theMimeTypeDecidesTheExtension() {
-        assertEquals("jpg", ArtistPosterFileNaming.extensionFor("image/jpeg"))
-        assertEquals("jpg", ArtistPosterFileNaming.extensionFor("image/jpg"))
-        assertEquals("png", ArtistPosterFileNaming.extensionFor("image/png"))
-        assertEquals("webp", ArtistPosterFileNaming.extensionFor("image/webp"))
-        assertEquals("mp4", ArtistPosterFileNaming.extensionFor("video/mp4"))
+        assertEquals(ArtistPosterFileNaming.extensionFor("image/jpeg"), "jpg")
+        assertEquals(ArtistPosterFileNaming.extensionFor("image/jpg"), "jpg")
+        assertEquals(ArtistPosterFileNaming.extensionFor("image/png"), "png")
+        assertEquals(ArtistPosterFileNaming.extensionFor("image/webp"), "webp")
+        assertEquals(ArtistPosterFileNaming.extensionFor("video/mp4"), "mp4")
     }
 
     @Test
     fun aMimeTypeWithParametersStillResolves() {
-        assertEquals("png", ArtistPosterFileNaming.extensionFor("image/png;charset=utf-8"))
-        assertEquals("jpg", ArtistPosterFileNaming.extensionFor("IMAGE/JPEG"))
+        assertEquals(ArtistPosterFileNaming.extensionFor("image/png;charset=utf-8"), "png")
+        assertEquals(ArtistPosterFileNaming.extensionFor("IMAGE/JPEG"), "jpg")
     }
 
     @Test
     fun anUnknownMimeTypeFallsBackToThePickedFileNameThenToJpeg() {
-        assertEquals("png", ArtistPosterFileNaming.extensionFor(null, "poster.PNG"))
-        assertEquals("jpg", ArtistPosterFileNaming.extensionFor(null, null))
-        assertEquals("jpg", ArtistPosterFileNaming.extensionFor("image/*", null))
-        assertEquals("jpg", ArtistPosterFileNaming.extensionFor("application/octet-stream", "noext"))
+        assertEquals(ArtistPosterFileNaming.extensionFor(null, "poster.PNG"), "png")
+        assertEquals(ArtistPosterFileNaming.extensionFor(null, null), "jpg")
+        assertEquals(ArtistPosterFileNaming.extensionFor("image/*", null), "jpg")
+        assertEquals(ArtistPosterFileNaming.extensionFor("application/octet-stream", "noext"), "jpg")
     }
 
     // ------------------------------------------------------------ matchesArtist

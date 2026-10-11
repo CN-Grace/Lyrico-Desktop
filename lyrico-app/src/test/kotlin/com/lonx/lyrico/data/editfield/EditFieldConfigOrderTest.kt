@@ -1,9 +1,9 @@
 package com.lonx.lyrico.data.editfield
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 /**
  * 旧配置 / 导入的备份缺少某些 code 时的兜底行为。
