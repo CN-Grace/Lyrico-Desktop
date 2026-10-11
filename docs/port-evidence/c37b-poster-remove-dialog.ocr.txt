@@ -1,0 +1,18 @@
+file: docs/port-evidence/c37b-poster-remove-dialog.png
+engine: zh-Hans-CN
+lines: 15
+  y=7 x=21 :: 《 Lyrico 1 ℃ 〔 5H7g312 〕
+  y=48 x=503 :: 艺 术 家 海 报 文 件 夹
+  y=107 x=30 :: H:\VibeC0ding\03-fi 用 \Lyrico-Desktop\lyrico-app\build\demo-posters
+  y=135 x=29 :: 4 张 海 报
+  y=200 x=30 :: O
+  y=293 x=12 :: E 彐 0 思 Wind &
+  y=312 x=12 :: Fire.png
+  y=200 x=147 :: O
+  y=292 x=128 :: 周 华 png
+  y=200 x=264 :: O O
+  y=292 x=245 :: 周 圣 # 亻 津 ． 」 iv 笆 png
+  y=314 x=502 :: 是 否 移 除 此 文 亻 牛 夹 7
+  y=350 x=398 :: H:\VibeC0ding\03 fi#\Lyrico-Desktop\lyrico-
+  y=373 x=398 :: app\build\demo-posters
+  y=407 x=397 :: 僖 止 使 甲 此 文 件 荚 中 的 海 。 不 窨 删 除 文 件 。

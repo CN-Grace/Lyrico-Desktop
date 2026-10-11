@@ -1,0 +1,16 @@
+file: docs/port-evidence/c37b-poster-folders.png
+engine: zh-Hans-CN
+lines: 13
+  y=10 x=31 :: Lyrico 1 ℃ 〔 5H7g312 〕
+  y=48 x=503 :: 艺 术 家 海 报 文 件 夹
+  y=108 x=30 :: H:\VibeC0ding\03 fiR\Lyr•co-Desktop\lyrico-app\build\demo-posters
+  y=135 x=29 :: 4 张 海 报
+  y=200 x=30 :: O
+  y=293 x=12 :: Earth, Wind &
+  y=312 x=12 :: Fire.png
+  y=200 x=147 :: O
+  y=292 x=128 :: 周 华 png
+  y=200 x=264 :: O
+  y=292 x=245 :: 周圣g雒 」 ive.png
+  y=200 x=381 :: O
+  y=292 x=390 :: 盛 png

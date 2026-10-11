@@ -1,0 +1,14 @@
+file: docs/port-evidence/c37b-artist-detail.png
+engine: zh-Hans-CN
+lines: 11
+  y=10 x=31 :: Lyrico 1 ℃ 〔 5H7g312 〕
+  y=117 x=109 :: 周 华 健
+  y=143 x=111 :: 1 张 专 辑 ． 2 首
+  y=278 x=121 :: 周 华 儺 。 朋 友
+  y=342 x=121 :: 周 华 儺 。 朋 友
+  y=50 x=553 :: 周 华 健
+  y=204 x=854 :: 亏 辑
+  y=261 x=1082 :: 住 03
+  y=279 x=1068 :: 128kbps
+  y=325 x=1082 :: 住 03
+  y=343 x=1072 :: 64kbps

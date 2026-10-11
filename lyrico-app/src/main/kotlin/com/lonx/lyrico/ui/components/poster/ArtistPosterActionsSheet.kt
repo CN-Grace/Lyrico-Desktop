@@ -7,9 +7,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.label_artist_poster_add_to_folder
+import com.lonx.lyrico.resources.label_artist_poster_add_to_folder_no_folder
+import com.lonx.lyrico.resources.label_artist_poster_add_to_folder_summary
+import com.lonx.lyrico.resources.label_artist_poster_embed_to_songs
+import com.lonx.lyrico.resources.label_artist_poster_embed_to_songs_summary
+import com.lonx.lyrico.resources.label_set_artist_poster
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -36,7 +42,7 @@ fun ArtistPosterActionsSheet(
     WindowBottomSheet(
         show = show,
         enableNestedScroll = false,
-        title = stringResource(R.string.label_set_artist_poster),
+        title = stringResource(Res.string.label_set_artist_poster),
         onDismissRequest = onDismissRequest
     ) {
         Column(
@@ -49,16 +55,16 @@ fun ArtistPosterActionsSheet(
                 colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.secondaryContainer)
             ) {
                 ArrowPreference(
-                    title = stringResource(R.string.label_artist_poster_embed_to_songs),
-                    summary = stringResource(R.string.label_artist_poster_embed_to_songs_summary),
+                    title = stringResource(Res.string.label_artist_poster_embed_to_songs),
+                    summary = stringResource(Res.string.label_artist_poster_embed_to_songs_summary),
                     onClick = onEmbedToSongs
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.label_artist_poster_add_to_folder),
+                    title = stringResource(Res.string.label_artist_poster_add_to_folder),
                     summary = if (hasPosterFolder) {
-                        stringResource(R.string.label_artist_poster_add_to_folder_summary)
+                        stringResource(Res.string.label_artist_poster_add_to_folder_summary)
                     } else {
-                        stringResource(R.string.label_artist_poster_add_to_folder_no_folder)
+                        stringResource(Res.string.label_artist_poster_add_to_folder_no_folder)
                     },
                     onClick = onSaveToFolder
                 )

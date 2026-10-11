@@ -1,0 +1,9 @@
+file: docs/port-evidence/c37b-poster-folders-empty.png
+engine: zh-Hans-CN
+lines: 6
+  y=10 x=31 :: Lyrico 1 ℃ 〔 5H7g312 〕
+  y=99 x=30 :: 丙 嵌 海 不 可 用 时 从 此 文 件 荚 读 取
+  y=153 x=29 :: 选 择 文 件 夹
+  y=48 x=503 :: 艺 术 家 海 报 文 件 夹
+  y=99 x=253 :: 新 唱 海 也 添 加 到 谊 圭
+  y=175 x=29 :: 选 隧 用 于 读 取 和 添 加 艺 术 冢 海 的 文 件 荚

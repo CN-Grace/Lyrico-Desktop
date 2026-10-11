@@ -1,0 +1,30 @@
+file: docs/port-evidence/c37b-poster-help.png
+engine: zh-Hans-CN
+lines: 27
+  y=7 x=21 :: 《 Lyrico 1 ℃ 〔 5H7g312 〕
+  y=48 x=503 :: 艺 术 家 海 报 文 件 夹
+  y=107 x=30 :: H:\VibeC0ding\03-fi 用 \Lyrico-Desktop\lyrico-app\build\demo-posters
+  y=135 x=29 :: 4 张 海 报
+  y=200 x=30 :: O
+  y=293 x=12 :: Earth, Wind &
+  y=312 x=12 :: Fire.png
+  y=200 x=147 :: O
+  y=292 x=128 :: 周 华 png
+  y=200 x=264 :: O
+  y=292 x=245 :: 周圣g雒 」 ive.png
+  y=310 x=397 :: 命 名 规 则
+  y=347 x=416 :: 乙 术 家 jpg
+  y=370 x=416 :: 乙 术 家 1
+  y=391 x=423 :: 〔 DC.Jpg 、
+  y=410 x=407 :: ACDC.jpg
+  y=464 x=397 :: 支 扌 JPG. 」 PEG,
+  y=272 x=547 :: 命 名 规 则
+  y=343 x=545 :: 艺 术 家 名 完 全 一 数
+  y=370 x=571 :: 乙 术 家 名 后 和 启 缀
+  y=370 x=504 :: JPg
+  y=389 x=612 :: AC/DC.jpg 或
+  y=391 x=513 :: AC-DC.jpg
+  y=408 x=512 :: 艺 术 冢 名 中 ． 嘀 文 件 不 能 土 现 的 字 符 时
+  y=465 x=510 :: PNG, WebPiLMP4.
+  y=489 x=411 :: 苷 找 所 i 过 文 件 荚 中 的 文 件 。 优 先 匹 配 与 艺 术 冢 名 完 金 一 致
+  y=508 x=398 :: 的 文 件 。

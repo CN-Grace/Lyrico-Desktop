@@ -1727,7 +1727,7 @@ hub 的 KDoc 把四条写在类头上，其中只有第一条是行为改动：
 
 ### P5 施工批次（#37-A：专辑详情页 + 第一个「数字参数」的已注册路由，2026-10-11）
 
-#37 是「继续搬 screen」，按「视图模型/基础设施先行、一屏一片」切成 6 片：#37-A 专辑详情、#37-B 设置、#37-C 艺人详情、#37-D 本地搜索、#37-E 文件夹管理、#37-F 海报与批量重命名这类尾部。本节只记 A 片；其余五片每一片落盘时各自成节。
+#37 是「继续搬 screen」，按切片拆成一屏一片（切片名与顺序以 `todo` 里的 #46–#50 为准）：A 专辑详情（本节）、B 艺人详情 + 艺人海报簇、C 设置簇（settings + edit_field_settings + 文件夹管理）、D 本地搜索、E 批量重命名 + 批量编辑、F 关于页 + 更新对话框 + 开源许可页。本节只记 A 片；其余五片每一片落盘时各自成节。
 
 #### 1. 搬了什么（`git mv` 1 个文件；java 主树 63 → 62）
 
@@ -1798,7 +1798,122 @@ java 主树 63 → **62**；前沿（依赖已满足、现在就能搬）33 → 
 
 算术：`AlbumDetailScreen.kt` 本来在前沿上（它唯一的依赖 `SongSelectionSupport.kt` 在 #35 被改写成 hub），所以它一走只让前沿 −1，被挡那 30 个一个都没变；`62 = 32 + 30`。
 
-下一片 #37-B 是设置页：它现在还在被挡那一列（`SettingsScreen` 差 5 个依赖、`SettingsViewModel` 差 3 个），B 片开工时按 `port-frontier.py` 给出的链条按序搬，再搬屏幕本身；它的几个子页在 `Destinations.kt` 里还缺**新的** `NavDirection` 条目（具体缺哪几个条目在 B 片开工时逐条核，不在本节下结论）。
+下一片 #37-B 是艺人详情 + 艺人海报簇（`todo` #46）：先把这一簇的叶子与视图模型按 `port-frontier.py` 给出的链条搬进来（`ArtistDetailViewModel` 现在还被挡着），再搬 `ArtistDetailScreen`，并注册 `artist_detail/{artistId}`（与 `album_detail` 同形，参数也是数字）—— 艺人海报那几个页面自己没有入口，照 C5b 的先例用 dev 起始路由取证。
+
+### P5 施工批次（#37-B：艺人详情页 + 艺人海报簇的 12 个文件，2026-10-11）
+
+B 片是 #37 里最大的一片：它不是一个屏幕，而是一条以 `ArtistDetailViewModel` 为根的完整依赖链（艺人详情 → 海报动作面板 → 海报内嵌/落盘 → 海报文件夹的读、改、预览）。切法照 `todo` #51–#55 分五步（叶子 → 视图模型 → 详情页 → 海报文件夹簇 → 测试/取证），本节把五步合起来记。
+
+#### 1. 搬了什么（`git mv` 12 个文件；java 主树 62 → 50）
+
+搬之前用 `port-frontier.py --list-blocks` 在 HEAD 上把这条链的成员逐个列出来，得到的名单是「**4 个本来就在前沿 + 8 个被挡**」。12 个文件按角色分：
+
+| 角色 | 文件（新位置 `src/main/kotlin/…`） | 搬来时 |
+|---|---|---|
+| 叶子 | `domain/poster/ArtistPosterEmbedding.kt` | 前沿 |
+| 叶子 | `domain/poster/ArtistPosterFileNaming.kt` | 前沿 |
+| 叶子 | `ui/components/album/AlbumListItem.kt` | 前沿 |
+| 叶子 | `ui/components/poster/ArtistPosterActionsSheet.kt` | 前沿 |
+| 视图模型 | `viewmodel/ArtistDetailViewModel.kt` | 被挡 |
+| 视图模型 | `viewmodel/ArtistPosterFoldersViewModel.kt` | 被挡 |
+| 界面 | `screens/ArtistDetailScreen.kt` | 被挡 |
+| 界面 | `screens/ArtistPosterFoldersScreen.kt` | 被挡 |
+| 界面 | `screens/ArtistPosterFolderContents.kt` | 被挡（本批改动最大：265 行） |
+| 组件 | `ui/components/poster/ArtistPosterProgressSheet.kt` | 被挡 |
+| 工具 | `utils/ArtistPosterFileWriter.kt` | 被挡 |
+| 工具 | `utils/coil/PosterFileFetcher.kt` | 被挡 |
+
+`ArtistPosterFolderContents.kt` 是唯一「位置搬了、内容也基本重写」的文件：Android 版是「按 SAF 目录列孩子再出网格」，桌面版是网格 + 全屏预览（`Dialog(usePlatformDefaultWidth = false)`），共用部分只剩「把路径交给 Coil 取图」。改写幅度过半的有 3 个 —— `ArtistPosterFolderContents.kt`（相似度 36%）、`ArtistPosterFoldersScreen.kt`（45%）、`ArtistPosterFileWriter.kt`（36%）—— 低于 git 默认 50% 的改名门槛，所以 `git diff` 会把它们显示成「删除 + 新增」而不是改名（内容没问题，`git diff -M20%` 能还原成改名；其余 9 个按 55%–100% 显示为改名）。
+
+接线的四处改动（不是新文件）：
+
+* `di/DesktopAppModule.kt`：注册两个 `viewModel { }`；
+* `utils/coil/DesktopImageLoader.kt`：把 `PosterFileFetcher` 挂进桌面 Coil 的 fetcher 链 —— 海报文件夹里的文件是**路径**而不是 `Uri`，不挂这一项就取不到图；
+* `ui/navigation/Destinations.kt` + `LyricoNavHost.kt`：`artist_detail/{artistId}`（`NavType.LongType`，与 `album_detail` 同形）与 `artist_poster_folders` 两条路由；
+* `screens/library/ArtistsPage.kt`：艺人行点进 `artist_detail/{id}`（`Destinations.kt` 里那条「声明了但没注册」的 KDoc 同步改成事实）。
+
+**没有搬的两个文件**：`utils/SafDocuments.kt`、`utils/UriUtils.kt`。它们只为 SAF 存在（列举目录 + 把 tree uri 换成人能读的路径），桌面端把依赖整体删掉（`File.listFiles()` / `File.absolutePath` 顶替），所以它们不是「还被挡着」而是**待作废** —— 现在仍留在 java 树的前沿名单里标着 `[ANDROID]`，留给清理批次处理。
+
+**新增测试**：`viewmodel/ArtistPosterFoldersViewModelTest`（7 项）、`utils/ArtistPosterFileWriterTest`（8 项）、`screens/ArtistPosterFoldersScreenTest`（6 项）。`probe/DevLibrarySeederTest` 扩了一组**纯色**海报（4 张 PNG + `poster-notes.txt` + 嵌套 `其他/` 目录）：颜色不是装饰，第 4 节所有像素断言都靠它们定位。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **`Application` / `Context` 整体退场**：选图给的是 `File`（`rememberFileOpenPicker`），直接 `readBytes()`；图片 MIME 由 `ImageMimeTypeDetector.detect(bytes)` 按**字节魔数**判定（桌面端没有 provider 可问，而且扩展名会骗人 —— 扩展名骗人时落盘的后缀会跟着骗人）；海报文件夹是普通目录路径。
+2. **SAF 授权那一整套消失**（这批最大的一处删减）：`ArtistPosterEmbedUiState.permissionIntentSender` 字段删掉、`consumeArtistPosterPermissionRequest()` 删掉、`SaveAudioTagsResult.PermissionRequired` 分支删掉（桌面端只有成功/失败两支）、`takePersistableUriPermission` 不再需要。`hasContent` 的判据从「进行中 + 待授权 + 有结果」减到「进行中 + 有结果」，界面上那个「授予权限」按钮随之不存在。
+3. **文案解析搬到界面**：`resolvedMessage(@StringRes)`（VM 里 `application.getString`）→ `UiMessage.Localized(Res.string.…)`。VM 因此不再需要 `Application`，也顺带没有「界面换了语言、消息还停在旧语言」的问题。
+4. **`Uri` → `path` 的改名**：`ArtistPosterFile.uri` 改叫 `path`（交给 Coil 的是文件而不是流，名字不改就是谎），`ArtistPosterFolder` 去掉 `uri` 只留 `path`，`name` 用 `File(path).name`。
+5. **`readPosters` 的返回值语义逐字对齐**：`SafDocuments.children` 换 `File.listFiles()`。两边返回 `null` 的条件是同一件事（目录没了 / 不再是目录 ↔ 持久化授权失效），所以界面的「文件夹不可用」分支仍由同一个条件到达 —— 这条无头与真窗口各钉了一次（`a folder that is gone is reported unavailable instead of empty` + `c37b-poster-folders-empty.png`）。
+6. **`Toast` → `SnackbarHost` + `events` 流**，`LocalContext` 丢掉；`BackHandler` 丢掉（同前几批）。
+7. **`@Destination` / `DestinationsNavigator` → 手写 `Navigator`**；`koinActivityViewModel` → `koinViewModel()`。
+8. **一处行为增加（不是等价改写）**：`ArtistDetailScreen` 多了 `AlbumReplayGainProgressBottomSheet` 与它的事件 snackbar —— 见第 6 节缺口 2。
+
+#### 3. 无头取证（新增 3 类 21 项；全量 128 类 / 1112 项 / 0 失败 / 0 错误 / 2 门控跳过）
+
+`ArtistPosterFoldersViewModelTest`（7 项，真 settings 仓库 + 真磁盘）：
+
+1. `the folder is listed with only its poster files, sorted by name`：目录里塞了非海报文件与子目录，只留海报且按名字序；
+2. `an empty folder is a folder with nothing in it, not an unavailable one`：空目录 = `posters = emptyList()`，**不是** `null`（这两个状态在界面上的文案完全不同）；
+3. `a folder that is gone is reported unavailable instead of empty`：删掉目录后是 `null`；
+4. `matched posters are counted against the library's artists, case-folded`：`周华健.png` 与 `周华健_live.png` 都算匹配上库里那位艺术家，大小写不敏感；
+5. `choosing a folder writes the setting, and removing it clears the setting but not the files`：`addFolder` 写设置、`removeFolder` 只注销注册表 —— **磁盘上的文件一个不少**；
+6. `refreshing bumps the revision so a rewritten poster is read again`：同一路径重写海报后 `refreshArtistPosters()` 让修订号 +1（否则取图链路会拿缓存）；
+7. `a settings write failure is reported as an error instead of a silent no-op`：设置写失败走错误文案，不是静默成功。
+
+`ArtistPosterFileWriterTest`（8 项，真文件系统）钉的是「按艺术家名落盘」这条规则的边界：扩展名跟着 MIME 走、非法文件名按应用的改名规则清洗、未知 MIME 回退 `jpg`、换格式替换后**目录里只剩一个**、带后缀的旧海报（`_live`）也能被替换、旧文件删不掉时新文件不落盘且旧文件保住、没有文件夹/没有字节/没有可用艺术家名时什么都不写、目录不在时是「保存失败」而不是异常。
+
+`ArtistPosterFoldersScreenTest`（6 项，真 Koin + `ScreenInTestHost` + 记录用 `Navigator` + `HeadlessMainDispatcher`）：有文件夹时显示路径 / `4 张海报` / 且只显示海报；没文件夹时显示自解释文案 + 选择入口 + **没有**溢出菜单；返回图标离开页面；文件夹被删后刷新说「不可用」而不是「空」；存在但空说「没有找到海报」；从溢出菜单移除后注销注册且磁盘文件仍在。
+
+这批替换掉的只有「记录导航的假 `Navigator`」与 seeder 造的真实文件，`koinViewModel()` 对返回栈条目的解析、路由注册、Coil 取图都是真的。
+
+#### 4. 真窗口取证（`docs/port-evidence/c37b-*`：12 张图，各配 `.ocr.txt` / `.analysis.txt`）
+
+复现：seeder 跑一遍（`-Plyrico.seedDevLibrary=1`，本次在 `lyrico-app/build/demo-posters` 里种了 4 张纯色 PNG + `poster-notes.txt` + 嵌套目录）→ `./gradlew :lyrico-app:run -Plyrico.start.route=artist_detail/22`（22 = 周华健，1 张专辑 / 2 首）→ `capture-window.ps1`；海报文件夹页自己没有入口，照 C5b 的先例走 dev 起始路由 `-Plyrico.start.route=artist_poster_folders`。
+
+| 图 | 拍到了什么 |
+|---|---|
+| `c37b-artist-detail.png` | 详情页整窗：表头海报（种子色 `(220,30,60)` **精确 3870 px**）、白色描边环、徽标 `(52,130,255)`（38 px）；两个页签；`accent_warm_pixels: 4230` |
+| `c37b-artist-header-crop.png` | 表头裁切（`(0,85)-(420,200)` 后 3× LANCZOS）：`周华健` / `1 张专辑 · 2 首`（`album_song_count`） |
+| `c37b-artist-rows-crop.png` | 歌曲行裁切：`花心`（OCR 读成 `亻心`，C36 / C37-A 同款误读）、`0:03`、`128kbps` |
+| `c37b-artist-albums.png` | 点 `专辑` 页签（客户区 `(853,173)`）：专辑卡片 `朋友` / `2 首`；表头海报仍是 3870 px（跨页签不丢） |
+| `c37b-artist-poster-sheet.png` | 海报动作面板（已登记文件夹的那一支），`accent_warm_pixels: 4200` |
+| `c37b-artist-poster-sheet-no-folder.png` | 同一面板在**移除文件夹之后**：`label_artist_poster_add_to_folder_no_folder = 需先选择艺术家海报文件夹`；`accent_warm_pixels` 掉到 156 |
+| `c37b-poster-folders.png` | 海报文件夹页整窗：路径行、**`4 张海报`**（目录里 6 个条目 → 4 张海报）、4 个平铺格子 |
+| `c37b-poster-folders-crop.png` | 格子名字裁切：`Earth, Wind & Fire.png` / `周华健.png` / `周华健_live.png` + `李宗盛.png`（后两个 OCR 挤在一行） |
+| `c37b-poster-help.png` | `Info` 图标（客户区 `(1087,24)`）打开的命名规则对话框：标题 `命名规则` + markdown 正文（3 条规则、`支持 JPG、JPEG、PNG、WebP 和 MP4`、结尾一段）—— 标题与正文里那个 `**命名规则**` 小标题同字，所以对话框上「命名规则」出现两次，不是重影 |
+| `c37b-poster-menu.png` | `⋮`（客户区 `(1127,24)`）菜单三行：`刷新文件夹` / `更换文件夹` / `移除文件夹` |
+| `c37b-poster-remove-dialog.png` | 移除确认框：`是否移除此文件夹？` + 路径 + `停止使用此文件夹中的海报，不会删除文件。`；确认键是**实心**主色按钮（`(52,130,255)`，8091 px，框架坐标 `x=593..768, y=434..482`） |
+| `c37b-poster-folders-empty.png` | 确认之后：回到空态（`artist_poster_folders_summary` + `选择文件夹` 行 + `artist_poster_folders_empty`），没有溢出菜单 |
+
+**这批证据里最硬的两条**：
+
+1. **表头那张海报到底从哪来（受控对照）**。海报颜色是 seeder 的种子色，于是同一条像素可以做三次测量：① 详情页 3870 px `(220,30,60)`；② 打开面板后精确色 **0** px，而 3870 px 变成 `(154,21,42)` = 同一颜色 × 0.7（模态遮罩，逐通道精确）；③ **移除文件夹后再打开同一个面板，两种颜色都是 0 px**（占位图是 172/178 的灰）。三个状态里遮罩恒定、只有海报在或不在，所以「表头海报来自那个文件夹里的文件」不是推断，而是同一批像素的加减。确认框那张图给了同一结论的第三个采样：页面背后第一个格子仍是 9777 px，颜色从 `(30,90,220)` 变成 `(21,63,154)`（也是 × 0.7，**像素数一个不差**）。
+2. **「移除」到底做了什么**。确认之后：磁盘上 `build/demo-posters` 的 6 个条目（4 张海报 + `poster-notes.txt` + 嵌套目录，含嵌套目录里的那张）**一个都没少** —— 对话框里那句「不会删除文件」是真的；同时 `lyrico-app/data/settings.preferences_pb` 里 `artist_poster_folders` 变成 JSON `[]`、`artist_poster_revision` = 1 —— 注销真的落盘了。而且这个「移除」是在**重启进程之后**再看的：第二组截图是新起的进程，它读到的是空设置，所以「移除」不只是界面状态。
+
+页面几何也顺手量了（`c37b-poster-folders.png`）：4 个格子各 105×105（每个精确色 9777 px，其余被圆角与名字条吃掉），左边界 `x=7 / 124 / 241 / 358`（步距 117），色块与种子文件一一对应 —— **顺序就是名字序**：`Earth, Wind & Fire.png` < `周华健.png` < `周华健_live.png` < `李宗盛.png`（`.` 0x2E < `_` 0x5F，`周` U+5468 < `李` U+674E），所以那次 `sortedBy { it.name.lowercase() }` 的效果是看得见的。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **`onNode` / `runOnUiThread` 是 `ComposeUiTest` 的成员，不是扩展函数**：import 它们会编译不过（`unresolved reference`），只能通过 `this` 调。
+2. **`koinViewModel()` 在 `NavBackStackEntry` 上会碰主线程检查**：lifecycle 2.11 的桌面版要求 VM 创建在主线程，无头测试里必须换 `HeadlessMainDispatcher`，否则「点行 → `navigate` → 目标页 `koinViewModel()`」这条链会在断言之前就抛。
+3. **列表页 spinner 竞态**：点完刷新立刻断言「有 4 行」会偶发失败 —— 一次性流还没发射，页面正处于 `isLoading`。写法改成 `waitUntil { … }` 等**具体那几行**出现（不要等 `isLoading == false`，那只是把时序换个位置）。
+4. **跨用例泄漏的 `viewModelScope` 会算到别人头上**：全量跑时 `screens.LibraryHomeScreenTest` 收过一次 `UncaughtExceptionsBeforeTest`，栈底是 `BatchLyricsFormatViewModel` 的 init 查询 + `SQLiteException: Connection pool is closed`（`Dispatchers.Main.immediate`）。这类漏出来的协程在 Compose 测试把 AWT 事件队列占满时能排队几十秒，**落在哪个类上纯看时序**，所以「失败的那个类」几乎肯定不是肇事的类。1112 项里只挂这一次（空载重跑全绿，把疑似那两个类单独重跑也全绿），定位与处置写进了 #42，本批不动它。
+5. **`ViewModelStore.put` / `clear` 是公开 API，`ViewModel.clear()` 不是**：`javap` 过 `lifecycle-viewmodel-desktop-2.11.0.jar`（`clear$lifecycle_viewmodel()` 是 internal），所以「测试里主动收 VM 作用域」只能走 `ViewModelStore` —— `BatchLyricsFormatViewModelTest` 早就是这么写的。
+6. **前沿算术要在 HEAD 上算，不能靠 import 扫**：同一包内的引用 import 扫不到。做法是 `git worktree add` 一份 HEAD 的副本，在那里跑 `port-frontier.py`，再 diff 两边的前沿/被挡名单（见第 7 节）。
+7. **`git mv` 之后必须重新 `git add` 新路径**：不改内容时索引里是纯改名，一改内容就变成「已暂存的原内容 + 未暂存的新内容」（`git status` 显示 `RM`），直接提交会把旧内容提交上去。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. **MP4 海报的预览只剩「内嵌封面」这一半**：Android 版对 `.mp4` 走 `VideoView` + 角标，桌面版没有视频解码，全屏预览只显示 Coil 取到的那一帧/封面。文件夹里放 MP4 仍能被识别、能当海报用，但点开不是播放器。**PLAN 里原本承诺的「MP4 也能预览」在这版没做到**，要补就得在桌面端引入视频解码/播放组件（成本不小，单独排期）。
+2. **艺人详情页多了一个安卓没有的面板**：`AlbumReplayGainProgressBottomSheet`（C6d 那套）加进了这一页，因为桌面端把「专辑动作」集中在详情页；Android 那边它只在专辑详情页。这是本批唯一的功能增加，不是移植偏差，但用户会看见。
+3. **`artist_poster_folder_unavailable` 那句仍是「文件夹不可用，请重新授权」**：桌面端没有「授权」这个动作可重新做（重新选文件夹就是全部补救手段），文案是 Android 遗留。这批按「存量字符串逐字保持」的约定没动它 —— 要改就整批过一遍 i18n，留给清理批次。
+
+#### 7. 前沿（本批收口）
+
+java 主树 62 → **50**；前沿 32 → **28**；被挡 30 → **22**；陈旧副本 **0**（两端都是）。
+
+算术：12 个文件里 **4 个本来在前沿**（`ArtistPosterEmbedding` / `ArtistPosterFileNaming` / `AlbumListItem` / `ArtistPosterActionsSheet`）、**8 个被挡**（其余 8 个，逐个用 `--list-blocks` 在 HEAD 上确认过它们的依赖链全在这一批里），所以 `62 − 12 = 50`、`32 − 4 = 28`、`30 − 8 = 22`。**没有一个「新解锁」的前沿文件**：这条链上剩下的依赖要么是本批成员，要么是 `[ANDROID]` 的 `SafDocuments` / `UriUtils`（它们的消费者被本批删掉，所以它们不是被解锁而是被作废）。
+
+下一片 #37-C 是设置簇（`settings` + `edit_field_settings` + 文件夹管理），而 `ArtistPosterFoldersDestination` 的入口行就在设置页里 —— B 片先把目标页搬完，C 片补入口。
 
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 

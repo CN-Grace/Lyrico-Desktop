@@ -14,9 +14,10 @@ import java.io.File
  * Android installed this through `App : SingletonImageLoader.Factory`, an Application-level hook that
  * has no desktop equivalent, so it is installed explicitly once during start-up instead. The custom
  * components are the ones the Android loader registered: the keyer that ties a cached cover to the
- * file's modification time, and the fetcher that reads embedded artwork (plus the artist's poster
- * folder) through TagLib. The disk cache lives under the app's own cache directory rather than
- * `Context.cacheDir`.
+ * file's modification time, the fetcher that reads embedded artwork (plus the artist's poster
+ * folder) through TagLib, and the fetcher that reads one file of the artist poster folder -- that last
+ * one exists so a `.mp4` poster can fall back to its embedded cover (see `PosterFileFetcher`). The disk
+ * cache lives under the app's own cache directory rather than `Context.cacheDir`.
  */
 fun installImageLoader(cacheDir: File) {
     SingletonImageLoader.setSafe { context: PlatformContext -> buildImageLoader(context, cacheDir) }
@@ -34,6 +35,7 @@ internal fun buildImageLoader(context: PlatformContext, cacheDir: File): ImageLo
         .components {
             add(AudioCoverKeyer())
             add(AudioCoverFetcher.Factory())
+            add(PosterFileFetcherFactory())
         }
         .diskCache {
             DiskCache.Builder()

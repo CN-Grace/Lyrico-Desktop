@@ -17,6 +17,8 @@ import androidx.savedstate.SavedState
 import androidx.savedstate.read
 import com.lonx.lyrico.screens.AlbumDetailScreen
 import com.lonx.lyrico.screens.AppLogScreen
+import com.lonx.lyrico.screens.ArtistDetailScreen
+import com.lonx.lyrico.screens.ArtistPosterFoldersScreen
 import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
 import com.lonx.lyrico.screens.EditMetadataScreen
@@ -44,12 +46,14 @@ import androidx.compose.foundation.layout.fillMaxSize
  * which is now complete: the shell's three tabs are the ported songs, artists and albums pages. It is
  * the default of [startDestination], so a bare `LyricoNavHost()` boots the shipped entry screen, and a
  * test that wants to start elsewhere (e.g. straight on the app log) passes the route in.
- * `app_logs` stays registered; settings, local search, the artist detail page and the two batch
- * screens are still declared-only and are registered by the batches that port their screens. The batch
- * task list and detail (`batch_task_list`, `batch_task_detail/{taskId}`) were registered by C6c, the
- * first pair of routes that navigate to each other inside the ported graph, and `album_detail` was
- * registered by the batch that ported `AlbumDetailScreen` -- the first *argument-carrying* route whose
- * argument is a number rather than a path string.
+ * `app_logs` stays registered; settings, local search and the two batch screens are still
+ * declared-only and are registered by the batches that port their screens. The batch task list and
+ * detail (`batch_task_list`, `batch_task_detail/{taskId}`) were registered by C6c, the first pair of
+ * routes that navigate to each other inside the ported graph, and `album_detail` was registered by the
+ * batch that ported `AlbumDetailScreen` -- the first *argument-carrying* route whose argument is a
+ * number rather than a path string. `artist_detail` is the second one of those, and
+ * `artist_poster_folders` is the poster folder page: both were registered by the batch that ported
+ * their screens; the two numeric routes are deliberately shaped the same way.
  *
  * ### Dev start route
  *
@@ -116,6 +120,22 @@ fun LyricoNavHost(
                     navigator = navigator,
                     albumId = entry.arguments.readLong(AlbumDetailDestination.ARG_ALBUM_ID),
                 )
+            }
+            composable(
+                route = ArtistDetailDestination.PATTERN,
+                // 与 `album_detail` 同形：实体 id 走路径参数，`NavType.LongType` 让读取侧拿回
+                // `Long`；artists 表里没有 0，所以读失败时的 0 只会显示空页而不是别人的歌。
+                arguments = listOf(
+                    navArgument(ArtistDetailDestination.ARG_ARTIST_ID) { type = NavType.LongType }
+                ),
+            ) { entry ->
+                ArtistDetailScreen(
+                    navigator = navigator,
+                    artistId = entry.arguments.readLong(ArtistDetailDestination.ARG_ARTIST_ID),
+                )
+            }
+            composable(route = ArtistPosterFoldersDestination.ROUTE) {
+                ArtistPosterFoldersScreen(navigator = navigator)
             }
             composable(
                 route = SearchResultsDestination.PATTERN,

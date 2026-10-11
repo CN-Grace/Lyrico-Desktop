@@ -1,0 +1,7 @@
+file: docs/port-evidence/c37b-poster-folders-crop.png
+engine: zh-Hans-CN
+lines: 4
+  y=368 x=35 :: Earth, Wind &
+  y=425 x=35 :: Fire.png
+  y=365 x=383 :: 周 华 Epng
+  y=365 x=734 :: 周 华 ．健 」 ive.png 子宗 盛 .png

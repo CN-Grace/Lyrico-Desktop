@@ -130,10 +130,10 @@ data object EditFieldSettingsDestination : NavDirection {
 
 // ---------------------------------------------------------------------------------------------
 // The two entity-detail screens. `AlbumsPage` and `ArtistsPage` navigate to them exactly as the
-// Android pages did. `album_detail` was ported in the batch that ported `AlbumDetailScreen` and is
-// registered in `LyricoNavHost` -- it is the first registered route whose argument is a *number*, read
-// back with `NavType.LongType` rather than as a path string. The artist detail screen is still in the
-// Android tree, so until its batch lands the navigator logs the miss for `artist_detail`.
+// Android pages did. Both are registered in `LyricoNavHost`, and both are the routes whose argument is
+// a *number*, read back with `NavType.LongType` rather than as a path string: `album_detail` was
+// registered by the batch that ported `AlbumDetailScreen`, `artist_detail` by the batch that ported
+// `ArtistDetailScreen`.
 // ---------------------------------------------------------------------------------------------
 
 /** One album's detail screen. Reached by tapping a card in the albums grid. */
@@ -156,6 +156,22 @@ data class ArtistDetailDestination(val artistId: Long) : NavDirection {
         const val BASE = "artist_detail"
         const val PATTERN = "$BASE/{$ARG_ARTIST_ID}"
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The artist poster folder settings page. It is reached from the settings screen, which is ported by a
+// later batch, so nothing in a shipped window navigates to it today; it is declared and registered so
+// the ported screen is a real destination rather than an untestable claim, and the dev start-route
+// override (`-Dlyrico.start.route=<route>`, see `LyricoNavHost`) is what makes it reachable for
+// real-window evidence. The settings row arrives with the settings batch and adds nothing but the
+// `navigate(...)` call.
+// ---------------------------------------------------------------------------------------------
+
+/** The artist poster folder page: pick the folder, look at what is in it, refresh or remove it. */
+data object ArtistPosterFoldersDestination : NavDirection {
+    override val route: String = ROUTE
+
+    const val ROUTE = "artist_poster_folders"
 }
 
 // ---------------------------------------------------------------------------------------------

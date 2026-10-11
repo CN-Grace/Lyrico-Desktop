@@ -29,8 +29,12 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import java.io.File
+import java.awt.BasicStroke
+import java.awt.Color
+import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import javax.imageio.ImageIO
 import kotlin.test.Test
 
 /**
@@ -68,6 +72,28 @@ class DevLibrarySeederTest {
 
         /** C6d: how many copies of the 3.55 s fixture the demo album gets (see [albums]). */
         const val DEMO_TRACK_COUNT = 20
+
+        /**
+         * C37b: the artist posters the development poster folder holds, as artist name to fill colour.
+         *
+         * Three of the four seeded artists, so the folder is a real one rather than a perfect one --
+         * `Various Artists` deliberately has no poster and its detail page therefore falls back to the
+         * placeholder, which is what a user without a poster for that artist sees.
+         *
+         * 周华健 gets a second, suffixed file: the artist page must pick the exact name over it and the
+         * poster folder page must still list both, so one artist has to have two candidates. The colours
+         * are flat and saturated so a capture's cover slot can be checked by colour instead of by eye.
+         */
+        val POSTERS = mapOf(
+            "周华健" to 0xFFDC1E3C.toInt(),
+            "Earth, Wind & Fire" to 0xFF1E5ADC.toInt(),
+            "李宗盛" to 0xFF149650.toInt(),
+        )
+
+        /** The suffixed extra candidate for 周华健 ([POSTERS]); a different colour, same artist. */
+        const val POSTER_SUFFIXED_ARTIST = "周华健"
+        const val POSTER_SUFFIXED_NAME = "周华健_live.png"
+        const val POSTER_SUFFIXED_COLOUR = 0xFFF0BE14.toInt()
 
         /**
          * C6e: the lyrics the export task writes out, keyed by title.
@@ -219,6 +245,25 @@ class DevLibrarySeederTest {
                 exports.listFiles()?.filter { it.extension == "lrc" }?.sortedBy { it.name }?.forEach {
                     println("SEED exportLyrics ${it.name}=${it.readText().replace("\n", " | ")}")
                 }
+
+                // C37b: the artist poster folder. The two poster screens have no user-facing entry point
+                // yet (the settings row arrives with the settings batch), so they are reached through the
+                // dev start route -- and the folder has to be registered before the app starts, because
+                // a folder can only be chosen through the real Swing folder chooser. Writing it through
+                // the app's own settings repository is the same seam the rest of the app writes it
+                // through, and the images are real PNGs produced here, so the window really decodes them.
+                val posters = File(System.getProperty("user.dir"), "build/demo-posters")
+                posters.deleteRecursively()
+                posters.mkdirs()
+                writePosters(posters)
+                val settings = koin.get<SettingsRepository>()
+                settings.setArtistPosterFolder(posters.absolutePath)
+                settings.refreshArtistPosters()
+                println("SEED posterFolder=${settings.artistPosterFolder.first()}")
+                println("SEED posterRevision=${settings.artistPosterRevision.first()}")
+                posters.listFiles()?.sortedBy { it.name }?.forEach {
+                    println("SEED poster name=${it.name} dir=${it.isDirectory} bytes=${if (it.isFile) it.length() else 0}")
+                }
             } finally {
                 stopKoin()
             }
@@ -283,6 +328,45 @@ class DevLibrarySeederTest {
         tasks.updateProgressFromItems(taskId, currentFile = null)
         if (failing) tasks.markFailed(taskId, TAG_WRITE_ERROR) else tasks.markSucceeded(taskId)
         return taskId
+    }
+
+    /**
+     * Writes the poster folder's contents: one flat colour PNG per artist, one suffixed extra, a file in
+     * the wrong format and a directory that happens to contain a poster.
+     *
+     * The wrong-format file and the directory are not decoration: the poster screens' whole job is to list
+     * *posters* from a folder the user also keeps other things in, so the capture has to show a folder that
+     * has both, and the two counts (four posters, five entries) are what proves the filter works.
+     *
+     * A flat colour with a white ring: flat, so a capture can be checked by decoding the cover slot and
+     * reading its dominant colour rather than by trusting a human to recognise a photo, and a ring, so the
+     * circle crop is visible in the capture.
+     */
+    private fun writePosters(folder: File) {
+        POSTERS.forEach { (artist, colour) ->
+            writePoster(File(folder, "$artist.png"), colour)
+        }
+        writePoster(File(folder, POSTER_SUFFIXED_NAME), POSTER_SUFFIXED_COLOUR)
+        File(folder, "poster-notes.txt").writeText("该目录里还有一个不是海报的文件，用来验证扩展名过滤。\n")
+        val nested = File(folder, "其他").apply { mkdirs() }
+        writePoster(File(nested, "${POSTERS.keys.first()}.png"), POSTERS.values.first())
+    }
+
+    /** A 512x512 PNG: [colour] with a white ring, written with the AWT raster encoder (no display needed). */
+    private fun writePoster(file: File, colour: Int) {
+        val size = 512
+        val image = BufferedImage(size, size, BufferedImage.TYPE_INT_RGB)
+        val graphics = image.createGraphics()
+        try {
+            graphics.color = Color(colour)
+            graphics.fillRect(0, 0, size, size)
+            graphics.color = Color.WHITE
+            graphics.stroke = BasicStroke((size / 16).toFloat())
+            graphics.drawOval(size / 4, size / 4, size / 2, size / 2)
+        } finally {
+            graphics.dispose()
+        }
+        check(ImageIO.write(image, "png", file)) { "no PNG writer for ${file.name}" }
     }
 
     /** The scan runs in the background, so poll the same query the songs page observes. */

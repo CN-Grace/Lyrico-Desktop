@@ -1,0 +1,11 @@
+file: docs/port-evidence/c37b-artist-rows-crop.png
+engine: zh-Hans-CN
+lines: 8
+  y=63 x=194 :: 亻 心
+  y=114 x=195 :: 周 华 健 · 朋 友
+  y=242 x=195 :: 朋 友
+  y=306 x=195 :: 周 华 健 · 朋 友
+  y=62 x=3079 :: 0 ： 03
+  y=117 x=3037 :: 128kbps
+  y=254 x=3079 :: 0 ： 03
+  y=308 x=3048 :: 64kbps

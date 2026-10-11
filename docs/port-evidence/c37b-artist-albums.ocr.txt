@@ -1,0 +1,8 @@
+file: docs/port-evidence/c37b-artist-albums.png
+engine: zh-Hans-CN
+lines: 5
+  y=10 x=31 :: Lyrico 1 ℃ 〔 5H7g312 〕
+  y=50 x=553 :: 周 华 健
+  y=117 x=109 :: 周 华 健
+  y=143 x=111 :: 1 张 专 辑 ． 2 首
+  y=279 x=73 :: 2 首

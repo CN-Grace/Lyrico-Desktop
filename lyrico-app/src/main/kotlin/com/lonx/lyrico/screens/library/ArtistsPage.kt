@@ -96,8 +96,8 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  * than from a saved setting, so `ArtistLibraryViewModel` has no `gridColumns` and `SettingsRepository`
  * has no artist equivalent of `albumGridColumns`. That asymmetry is inherited, not introduced.
  *
- * Clicking a row navigates to `ArtistDetailDestination`, whose screen comes in a later batch; the
- * route is declared and unregistered, so the navigator logs the miss (see `Destinations.kt`).
+ * Clicking a row navigates to `ArtistDetailDestination`, whose screen is registered in `LyricoNavHost`
+ * (see `Destinations.kt`).
  */
 @Composable
 fun ArtistsPage(

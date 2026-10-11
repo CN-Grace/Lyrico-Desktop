@@ -83,9 +83,11 @@ import com.lonx.lyrico.worker.processor.RenameFilesProcessor
 import com.lonx.lyrico.worker.processor.ReplayGainProcessor
 import com.lonx.lyrico.viewmodel.AlbumActionsViewModel
 import com.lonx.lyrico.viewmodel.AlbumDetailViewModel
+import com.lonx.lyrico.viewmodel.ArtistDetailViewModel
 import com.lonx.lyrico.viewmodel.AlbumLibraryViewModel
 import com.lonx.lyrico.viewmodel.AppLogViewModel
 import com.lonx.lyrico.viewmodel.ArtistLibraryViewModel
+import com.lonx.lyrico.viewmodel.ArtistPosterFoldersViewModel
 import com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel
 import com.lonx.lyrico.viewmodel.BatchExportViewModel
 import com.lonx.lyrico.viewmodel.BatchLyricsFormatViewModel
@@ -340,6 +342,30 @@ fun desktopAppModule(directories: AppDirectories) = module {
     viewModel { CharacterMappingViewModel(get()) }
     viewModel { EditFieldSettingsViewModel(get(), get(), get(), get()) }
     viewModel { (albumId: Long) -> AlbumDetailViewModel(libraryIndexRepository = get(), albumId = albumId) }
+    // Same shape as `AlbumDetailViewModel` above: the artist id travels as a Koin parameter, which is
+    // what `koinViewModel(parameters = { parametersOf(artistId) })` in `ArtistDetailScreen` supplies.
+    // Every argument is named -- this constructor takes five injected collaborators plus the id, and
+    // two of them are repositories that would compile if swapped positionally.
+    viewModel { (artistId: Long) ->
+        ArtistDetailViewModel(
+            libraryIndexRepository = get(),
+            artistId = artistId,
+            audioTagRepository = get(),
+            overwriteSongTagsUseCase = get(),
+            settingsRepository = get(),
+            imageMimeTypeDetector = get(),
+        )
+    }
+
+    // The artist poster folder page. Two collaborators, both named for the reason above; it used to
+    // take the Android `Application` as a third, which the desktop port dropped (`File` needs no
+    // `contentResolver`).
+    viewModel {
+        ArtistPosterFoldersViewModel(
+            settings = get(),
+            libraryIndexRepository = get(),
+        )
+    }
     // Same shape as `AlbumDetailViewModel` above: the id travels as a Koin parameter, which is what
     // `koinViewModel(parameters = { parametersOf(taskId) })` in `BatchTaskDetailScreen` supplies.
     viewModel { (taskId: String) ->
