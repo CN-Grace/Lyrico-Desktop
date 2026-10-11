@@ -21,9 +21,11 @@ import java.util.Locale
  * - **One preference, not a list.** A user who lists several languages in Windows does not hand the
  *   JVM a priority list; the fallback chain below the first entry is the plugin's own `defaultLocale`
  *   (see [PluginStrings.snapshot]).
- * - **No runtime language switch.** Android re-resolved on a configuration change; here the value is
- *   read once at class initialisation ([initialize] only re-reads it). A changed Windows display
- *   language takes effect on the next launch, which is when the JVM picks the new default locale.
+ * - **The system locale is read once.** Android re-resolved on a configuration change; here the value
+ *   is read at class initialisation ([initialize] only re-reads it), so a changed Windows display
+ *   language takes effect on the next launch -- which is when the JVM picks the new default locale.
+ *   The app's own language setting is a different matter: that one *is* applied at runtime, by pushing
+ *   the chosen tag through [update] from the shell whenever it changes.
  * - **No ICU likely-subtags.** Android injected `ULocale.addLikelySubtags` into
  *   [PluginStrings.inferScript] and used it to match `zh-Hans`/`zh-Hant` catalogs. The desktop port
  *   keeps [PluginStrings]' built-in zh fallback and does *not* invent tables for other languages, so
@@ -49,7 +51,8 @@ object PluginLocales {
         mutablePreferences.value = languageTags.filter { it.isNotBlank() }.ifEmpty { systemPreferences() }
     }
 
-    /** Overrides the preference list with a single locale. */
+    /** Overrides the preference list with a single locale. The app's language setting comes through
+     * here, so a plugin and the UI around it resolve in the same language. */
     fun update(locale: Locale) {
         update(listOf(locale.toLanguageTag()))
     }

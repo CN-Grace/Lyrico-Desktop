@@ -1,6 +1,8 @@
 package com.lonx.lyrico.data.repository
 
+import com.lonx.lyrico.data.model.AppLanguage
 import com.lonx.lyrico.data.model.ConversionMode
+import com.lonx.lyrico.data.model.SettingsBackup
 import com.lonx.lyrico.data.model.ThemeMode
 import com.lonx.lyrico.data.model.log.LogRetentionOption
 import com.lonx.lyrico.viewmodel.SortBy
@@ -13,6 +15,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.AfterTest
@@ -35,6 +38,9 @@ class SettingsRepositoryTest {
     private val workingDir: Path = Files.createTempDirectory("lyrico-settings-test")
     private val settingsFile: Path = workingDir.resolve("settings.preferences_pb")
     private val scopes = mutableListOf<CoroutineScope>()
+
+    /** Reads and writes backups without going through the pretty printer, which is not the subject here. */
+    private val backupJson = Json { ignoreUnknownKeys = true }
 
     @AfterTest
     fun tearDown() {
@@ -65,6 +71,7 @@ class SettingsRepositoryTest {
         assertEquals(ThemeMode.AUTO, settings.themeMode.first())
         assertEquals(ConversionMode.NONE, settings.conversionMode.first())
         assertEquals(LogRetentionOption.THIRTY_DAYS, settings.logRetentionOption.first())
+        assertEquals(AppLanguage.SYSTEM, settings.appLanguage.first(), "an unset language has to mean follow system")
         assertEquals(SettingsDefaults.ALBUM_GRID_COLUMNS, settings.albumGridColumns.first())
         assertEquals(0L, settings.getLastScanTime())
         assertNull(settings.artistPosterFolder.first())
@@ -79,6 +86,7 @@ class SettingsRepositoryTest {
         settings.saveThemeMode(ThemeMode.DARK)
         settings.saveConversionMode(ConversionMode.SIMPLIFIED_TO_TRADITIONAL)
         settings.saveLogRetentionOption(LogRetentionOption.SEVEN_DAYS)
+        settings.saveAppLanguage(AppLanguage.TRADITIONAL_CHINESE_TAIWAN)
         settings.saveLastScanTime(1_700_000_000_000L)
         settings.setArtistPosterFolder("H:\\Lyrico\\posters")
         settings.refreshArtistPosters()
@@ -88,6 +96,7 @@ class SettingsRepositoryTest {
         assertEquals(ThemeMode.DARK, settings.themeMode.first())
         assertEquals(ConversionMode.SIMPLIFIED_TO_TRADITIONAL, settings.conversionMode.first())
         assertEquals(LogRetentionOption.SEVEN_DAYS, settings.logRetentionOption.first())
+        assertEquals(AppLanguage.TRADITIONAL_CHINESE_TAIWAN, settings.appLanguage.first())
         assertEquals(1_700_000_000_000L, settings.getLastScanTime())
         assertEquals("H:\\Lyrico\\posters", settings.artistPosterFolder.first())
         assertEquals(1L, settings.artistPosterRevision.first())
@@ -101,6 +110,7 @@ class SettingsRepositoryTest {
         first.saveSeparator("|")
         first.saveSortInfo(SortInfo(SortBy.FILE_SIZE, SortOrder.DESC))
         first.setArtistPosterFolder("H:\\Lyrico\\posters")
+        first.saveAppLanguage(AppLanguage.TRADITIONAL_CHINESE_HONG_KONG)
 
         // A real file was written, not just an in-memory cache.
         assertTrue(Files.exists(settingsFile), "settings file should exist after a write")
@@ -113,6 +123,46 @@ class SettingsRepositoryTest {
         assertEquals("|", second.separator.first())
         assertEquals(SortInfo(SortBy.FILE_SIZE, SortOrder.DESC), second.sortInfo.first())
         assertEquals("H:\\Lyrico\\posters", second.artistPosterFolder.first())
+        assertEquals(
+            AppLanguage.TRADITIONAL_CHINESE_HONG_KONG,
+            second.appLanguage.first(),
+            "the language did not survive a restart of the store",
+        )
+    }
+
+    @Test
+    fun `a backup carries the language, and import restores it`() = runBlocking<Unit> {
+        val settings = openRepository()
+        settings.saveAppLanguage(AppLanguage.SIMPLIFIED_CHINESE)
+
+        val json = settings.exportSettings()
+        assertEquals(
+            "zh-CN",
+            backupJson.decodeFromString<SettingsBackup>(json).appLanguage,
+            "the backup does not carry the language tag",
+        )
+
+        // Importing into a store that is in another language is the case a user hits after a reinstall.
+        settings.saveAppLanguage(AppLanguage.ENGLISH)
+        assertEquals(AppLanguage.ENGLISH, settings.appLanguage.first())
+
+        assertTrue(settings.importSettings(json), "a backup exported by this version has to import")
+        assertEquals(AppLanguage.SIMPLIFIED_CHINESE, settings.appLanguage.first())
+    }
+
+    @Test
+    fun `an unknown language in a backup falls back to follow system`() = runBlocking<Unit> {
+        val settings = openRepository()
+        settings.saveAppLanguage(AppLanguage.SIMPLIFIED_CHINESE)
+
+        // A backup written by a hand-edit or a future version: the import has to normalise rather than
+        // store a tag that no longer means anything. Re-encoded rather than string-replaced, so this does
+        // not depend on the backup's whitespace.
+        val backup = backupJson.decodeFromString<SettingsBackup>(settings.exportSettings())
+        val tampered = backupJson.encodeToString(backup.copy(appLanguage = "xx-YY"))
+
+        assertTrue(settings.importSettings(tampered))
+        assertEquals(AppLanguage.SYSTEM, settings.appLanguage.first())
     }
 
     @Test

@@ -25,6 +25,8 @@ import com.lonx.lyrico.domain.song.usecase.RenameSongUseCase
 import com.lonx.lyrico.domain.song.usecase.SaveAudioTagsUseCase
 import com.lonx.lyrico.domain.song.usecase.SynchronizeLibraryUseCase
 import com.lonx.lyrico.platform.AppDirectories
+import com.lonx.lyrico.utils.CacheManager
+import com.lonx.lyrico.utils.ImageCache
 import com.lonx.lyrico.utils.LibraryScanManager
 import com.lonx.lyrico.utils.UpdateManager
 import java.io.File
@@ -105,9 +107,13 @@ class DesktopAppModuleTest {
             koin.get<LibraryScanManager>(),
             koin.get<UpdateManager>(),
             koin.get<LyricoDatabase>(),
+            // Cache accounting: `CacheManager` needs `AppDirectories` and the `ImageCache` binding, which
+            // is what the settings screen's cache rows go through.
+            koin.get<CacheManager>(),
+            koin.get<ImageCache>(),
         )
 
-        assertEquals(22, bindings.size)
+        assertEquals(24, bindings.size)
         bindings.forEach { assertNotNull(it) }
     }
 

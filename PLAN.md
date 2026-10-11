@@ -1915,6 +1915,133 @@ java 主树 62 → **50**；前沿 32 → **28**；被挡 30 → **22**；陈旧
 
 下一片 #37-C 是设置簇（`settings` + `edit_field_settings` + 文件夹管理），而 `ArtistPosterFoldersDestination` 的入口行就在设置页里 —— B 片先把目标页搬完，C 片补入口。
 
+### P5 施工批次（#37-C-1：设置簇的 6 个叶子，2026-10-11）
+
+补记（与 #35 的切片 A 同样处理：C-1 提交在 `e6526bd`，PLAN 段落当时留到 C 片一起写）。切法是「叶子先走」：视图模型/界面还没动，先把它们要用的、不依赖安卓框架的那几个部件搬过来。
+
+#### 1. 搬了什么（`git mv` 6 个文件；java 主树 50 → 44）
+
+| 文件（新位置 `src/main/kotlin/…`） | 搬来时 | 桌面化程度 |
+|---|---|---|
+| `data/model/ArtistSeparator.kt` | 前沿 | 逐字 |
+| `data/model/cache/CacheCategory.kt` | 前沿 | 删掉 `EXTERNAL` |
+| `data/model/editfield/FieldOrderState.kt` | 前沿 | 逐字 |
+| `ui/components/setting/ManagedChip.kt` | 前沿 | 逐字（含 `ChipGrid`） |
+| `ui/components/setting/FolderManagementItem.kt` | 前沿 | 近改写（SAF 那一半删掉） |
+| `utils/CacheManager.kt` | 前沿 | **整篇重写**（相似度 7%） |
+
+`CacheManager` 的两处结构性改动：从「`object` + 到处传 `Context`」改成「可注入的类 + `AppDirectories`」，以及把「按文件名里有没有 `http`/`network` 猜类目」换成「按真实目录划分类目」。图片那半抽成一个 `ImageCache` 接缝（见 C-2 的 `CoilImageCache`），因为**测量**和**清理**要问的东西不一样：字节数只有 Coil 自己记的准，而清理必须走 `DiskCache.clear()`（Windows 上进程打开着的文件删不掉，Coil 的日志文件就是这样一个文件）。`CacheCategory.EXTERNAL` 随之取消：桌面端没有 `Context.externalCacheDir` 那一层。
+
+**测试**：新增 `CacheManagerTest`（7 项：分类计量 / 封面缓存目录不计入 OTHER / IMAGE 走 Coil 记账而不是目录大小 / 清理语义 / 清理后目录骨架还在 / 目录缺失报 0）；把 `FieldOrderStateTest`（4 项）从**死测试**里迁进 kotlin 测试树（用例逐字，断言换 `kotlin.test`），顺带交叉验证了搬过来的 EditFieldConfig API。
+
+#### 2. 死测试的发现（#62）
+
+搬 C-1 时发现 `src/test/java/**` 里 16 个安卓期测试文件（约 1300 行）**根本没被编译过**：`sourceSets { main/test { java.setSrcDirs(emptyList()) } }` 清空了 java 源集，而 KGP 是从 java 源集推导 kotlin 源集的，所以这个模块只编译 `src/test/kotlin/**`。证据：`--rerun-tasks :lyrico-app:compileTestKotlin` 之后那 16 个文件对应零个 class。
+
+处置规则（写进 #62）：**主语已经在 kotlin 树里的，迁移 + 真跑**（`FieldOrderStateTest` 属于这类）；**主语还没搬的，不删**，记进「待搬覆盖」清单，避免把文件删成覆盖空洞。剩下 15 个的分类与体量记在 #62 里。
+
+#### 3. 前沿（本批收口）
+
+java 主树 50 → **44**；前沿 28 → **25**；被挡 22 → **19**；陈旧副本 **0**。算术：6 个搬走（都在前沿），另外**新解锁 2 个**（`viewmodel/SettingsViewModel`、`screens/EditFieldSettingsScreen`），它们的依赖在本批被搬完；被挡名单少 3 个 = 搬走 1 个 + 解锁 2 个。
+
+### P5 施工批次（#37-C-2：SettingsViewModel + 语言接缝 + DI，2026-10-11）
+
+C-2 是设置簇里「没有界面也能独立取证」的那一半：设置视图模型、语言这条偏好从存储到界面的整条链、以及它们需要的 DI 接线。界面（`SettingsScreen`）留给 C-3。
+
+#### 1. 搬了什么（`git mv` 2 个 + 新文件 2 个 + 接线 8 处）
+
+| 动作 | 文件 |
+|---|---|
+| `git mv` | `data/model/AppLanguage.kt`（内容几乎全换：`git diff -M1%` 下仍显示为 D+A，而不是改名） |
+| `git mv` | `viewmodel/SettingsViewModel.kt`（R080） |
+| 新文件 | `ui/AppLocale.kt`（语言接缝，182 行） |
+| 新文件 | `utils/coil/CoilImageCache.kt`（`ImageCache` 的 Coil 实现，37 行） |
+
+接线（不是新文件）：`data/repository/SettingsRepository.kt`（`appLanguage` / `saveAppLanguage` 两个成员）、`SettingsRepositoryImpl.kt`（`app_language` 键 + 默认值 + 容错解码 + 导出/导入）、`data/model/SettingBackup.kt`（`app_language` 字段）、`di/DesktopAppModule.kt`（`ImageCache` / `CacheManager` / `SettingsViewModel` 三个注册）、`LyricoDesktopApp.kt`（外壳收集主题与语言）、`plugin/i18n/PluginLocales.kt`（KDoc 与运行时更新）、`utils/FormattedStringResource.kt` + `utils/UiMessage.kt`（组合外解析走同一个语言）、`lyrico-app/build.gradle.kts`（探针的两个 `-Plyrico.*` 转发）。
+
+`SettingsViewModel` 的改写幅度不大（R080），实质性改动只有三条：导出/导入的参数从 `(Context, Uri)` 变成 `File`；缓存改走注入的 `CacheManager`；多了一个 `appLanguage`（`SettingsUiState` 字段 + 合并进 `combine` 的那条流 + `setAppLanguage`）。
+
+#### 2. 语言接缝（本节的核心）
+
+安卓那边这件事是免费的：`AppCompatDelegate.setApplicationLocales` 会用 per-app 的 `Configuration` 重建 activity，一路上每个 `getString` 看到的都是选中的 locale。桌面端没有这一层，所以要自己接上资源系统读环境的那个点：`LocalComposeEnvironment`。
+
+做法（`ui/AppLocale.kt`）：`ProvideAppLocale(language) { … }` 造一个只换 locale 的 `ComposeEnvironment`，语言/脚本/地区来自选中的 locale，**主题与密度照抄库的默认环境**（`isSystemInDarkTheme()` + `LocalDensity.current`），再用 `CompositionLocalProvider` 提供下去。`AppLanguage.SYSTEM` 直接走平台的 `Locale.current`，也就是默认环境读的同一个源。
+
+查库的字节码确认过两件事实，接缝才敢这么写：
+
+1. **可组合的 `stringResource` 确实读这个 local**：它调 `rememberResourceState(resource, …)`，后者取 `LocalComposeEnvironment.current.rememberEnvironment()`，并把结果**和资源一起**当 `remember` 的键。所以换环境会让已经组合过的文案重新解析 —— 切换是实时的，不需要重建界面（`AppLocaleTest` 里那项「已经组合过的字符串会被重新解析」就是钉这一点）。
+2. **`composeResources` 目录下只有 `values`、`values-zh-rCN/rHK/rTW` 和 `drawable`** —— 没有任何主题/密度限定目录，所以那两个限定符今天选不出任何东西：语言切换既不会被它们影响、也不会影响它们，**不存在 overlay 陈旧的问题**（因为没有 overlay 目录）。
+
+**代价要说清楚：这个文件用了 Compose Resources 的 internal API**（`ComposeEnvironment` / `LocalComposeEnvironment` / `ResourceEnvironment` 的构造函数都是 `internal`），文件头因此带 `@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")`。这不是没注意，全项目也只有这一处；三个替代方案都比它差：
+
+* **只用公开 API —— 没有**。库没有提供安装环境的入口，而可组合路径又会按环境缓存结果，所以覆盖这个 local 也是唯一能拿到「实时切换」而不是「重建界面才换」的办法。
+* **`Locale.setDefault(…)` + `key(language)` 重建子树**能work（默认环境读 JVM 默认 locale，重新解析靠 `key` 丢掉记住的值），但它是**进程级副作用**：UI 语言一变，进程里每个库（和每个线程）的数字/日期/排序格式都会跟着变。
+* **反射**（`ResourceEnvironmentKt.getLocalComposeEnvironment()` 在字节码里是 public）能绕开编译期诊断，代价换成运行期静默失败：动态代理实现那个接口、反射构造 `ResourceEnvironment`，还得自己补 Compose 的分组记账（代理拿到的是 `Composer` 本身）。
+
+压制可见性的代价是**有界且响亮**的：这些符号仍然过编译器检查，库一升级把它们挪了/改了，构建会带清楚的错误失败，而不是运行期悄悄出问题；`AppLocaleTest` 还从两侧把解析结果钉住。
+
+**组合外解析**（零食条那种在协程里跑的）也一并统一了：`ProvideAppLocale` 通过 `SideEffect` 把当前语言写进进程级的 `AppLocaleState`，`resolveLocalized` 用它选出环境（用 `getString(environment, resource)`），`formattedString` 改为委托给它 —— 于是 `UiMessage.resolve()` 和 EditMetadataScreen 那十来处 `formattedString(...)` 都跟着设置里的语言走，不会出现「界面中文、提示英文」。`AppLanguage.SYSTEM` 在这条路上仍走库自己的 `getString`。
+
+**插件语言同步**：`PluginLocales.update(locale)` 在语言变化时被外壳调用（`SYSTEM` 走 `initialize()` 重读平台 locale），否则插件自己的字符串会和周围界面说不同的话；`PluginLocales` 的 KDoc 原来那句「没有运行时语言切换」随之改成事实（系统语言仍需重启，设置里的语言是实时的）。
+
+#### 3. 桌面化改写点（逐条）
+
+1. **语言是存储里的偏好，不是 AppCompat 状态**：新增 `app_language` 键，默认 `SYSTEM`，值是 **BCP 47 标签**（`""` / `en` / `zh-CN` / `zh-TW` / `zh-HK`）而不是枚举名 —— 理由是同一个 token 要同时给界面（`AppCompatDelegate` 的替代物）和资源加载器用，而且手改过的备份能按标签读；认不出的标签**退回 `SYSTEM` 而不是抛异常**（坏掉的偏好不该让界面起不来）。导出/导入各带一个 `app_language` 字段，导入时也做容错归一。
+2. **外壳从「传默认值」变成「传设置值」**：`LyricoDesktopApp` 之前调 `LyricoTheme {}`（AUTO / null / false），也就是说**主题设置在这一版之前是死设置**（没有任何地方消费）。现在它收集 `themeConfigFlow` 与 `appLanguage`，把 `LyricoTheme(colorMode, keyColor, monetEnabled)` 和 `ProvideAppLocale` 一起挂在整个导航图之上 —— 这正是 `MainActivity` 在 `setContent` 之前做的事的桌面等价物。
+3. **导出/导入是文件不是 `Uri`**：`exportSettings(target: File)` / `importSettings(source: File)`，写读失败都走 `logException` + 事件提示（不再有「`openInputStream` 返回 null 就静默什么都不做」那一支）。
+4. **缓存走注入的 `CacheManager`**，`refreshCache()` / `clearCache()` 不再收 `Context`；`ImageCache` 的绑定是 `CoilImageCache`，它**每次调用时才**向 `SingletonImageLoader` 要 loader（懒解析），所以没装 loader 的进程拿到 Coil 的默认 loader 而不是崩溃。
+5. **`SettingsUiState.keyColor` 的默认值保持 `KeyColors[1]`**（安卓如此），与 `ThemeConfig` 默认 `KeyColors.first()` 不一致这件事按「存量逐字」留着，记在缺口里。
+
+#### 4. 无头取证（新增 4 类 21 项 + 扩 2 类；全量 134 类 / 1146 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+| 测试类 | 项 | 钉住的东西 |
+|---|---|---|
+| `ui/AppLocaleTest` | 7 | 显式语言选哪份 catalog；**地区限定符**分得开 zh-TW / zh-HK（`cache_category_network` = 「網路快取」/「網絡快取」）；**已经组合过的字符串会被重新解析**（实时切换）；`SYSTEM` 与「不提供 provider」以及库自己的 `getString` 三者一致；组合外解析跟随语言且仍会格式化；认不出的标签退回 `SYSTEM` |
+| `viewmodel/SettingsViewModelTest` | 8 | 语言写入后能被同一存储的新读者读到；启动前写入的语言就是首帧语言；备份携带 `app_language` 且导入能改回来；导出失败/文件缺失/内容不是备份三种失败都**被报告而不是抛出**；缓存三个类目的数字（IMAGE 走接缝、NETWORK 量真实目录）与清理语义；`clearSongs()` 清空 folders 表 |
+| `utils/coil/CoilImageCacheTest` | 5 | 用 `buildImageLoader` 造真 loader + 真磁盘缓存：**往缓存目录里塞一个 Coil 不认识的文件**，尺寸仍报 Coil 的账（目录大小 > 账本，因此这条断言有区分力）；`clear()` 之后仍能写新条目（证明是走 Coil 清的，不是把目录删了） |
+| `probe/DevPreferencesProbeTest` | 1（门控） | 把语言/主题写进开发数据目录，供真窗口取证用；不带 `-Plyrico.devLanguage/-Plyrico.devTheme` 时跳过 |
+
+扩的两处：`SettingsRepositoryTest` +2（默认 `SYSTEM`、写读往返、**重启后仍在**、备份里的语言、备份里认不出的标签归一）；`DesktopAppModuleTest` 的可解析绑定 22 → **24**（加 `CacheManager` / `ImageCache`）。
+
+全量口径：1112 → **1146** 项（+34），跳过 2 → **3**（多的那项就是门控探针）。注意这个口径**不含** `src/test/java` 里那 15 个死测试（见 C-1 第 2 节 / #62），#62 收口时口径会再变一次。
+
+#### 5. 真窗口取证（`docs/port-evidence/c37c2-*`）
+
+C-2 的界面（设置页）还没搬，所以取证走**探针写偏好 → 起窗口 → 截整窗**：同一次机器上系统主题/系统语言都没动，变的只有存储里那两个值 —— 因此两张图能唯一归因到「外壳开始消费设置了」。
+
+| 文件 | 写入的偏好 | OCR 关键行 | 分析数字 |
+|---|---|---|---|
+| `c37c2-shell-en-light.png` | `app_language=en` + `theme_mode=LIGHT` | `y=51 x=576 :: Songs （ 24 ）` | 主色 `(247,247,247)` 占 81%；`VERDICT: OK` |
+| `c37c2-shell-zh-dark.png` | `app_language=zh-CN` + `theme_mode=DARK` | `y=48 x=572 :: 歌 曲 （ 24 ）` | 主色 `(0,0,0)` 占 81%；与上一张 `changed_pixels=95.52%`；`VERDICT: OK` |
+
+两张的侧栏文案同源可查：英文那张 OCR 出 `Songs （ 24 ）` / `AIbums`（Albums），中文那张出 `歌 曲 （ 24 ）`。**深色那一张是主题接线的决定性证据**：同一台机器、同一个系统主题设置，只因为存储里 `theme_mode` 是 `DARK`，主色就从 247 灰变成 0 黑（亮/暗各占 81%）—— 这在本批之前不可能发生（外壳传的是默认 `AUTO`）。
+
+#### 6. 这批实测出来的坑（都会再踩）
+
+1. **Compose Resources 的环境 API 是 `internal`，不是 opt-in**：`@OptIn(InternalResourceApi::class)` 能解决 `LanguageQualifier` / `ResourceItem` 这类「public 但标了 opt-in」的符号，但 `ComposeEnvironment` / `LocalComposeEnvironment` / `ResourceEnvironment` 的构造函数是 Kotlin `internal`（编译器报 `INVISIBLE_REFERENCE`，措辞是 “it is internal in file”）。要用只能 `@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")` + `@file:OptIn(InternalResourceApi::class)`，而且**必须读字节码确认链接得上**（`javap -c` 自己的输出里能看到 `getLocalComposeEnvironment()` 与 `new ResourceEnvironment`）。
+2. **可组合 `stringResource` 的缓存键里有环境**：`rememberResourceState(resource, …)` 把 `(resource, environment)` 一起当键，所以换环境会重新解析；反过来说，**只改语言但不提供新环境**（例如只 `Locale.setDefault`）不会让已组合的文案重算。这条决定了接缝只能接在环境上。
+3. **`getString(res)`（组合外）走的是另一条路**：它用 `getSystemResourceEnvironment()` → 一个可设置的 `KFunction` 变量，读 `Locale.getDefault()`。也就是说组合内/组合外是两条独立的路，`UiMessage.resolve()` 这类调用不会自动跟随组合里的语言 —— 必须显式统一（本批用 `resolveLocalized`）。
+4. **事件流没有缓冲时，没有收集者会把 `emit` 挂住**：`SettingsViewModel._events = MutableSharedFlow()`（`replay=0`、`extraBufferCapacity=0`），测试里只收集 `uiState` 的话，导出成功那一步的 `_events.emit` 会**永远挂起**（表现为「文件写出来了但日志没有、断言超时」）。VM 测试里必须同时起一个 `events` 的收集协程。
+5. **失败路径写的是 `logException`，不是 `log`**：`RecordingAppLogRepository` 把两者分别记在 `entries` 和 `exceptions` 里，断言要看对那一个（本批第一版看错，两条用例白等 10 秒）。
+6. **`AppLocaleState` 是进程级的**：它是给「组合外解析」用的，所以两个语言不同的组合（只有测试会这样）共享同一个值 —— 测试必须在 `@AfterTest` 里复位成 `SYSTEM`，否则会决定同 JVM 里**后面**某个测试（`FormattedStringResourceTest` 就在同一个 JVM 里）的语言。
+7. **写进缓存目录的「野文件」是量账本还是量目录的判别器**：`CoilImageCacheTest` 靠「Coil 账本 4096、目录里有额外 64 KB」把两种实现分开；只断言「大于 0」是量不出区别的。
+8. **`ocr-window-capture.ps1` 收的是 Windows 相对/绝对路径，不吃 MSYS 风格**：传 `/h/...` 或 `$(pwd -W)` 会抛 `NotSupportedException`（“给定路径的格式不受支持”），在仓库根目录用 `build\tmp-probe\x.png` 这种相对路径最省事。
+9. **`-Plyrico.*` 必须在 `build.gradle.kts` 里逐个转发**成 `systemProperty`：Gradle 的 `-P` 不会自动变成系统属性（daemon 负责传环境，注释里写着这条），本批为探针补了 `lyrico.devLanguage` / `lyrico.devTheme`。
+
+#### 7. 用户可见缺口（如实记录）
+
+1. **改语言的界面还没有**：C-2 只做了「存了要生效」，写入端（设置页那个下拉）在 C-3。所以本节的真窗口取证靠探针写偏好，而不是点界面 —— 用户此刻能感受到的是「偏好文件里的语言会被尊重」。
+2. **系统语言只在启动时读一次**（`PluginLocales.initialize()`）：设置里的语言是实时生效的；改 Windows 显示语言仍需重启。这是 `PluginLocales` 从安卓 `Configuration` 换到 JVM 默认 locale 的既有结论，本批只把「设置里的语言」这一半补成实时。
+3. **`SettingsUiState.keyColor` 的默认值仍是 `KeyColors[1]`**（与 `ThemeConfig` 默认 `KeyColors.first()` 不一致）：首帧之前那一瞬的图标色会偏蓝。存量行为逐字保留，要改得整批过一次。
+4. **主题键色（`KeyColors`）在薄荷模式下不生效**：`LyricoTheme` 只在 `monetEnabled` 为假时把 `keyColor` 传给 `ThemeController`（安卓原样）。不是本批引入，但设置页一上就会有人试「选个红色 + 开薄荷」，所以记在这里。
+5. **命令行传入的文件仍然不会自动打开**：`LyricoDesktopApp(externalFilePath = …)` 这个参数至今没有被消费（`main` 把它从 `args.firstOrNull()` 传进来，但没人拿它去开编辑页），所以双击关联文件启动只会打开曲库首页。C-2 在改这个文件时把 KDoc 里那句已经不成立的「等编辑页搬完再接上」改成了事实（编辑页早已搬完，缺的是接线本身）——缺的是接线不是屏幕，这条得单独排期。
+
+#### 8. 前沿（本批收口）
+
+java 主树 44 → **42**；前沿 25 → **24**；被挡 19 → **18**；陈旧副本 **0**。算术：2 个搬走（都在前沿）；**新解锁 1 个**（`screens/LyricsCleanupRulesScreen`，它只等 `SettingsViewModel`）；被挡名单少 1 个就是它。
+
+下一片 #37-C-3 是 `SettingsScreen`（836 行）。它现在被两个 java 树文件挡着：`ui/components/PainterUtils.kt`（`[ANDROID]`，在 #38 的作废清单里）和 `viewmodel/FolderManagerViewModel.kt`（C-5 才搬）。语言那一行的改写是确定的：`AppCompatDelegate.getApplicationLocales()[0]` → `uiState.appLanguage`，`setApplicationLocales(...)` → `settingsViewModel.setAppLanguage(...)`。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：

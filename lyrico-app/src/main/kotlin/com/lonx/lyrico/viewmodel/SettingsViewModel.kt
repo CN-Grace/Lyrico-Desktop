@@ -1,41 +1,48 @@
 package com.lonx.lyrico.viewmodel
 
-import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lonx.lyrico.R
 import com.lonx.lyrico.data.LyricoDatabase
-import com.lonx.lyrico.data.model.log.AppLogLevel
-import com.lonx.lyrico.data.model.log.AppLogType
+import com.lonx.lyrico.data.model.AppLanguage
 import com.lonx.lyrico.data.model.ArtistSeparator
-import com.lonx.lyrico.data.model.cache.CacheCategory
 import com.lonx.lyrico.data.model.ConversionMode
 import com.lonx.lyrico.data.model.FloatingBarEffect
 import com.lonx.lyrico.data.model.ReplayGainPeakMode
 import com.lonx.lyrico.data.model.ReplayGainSettings
+import com.lonx.lyrico.data.model.SearchConfig
+import com.lonx.lyrico.data.model.SearchSourceTabStyle
+import com.lonx.lyrico.data.model.ThemeConfig
+import com.lonx.lyrico.data.model.ThemeMode
+import com.lonx.lyrico.data.model.cache.CacheCategory
+import com.lonx.lyrico.data.model.log.AppLogLevel
+import com.lonx.lyrico.data.model.log.AppLogType
 import com.lonx.lyrico.data.model.lyrics.LyricFormat
+import com.lonx.lyrico.data.model.lyrics.LyricRenderConfig
 import com.lonx.lyrico.data.model.lyrics.LyricsProcessingOptions
 import com.lonx.lyrico.data.model.plugin.PluginMetadataFieldWriteRule
-import com.lonx.lyrico.data.model.ThemeMode
-import com.lonx.lyrico.data.model.SearchSourceTabStyle
-import com.lonx.lyrico.data.model.lyrics.LyricRenderConfig
-import com.lonx.lyrico.data.repository.SettingsRepository
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import com.lonx.lyrico.data.model.toArtistSeparator
 import com.lonx.lyrico.data.repository.AppLogRepository
+import com.lonx.lyrico.data.repository.SettingsRepository
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.export_failed
+import com.lonx.lyrico.resources.export_success
+import com.lonx.lyrico.resources.import_failed
+import com.lonx.lyrico.resources.import_failed_format
+import com.lonx.lyrico.resources.import_success
 import com.lonx.lyrico.ui.theme.KeyColor
 import com.lonx.lyrico.ui.theme.KeyColors
 import com.lonx.lyrico.utils.CacheManager
 import com.lonx.lyrico.utils.UiMessage
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
@@ -57,6 +64,7 @@ data class SettingsUiState(
     val barBlurEnabled: Boolean = false,
     val floatingBarEffect: FloatingBarEffect = FloatingBarEffect.NONE,
     val keyColor: KeyColor = KeyColors[1],
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
     val onlyTranslationIfAvailable: Boolean = false,
     val removeEmptyLines: Boolean = true,
     val categorizedCacheSize: Map<CacheCategory, Long> = emptyMap(),
@@ -76,18 +84,34 @@ data class SettingsUiState(
 sealed class SettingsEvent {
     data class ShowToast(val message: UiMessage) : SettingsEvent()
 }
+
+/**
+ * 设置页的视图模型。
+ *
+ * 与安卓版的两点差别，都是「把 Android 框架换成桌面等价物」：
+ *
+ * - **导出/导入收的是 `java.io.File`，不是 `Uri`。** 安卓靠 SAF 的 `ContentResolver` 开关流；桌面
+ *   上文件对话框给出的就是路径，直接读写文件即可。
+ * - **缓存大小与清理走注入的 [CacheManager]**（它自己拿 [com.lonx.lyrico.platform.AppDirectories] 找
+ *   目录），不再把 `Context` 当参数传进来。
+ *
+ * 语言这一个偏好也搬到了设置里（[SettingsRepository.appLanguage]）：安卓把选中的语言交给 AppCompat
+ * 存，桌面版没有那层，改由 [setAppLanguage] 落库、`ProvideAppLocale` 在界面上生效。
+ */
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val database: LyricoDatabase,
-    private val appLogRepository: AppLogRepository
+    private val appLogRepository: AppLogRepository,
+    private val cacheManager: CacheManager
 ) : ViewModel() {
     private val folder = database.folderDao()
     private val _categorizedCacheSize = MutableStateFlow<Map<CacheCategory, Long>>(emptyMap())
 
     private data class SettingsBaseState(
         val lyric: LyricRenderConfig,
-        val search: com.lonx.lyrico.data.model.SearchConfig,
-        val theme: com.lonx.lyrico.data.model.ThemeConfig,
+        val search: SearchConfig,
+        val theme: ThemeConfig,
+        val appLanguage: AppLanguage,
         val ignoreShortAudio: Boolean,
         val lyricsTagLineKeywords: List<String>,
         val metadataFieldRules: List<PluginMetadataFieldWriteRule>,
@@ -134,12 +158,14 @@ class SettingsViewModel(
         settingsRepository.lyricRenderConfigFlow,
         settingsRepository.searchConfigFlow,
         settingsRepository.themeConfigFlow,
+        settingsRepository.appLanguage,
         settingsTailState
-    ) { lyric, search, theme, tail ->
+    ) { lyric, search, theme, appLanguage, tail ->
         SettingsBaseState(
             lyric,
             search,
             theme,
+            appLanguage,
             tail.ignoreShortAudio,
             tail.lyricsTagLineKeywords,
             tail.metadataFieldRules,
@@ -175,6 +201,7 @@ class SettingsViewModel(
             barBlurEnabled = base.barBlurEnabled,
             floatingBarEffect = base.floatingBarEffect,
             keyColor = base.theme.keyColor,
+            appLanguage = base.appLanguage,
             categorizedCacheSize = cacheMap,
             onlyTranslationIfAvailable = base.lyric.onlyTranslationIfAvailable,
             totalCacheSize = cacheMap.values.sum(),
@@ -200,16 +227,16 @@ class SettingsViewModel(
             settingsRepository.saveLyricDisplayMode(mode)
         }
     }
-    fun refreshCache(context: Context) {
+    fun refreshCache() {
         viewModelScope.launch {
-            val sizes = CacheManager.getCategorizedCacheSize(context)
+            val sizes = cacheManager.getCategorizedCacheSize()
             _categorizedCacheSize.value = sizes
         }
     }
-    fun clearCache(context: Context) {
+    fun clearCache() {
         viewModelScope.launch {
-            CacheManager.clearAllCache(context)
-            refreshCache(context)
+            cacheManager.clearAllCache()
+            refreshCache()
         }
     }
 
@@ -263,6 +290,13 @@ class SettingsViewModel(
             settingsRepository.saveKeyColor(selectedMode)
         }
     }
+
+    fun setAppLanguage(language: AppLanguage) {
+        viewModelScope.launch {
+            settingsRepository.saveAppLanguage(language)
+        }
+    }
+
     fun setRemoveEmptyLines(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.saveRemoveEmptyLines(enabled)
@@ -379,21 +413,19 @@ class SettingsViewModel(
         }
     }
 
-    fun exportSettings(context: Context, uri: Uri) {
+    fun exportSettings(target: File) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val jsonString = settingsRepository.exportSettings()
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    outputStream.write(jsonString.toByteArray())
-                }
+                target.writeText(jsonString)
                 appLogRepository.log(
                     level = AppLogLevel.INFO,
                     type = AppLogType.APP,
                     tag = TAG,
                     message = "Settings exported",
-                    detail = "uri=$uri"
+                    detail = "file=${target.absolutePath}"
                 )
-                _events.emit(SettingsEvent.ShowToast(UiMessage.StringResource(R.string.export_success)))
+                _events.emit(SettingsEvent.ShowToast(UiMessage.Localized(Res.string.export_success)))
             } catch (e: Exception) {
                 e.printStackTrace()
                 appLogRepository.logException(
@@ -402,43 +434,39 @@ class SettingsViewModel(
                     message = "Failed to export settings",
                     throwable = e
                 )
-                _events.emit(SettingsEvent.ShowToast(UiMessage.StringResource(R.string.export_failed, e.message ?: "Unknown error")))
+                _events.emit(SettingsEvent.ShowToast(UiMessage.Localized(Res.string.export_failed, e.message ?: "Unknown error")))
             }
         }
     }
 
-    fun importSettings(context: Context, uri: Uri) {
+    fun importSettings(source: File) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val jsonString = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    inputStream.bufferedReader().use { it.readText() }
-                }
+                val jsonString = source.readText()
 
-                if (jsonString != null) {
-                    val success = settingsRepository.importSettings(jsonString)
-                    if (success) {
-                        appLogRepository.log(
-                            level = AppLogLevel.INFO,
-                            type = AppLogType.APP,
-                            tag = TAG,
-                            message = "Settings imported",
-                            detail = "uri=$uri"
-                        )
-                        _events.emit(SettingsEvent.ShowToast(
-                            UiMessage.StringResource(R.string.import_success)
-                        ))
-                    } else {
-                        appLogRepository.log(
-                            level = AppLogLevel.WARNING,
-                            type = AppLogType.APP,
-                            tag = TAG,
-                            message = "Settings import rejected: invalid format",
-                            detail = "uri=$uri"
-                        )
-                        _events.emit(SettingsEvent.ShowToast(
-                            UiMessage.StringResource(R.string.import_failed_format)
-                        ))
-                    }
+                val success = settingsRepository.importSettings(jsonString)
+                if (success) {
+                    appLogRepository.log(
+                        level = AppLogLevel.INFO,
+                        type = AppLogType.APP,
+                        tag = TAG,
+                        message = "Settings imported",
+                        detail = "file=${source.absolutePath}"
+                    )
+                    _events.emit(SettingsEvent.ShowToast(
+                        UiMessage.Localized(Res.string.import_success)
+                    ))
+                } else {
+                    appLogRepository.log(
+                        level = AppLogLevel.WARNING,
+                        type = AppLogType.APP,
+                        tag = TAG,
+                        message = "Settings import rejected: invalid format",
+                        detail = "file=${source.absolutePath}"
+                    )
+                    _events.emit(SettingsEvent.ShowToast(
+                        UiMessage.Localized(Res.string.import_failed_format)
+                    ))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -449,7 +477,7 @@ class SettingsViewModel(
                     throwable = e
                 )
                 _events.emit(SettingsEvent.ShowToast(
-                    UiMessage.StringResource(R.string.import_failed, e.message ?: "Unknown error")
+                    UiMessage.Localized(Res.string.import_failed, e.message ?: "Unknown error")
                 ))
             }
         }
@@ -459,4 +487,3 @@ class SettingsViewModel(
         const val TAG = "SettingsViewModel"
     }
 }
-

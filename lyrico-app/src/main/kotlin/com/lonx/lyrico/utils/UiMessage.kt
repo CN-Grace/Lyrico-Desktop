@@ -21,7 +21,9 @@ import org.jetbrains.compose.resources.stringResource
  *   passing `context` only to satisfy the signature, so nothing is lost.
  *
  * The two paths have different names because Kotlin will not let a `suspend` function overload a
- * non-suspend one: use [asString] inside a composition, [resolve] inside a coroutine.
+ * non-suspend one: use [asString] inside a composition, [resolve] inside a coroutine. Both resolve in the
+ * language the UI is currently showing, including for an explicit app-language setting — that is what
+ * `resolveLocalized` is for.
  */
 sealed interface UiMessage {
 

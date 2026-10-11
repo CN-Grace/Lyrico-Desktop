@@ -1,5 +1,6 @@
 package com.lonx.lyrico.data.repository
 
+import com.lonx.lyrico.data.model.AppLanguage
 import com.lonx.lyrico.data.model.BatchMatchConfig
 import com.lonx.lyrico.data.model.CharacterMappingConfig
 import com.lonx.lyrico.data.model.ConversionMode
@@ -64,6 +65,8 @@ interface SettingsRepository {
     val floatingBottomBarEnabled: Flow<Boolean>
     val barBlurEnabled: Flow<Boolean>
     val floatingBarEffect: Flow<FloatingBarEffect>
+    /** App language (`app_language`); the desktop stand-in for AppCompat's per-app locales. */
+    val appLanguage: Flow<AppLanguage>
     val onlyTranslationIfAvailable: Flow<Boolean>
     val removeEmptyLines: Flow<Boolean>
     val lyricsTagLineKeywords: Flow<List<String>>
@@ -107,6 +110,7 @@ interface SettingsRepository {
     suspend fun saveFloatingBottomBarEnabled(enabled: Boolean)
     suspend fun saveBarBlurEnabled(enabled: Boolean)
     suspend fun saveFloatingBarEffect(effect: FloatingBarEffect)
+    suspend fun saveAppLanguage(language: AppLanguage)
     suspend fun saveOnlyTranslationIfAvailable(enabled: Boolean)
     suspend fun saveRemoveEmptyLines(enabled: Boolean)
     suspend fun saveLyricsTagLineKeywords(keywords: List<String>)

@@ -65,11 +65,14 @@ import com.lonx.lyrico.plugin.source.PluginSearchSourceManager
 import com.lonx.lyrico.plugin.source.ScriptSearchSourceFactory
 import com.lonx.lyrico.plugin.source.SearchSourceProvider
 import com.lonx.lyrico.plugin.source.SourcePluginInstaller
+import com.lonx.lyrico.utils.CacheManager
+import com.lonx.lyrico.utils.ImageCache
 import com.lonx.lyrico.utils.LibraryScanManager
 import com.lonx.lyrico.utils.LibraryScanManagerImpl
 import com.lonx.lyrico.utils.ReplayGainScanner
 import com.lonx.lyrico.utils.UpdateManager
 import com.lonx.lyrico.utils.UpdateManagerImpl
+import com.lonx.lyrico.utils.coil.CoilImageCache
 import com.lonx.lyrico.worker.BatchTaskRunner
 import com.lonx.lyrico.worker.BatchTaskScheduler
 import com.lonx.lyrico.worker.processor.BatchExportProcessor
@@ -104,6 +107,7 @@ import com.lonx.lyrico.viewmodel.LyricsSearchViewModel
 import com.lonx.lyrico.viewmodel.PluginViewModel
 import com.lonx.lyrico.viewmodel.SearchSourceConfigViewModel
 import com.lonx.lyrico.viewmodel.SearchViewModel
+import com.lonx.lyrico.viewmodel.SettingsViewModel
 import com.lonx.lyrico.viewmodel.SongListViewModel
 import com.lonx.lyrico.viewmodel.SongSelectionViewModel
 import java.util.concurrent.TimeUnit
@@ -199,6 +203,12 @@ fun desktopAppModule(directories: AppDirectories) = module {
     single { EditFieldConfigRepository(get(EditFieldStore)) }
     single { CustomTagKeyRepository(get()) }
     single<AppLogRepository> { AppLogRepositoryImpl(get(), get()) }
+
+    // Cache accounting for the settings screen. `ImageCache` is bound to Coil, which is the only
+    // component that knows both how big the cover cache is and how to clear it safely on Windows
+    // (its journal file is open for as long as the process lives).
+    single<ImageCache> { CoilImageCache() }
+    single { CacheManager(get(), get()) }
     single<BatchTaskRepository> { BatchTaskRepositoryImpl(get()) }
 
     // ---------------------------------------------------------------- repositories
@@ -431,4 +441,12 @@ fun desktopAppModule(directories: AppDirectories) = module {
     viewModel { CoverSearchViewModel(get(), get(), get(), get()) }
     viewModel { SearchSourceConfigViewModel(get(), get()) }
     viewModel { PluginViewModel(get(), get(), get(), get(), get(), directories.pluginInstallRoot) }
+    viewModel {
+        SettingsViewModel(
+            settingsRepository = get(),
+            database = get(),
+            appLogRepository = get(),
+            cacheManager = get(),
+        )
+    }
 }

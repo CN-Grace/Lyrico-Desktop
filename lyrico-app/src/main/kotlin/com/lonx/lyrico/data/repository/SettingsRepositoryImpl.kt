@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.lonx.lyrico.data.editfield.EditFieldConfigJson
 import com.lonx.lyrico.data.editfield.EditFieldConfigRepository
+import com.lonx.lyrico.data.model.AppLanguage
 import com.lonx.lyrico.data.model.BatchMatchConfig
 import com.lonx.lyrico.data.model.BatchMatchConfigDefaults
 import com.lonx.lyrico.data.model.CharacterMappingConfig
@@ -123,6 +124,7 @@ object SettingsDefaults {
     const val SHOW_ALL_SEARCH_RESULT_FIELDS = false
 
     val THEME_MODE = ThemeMode.AUTO
+    val APP_LANGUAGE = AppLanguage.SYSTEM
 }
 
 class SettingsRepositoryImpl(private val dataStore: DataStore<Preferences>) : SettingsRepository {
@@ -189,6 +191,7 @@ class SettingsRepositoryImpl(private val dataStore: DataStore<Preferences>) : Se
         val FLOATING_BOTTOM_BAR_ENABLED = booleanPreferencesKey("floating_bottom_bar_enabled")
         val BAR_BLUR_ENABLED = booleanPreferencesKey("bar_blur_enabled")
         val FLOATING_BAR_EFFECT = stringPreferencesKey("floating_bar_effect")
+        val APP_LANGUAGE = stringPreferencesKey("app_language")
 
         /** 旧版把“毛玻璃”和“液态玻璃”存成两个互斥开关，仅用于读取旧值。 */
         val FLOATING_BAR_BLUR_ENABLED_LEGACY = booleanPreferencesKey("floating_bar_blur_enabled")
@@ -401,6 +404,11 @@ class SettingsRepositoryImpl(private val dataStore: DataStore<Preferences>) : Se
         }
     override val floatingBarEffect: Flow<FloatingBarEffect>
         get() = dataStore.data.map { it.resolveFloatingBarEffect() }
+
+    override val appLanguage: Flow<AppLanguage>
+        get() = dataStore.data.map { preferences ->
+            AppLanguage.fromLanguageTag(preferences[PreferencesKeys.APP_LANGUAGE])
+        }
 
     /**
      * 读取悬浮导航栏效果。新键缺失时回退到旧版的两个互斥开关，
@@ -707,6 +715,12 @@ class SettingsRepositoryImpl(private val dataStore: DataStore<Preferences>) : Se
         }
     }
 
+    override suspend fun saveAppLanguage(language: AppLanguage) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.APP_LANGUAGE] = language.languageTag
+        }
+    }
+
     override suspend fun saveKeyColor(selectedKeyColor: KeyColor) {
         dataStore.edit { preferences ->
             if (selectedKeyColor.color == null) {
@@ -841,6 +855,8 @@ class SettingsRepositoryImpl(private val dataStore: DataStore<Preferences>) : Se
 
             themeMode = prefs[PreferencesKeys.THEME_MODE]
                 ?: SettingsDefaults.THEME_MODE.name,
+            appLanguage = prefs[PreferencesKeys.APP_LANGUAGE]
+                ?: SettingsDefaults.APP_LANGUAGE.languageTag,
             monetEnable = prefs[PreferencesKeys.MONET_ENABLE]
                 ?: SettingsDefaults.MONET_ENABLE,
             floatingBottomBarEnabled = prefs[PreferencesKeys.FLOATING_BOTTOM_BAR_ENABLED]
@@ -934,6 +950,9 @@ class SettingsRepositoryImpl(private val dataStore: DataStore<Preferences>) : Se
                     prefs[PreferencesKeys.SHOW_ALL_SEARCH_RESULT_FIELDS] = it
                 }
                 backup.themeMode?.let { prefs[PreferencesKeys.THEME_MODE] = it }
+                backup.appLanguage?.let {
+                    prefs[PreferencesKeys.APP_LANGUAGE] = AppLanguage.fromLanguageTag(it).languageTag
+                }
                 backup.monetEnable?.let { prefs[PreferencesKeys.MONET_ENABLE] = it }
                 backup.floatingBottomBarEnabled?.let {
                     prefs[PreferencesKeys.FLOATING_BOTTOM_BAR_ENABLED] = it

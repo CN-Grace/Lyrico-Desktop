@@ -252,6 +252,11 @@ tasks.named<Test>("test") {
     // reason, and is gated the same way:
     //   ./gradlew :lyrico-app:test --tests "*DevPluginSeederTest*" -Plyrico.seedDevPlugin=1
     systemProperty("lyrico.seedDevPlugin", providers.gradleProperty("lyrico.seedDevPlugin").getOrElse("0"))
+    // `DevPreferencesProbeTest` writes the two preferences the desktop shell applies (language and theme
+    // mode) into the app's own data folder, so a window capture can show them. Gated the same way:
+    //   ./gradlew :lyrico-app:test --tests "*DevPreferencesProbeTest*" -Plyrico.devLanguage=zh-CN
+    systemProperty("lyrico.devLanguage", providers.gradleProperty("lyrico.devLanguage").getOrElse(""))
+    systemProperty("lyrico.devTheme", providers.gradleProperty("lyrico.devTheme").getOrElse(""))
 }
 
 compose.desktop {

@@ -1,8 +1,8 @@
 package com.lonx.lyrico.utils
 
 import androidx.compose.runtime.Composable
+import com.lonx.lyrico.ui.resolveLocalized
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -37,8 +37,11 @@ fun formattedStringResource(resource: StringResource, vararg formatArgs: Any): S
 
 /**
  * The same substitution for code that runs outside a composition, such as a coroutine resolving a
- * message for a snackbar. See [formattedStringResource] for why the library's own overload cannot be
- * used.
+ * message for a snackbar.
+ *
+ * See [formattedStringResource] for why the library's own overload cannot be used, and
+ * [com.lonx.lyrico.ui.resolveLocalized] for how an explicit app-language setting is honoured on this path
+ * too: a snackbar must not report in the system language while the screen around it is in another.
  */
 suspend fun formattedString(resource: StringResource, vararg formatArgs: Any): String =
-    getString(resource).format(*formatArgs)
+    resolveLocalized(resource, formatArgs)
