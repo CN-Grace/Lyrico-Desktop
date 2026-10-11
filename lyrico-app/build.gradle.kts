@@ -313,6 +313,8 @@ tasks.named<Test>("test") {
     //   ./gradlew :lyrico-app:test --tests "*DevPreferencesProbeTest*" -Plyrico.devLanguage=zh-CN
     systemProperty("lyrico.devLanguage", providers.gradleProperty("lyrico.devLanguage").getOrElse(""))
     systemProperty("lyrico.devTheme", providers.gradleProperty("lyrico.devTheme").getOrElse(""))
+    // `DevSearchProbeTest` (a diagnostic, gated like the other probes).
+    systemProperty("lyrico.probeDevSearch", providers.gradleProperty("lyrico.probeDevSearch").getOrElse(""))
 }
 
 /**

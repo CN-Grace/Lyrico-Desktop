@@ -2901,6 +2901,21 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 4. 用构建期生成的依赖清单替换手维护的 `AppLicence.kt`（例如解析 `libs.versions.toml` 或引入 KMP 许可证库）。
 5. 按 `audit-await-assert.py` 的输出逐条加固剩余的时序敏感断言。
 
+#### 6b. 后续工作第 2 条：取证脚本的「点击 + 打字」（`click-window.ps1 -Text`）
+
+**交付**：`scripts/click-window.ps1` 现在支持 `-Text <字符串>`（点击之后逐字符注入）与 `-CommitIme`（注入后再发一个空格 + 退格，把系统 IME 的组字缓冲提交掉）。实现用 `SendInput` + `KEYEVENTF_UNICODE`，不是 `SendKeys`、也不是 `PostMessage(WM_CHAR)` —— 这两种在本机都被证伪：
+
+* `SendKeys` 走当前键盘布局，打不出布局产不出的字符（CJK），而且实测落进了 IME 的组字缓冲；
+* `PostMessage(WM_CHAR)` 能让字段**看起来**填上了（字符出现、清除按钮出现），但 Compose 的 `TextFieldState` 从未收到；
+* 两者都会把系统 IME 的候选窗（带箭头/笑脸/下拉的那个浮层）唤起来，叠在应用窗口上 —— 之前几次窗口证据里那些「不明浮层」就是它，现在知道来源了。
+
+**未完成的另一半（如实记录）**：本地搜索页的「输入查询 → 出结果」在真窗口里**仍然没拍到**。诊断已经做到能分辨代码与输入通道：
+
+1. 往开发库（`lyrico-app/data/lyrico.db`，24 首，含 `September`）**复制**一份，用同一段仓库代码查询 → `hits=1 titles=[September]` ✓（新增门控探针 `DevSearchProbeTest`，`-Plyrico.probeDevSearch=September`）。**代码与数据都没问题。**
+2. 真窗口里字段显示 `September`（`c37d-ls-sendinput.png` 的 OCR 读到 `y=107 September`），点击 All 页签后整窗只变了 43 像素（0.00%）→ 列表仍空 → **注入的输入没有进入 Compose 的文本状态**（最可能：Skiko 在 Windows 上走 TSF/IME 文本输入通道，注入的按键被 IME 吃掉，没有被应用的文本输入消费）。
+
+所以这一条给出的是**工具能力 + 精确诊断**，不是那张结果图；要拿到它需要给 Skiko 的文本输入通道喂输入（例如用 UI Automation/TSF 客户端写文本），那是另一件工具活。`c37d-local-search.png`（空态）仍是这一页已入库的窗口证据。
+
 #### 7. 这一版的结论
 
 - **代码层面**：安卓源树（main/test/androidTest/res/manifest）全部处置完，端口在自己的一套源里自洽；`port-frontier.py` 三项为零。

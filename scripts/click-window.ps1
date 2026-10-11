@@ -47,7 +47,21 @@ param(
 
     # How long to hold the button down for `-Button longpress`. Compose's long-press threshold is the
     # platform's (500 ms on Windows); 800 ms leaves room for a slow frame without becoming a drag.
-    [int]$HoldMs = 800
+    [int]$HoldMs = 800,
+
+    # Text to type after the click, one character at a time as a `KEYEVENTF_UNICODE` keystroke (see the
+    # comment at the injection site for why neither `SendKeys` nor a posted `WM_CHAR` works here). The click
+    # above is what focuses the field, so the two are only useful together.
+    [string]$Text = "",
+
+    # How long to wait between the click and the first character, so Compose has time to focus the field.
+    [int]$TextDelayMs = 600,
+
+    # Send a space and then a backspace after the text. The system IME keeps injected characters in its
+    # composition buffer, and a space commits a composition, so this is what makes the field's content reach
+    # the app (the space is removed again by the backspace). Verified on the local-search page: without it the
+    # field looked filled while the view model's query stayed empty.
+    [switch]$CommitIme
 )
 
 $ErrorActionPreference = "Stop"
@@ -72,6 +86,16 @@ public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmdShow);
 [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
 [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, System.UIntPtr extraInfo);
+[StructLayout(LayoutKind.Sequential)] public struct INPUT { public uint type; public InputUnion u; }
+[StructLayout(LayoutKind.Explicit)] public struct InputUnion {
+    [FieldOffset(0)] public KEYBDINPUT ki;
+    [FieldOffset(0)] public MOUSEINPUT mi;
+    [FieldOffset(0)] public HARDWAREINPUT hi;
+}
+[StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT { public ushort wVk; public ushort wScan; public uint dwFlags; public uint time; public System.UIntPtr dwExtraInfo; }
+[StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public System.UIntPtr dwExtraInfo; }
+[StructLayout(LayoutKind.Sequential)] public struct HARDWAREINPUT { public uint uMsg; public ushort wParamL; public ushort wParamH; }
+[DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attr, out RECT rect, int size);
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
 [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
@@ -220,4 +244,54 @@ finally {
 }
 
 Start-Sleep -Milliseconds $SettleMs
+
+if ($Text -ne "") {
+    Start-Sleep -Milliseconds $TextDelayMs
+    # Injected as `KEYEVENTF_UNICODE` keystrokes rather than `SendKeys` or a posted `WM_CHAR`:
+    #   * `SendKeys` goes through the active keyboard layout, so it cannot type what the layout cannot
+    #     produce (CJK), and here it landed in the IME's composition buffer instead of the field;
+    #   * a posted `WM_CHAR` updates the platform's text buffer -- and opened the IME candidate window --
+    #     while Compose Multiplatform's `TextFieldState` never saw it (verified: the field showed the text,
+    #     the view model's query stayed empty, so no results appeared even though the same repository call
+    #     returns hits for the same database).
+    # `SendInput` with `KEYEVENTF_UNICODE` synthesises a plain Unicode character key event, which is what
+    # the app's text input actually consumes.
+    $KEYEVENTF_UNICODE = 0x0004
+    $KEYEVENTF_KEYUP = 0x0002
+    $INPUT_KEYBOARD = 1
+    foreach ($ch in $Text.ToCharArray()) {
+        $scan = [uint16][int][char]$ch
+        # Each struct has to be built on its own line: `@(New-Object A, New-Object B)` parses as a *single*
+        # call receiving the array as a positional argument, which PowerShell rejects.
+        $down = New-Object LyricoWin32.Native+INPUT
+        $up = New-Object LyricoWin32.Native+INPUT
+        $inputs = @($down, $up)
+        $inputs[0].type = $INPUT_KEYBOARD
+        $inputs[0].u.ki = New-Object LyricoWin32.Native+KEYBDINPUT
+        $inputs[0].u.ki.wVk = 0
+        $inputs[0].u.ki.wScan = $scan
+        $inputs[0].u.ki.dwFlags = $KEYEVENTF_UNICODE
+        $inputs[1].type = $INPUT_KEYBOARD
+        $inputs[1].u.ki = New-Object LyricoWin32.Native+KEYBDINPUT
+        $inputs[1].u.ki.wVk = 0
+        $inputs[1].u.ki.wScan = $scan
+        $inputs[1].u.ki.dwFlags = ($KEYEVENTF_UNICODE -bor $KEYEVENTF_KEYUP)
+        [void][LyricoWin32.Native]::SendInput(2, $inputs, [System.Runtime.InteropServices.Marshal]::SizeOf($inputs[0]))
+        Start-Sleep -Milliseconds 40
+    }
+    if ($CommitIme) {
+        # Space commits the IME composition, VK_BACK (0x08) removes it again.
+        [void][LyricoWin32.Native]::SendInput(1, @(
+            [pscustomobject]@{ type = $INPUT_KEYBOARD; u = [pscustomobject]@{ ki = [pscustomobject]@{ wVk = 0; wScan = [uint16][int][char]' '; dwFlags = $KEYEVENTF_UNICODE; time = 0; dwExtraInfo = [System.UIntPtr]::Zero } } }
+        ), [System.Runtime.InteropServices.Marshal]::SizeOf([type][LyricoWin32.Native+INPUT]))
+        Start-Sleep -Milliseconds 120
+        [void][LyricoWin32.Native]::SendInput(2, @(
+            [pscustomobject]@{ type = $INPUT_KEYBOARD; u = [pscustomobject]@{ ki = [pscustomobject]@{ wVk = 0x08; wScan = 0; dwFlags = 0; time = 0; dwExtraInfo = [System.UIntPtr]::Zero } } },
+            [pscustomobject]@{ type = $INPUT_KEYBOARD; u = [pscustomobject]@{ ki = [pscustomobject]@{ wVk = 0x08; wScan = 0; dwFlags = $KEYEVENTF_KEYUP; time = 0; dwExtraInfo = [System.UIntPtr]::Zero } } }
+        ), [System.Runtime.InteropServices.Marshal]::SizeOf([type][LyricoWin32.Native+INPUT]))
+    }
+    Start-Sleep -Milliseconds 400
+    Write-Host "Typed '$Text' into client ($X,$Y) after the click in '$($window.Title)'"
+}
+
 Write-Host "Clicked $Button at client ($X,$Y) = screen ($screenX,$screenY) in '$($window.Title)'"
