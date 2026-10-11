@@ -2426,3 +2426,62 @@ Android 版是四件事四个 `Intent`：`play()`（`ACTION_VIEW` + `audio/*`）
 - **导出侧三条有意的约定（C6e 起，勿按 Android 改回去）**：① `BatchExportTaskConfig` 的 `CONFIG_JSON` 用 `ignoreUnknownKeys = true`（其它处理器是严格解码）——不这样就解不开 Android 时代带 `destinationTreeUri` 的 `AUDIO_DIRECTORY` 任务行；② 选中目录**只校验、不创建**（`requireSelectedDirectory`），拼错的路径要响亮失败；③ 写出的 `.lrc` 是「标签里的正文原样」：不带 BOM、不加尾换行、同名覆盖而不改名（`BatchExportProcessorEndToEndTest` 用 `toByteArray(UTF_8)` 全等钉住）。
 - **等 `File.writeText` 写完不能等 `isFile`（C6e 起，测试里通用）**：`writeText` 是「先 `FileOutputStream` 建空文件、再写字节」，所以 `awaitUntil { target.isFile }` 可能读到 0 字节的空文件——症状是 JUnit 失败消息**为空**（`assertEquals("", text)` 里 `text` 是空串），看着像断言写错了，其实是「文件已经存在、字节还没落盘」。正确做法是等真正的完成信号（本仓的做法：等写完成后才发的那条事件），不要用加大超时或 `Thread.sleep` 糊过去。同类问题还有 UI 测试里泄漏的 viewmodel 作用域与 `database.close()` 竞争（证据与修法见 C6e 段 §5.8，已修）。
 - **C6e 真窗口取证复现命令**：`./gradlew :lyrico-app:test --tests "*DevLibrarySeederTest*" -Plyrico.seedDevLibrary=1`（本批 seeder 额外跑一条真的 `EXPORT_LYRICS` 任务，产出落进 `lyrico-app/build/demo-exports/`）→ `./gradlew :lyrico-app:run` → `capture-window.ps1 -TitleLike "Lyrico 1.6"`（任务历史 `c6e-batch-list.png`）→ 点那一行（客户区 `-X 579 -Y 249`）→ `capture-window.ps1`（详情页 `c6e-export-detail.png`）→ 点 `跳过` 页签（客户区 `-X 946 -Y 192`，即捕获坐标 `(947,223)`）→ `capture-window.ps1`（`c6e-export-detail-skipped.png`）；四张裁切放大件与像素差按上面两条约定出。然后先杀掉窗口（标题匹配 `^Lyrico `）再跑磁盘链：目录列表 + sha256 → `build/ffmpeg/windows-x64/ffmpeg.exe -i <源音频>` 读 `lyrics-LYRICS` → `python -c "…sqlite3…"` 直读任务行与条目行，整理进 `docs/port-evidence/c6e-export-files.txt`。
+
+### P5 施工批次（#37-D：本地搜索页（767 行 + 2 个叶子），2026-10-11）
+
+#### 1. 搬了什么（`git mv` 3 个 + 路由注册 1 条）
+
+| 文件 | 行数 | 说明 |
+|---|---|---|
+| `data/model/search/LocalSearchField.kt` | 34 | `labelRes` 从 `@StringRes Int` 变成 `StringResource`（唯一的语义类型改动） |
+| `ui/components/search/SearchSectionHeader.kt` | 19 | 逐字 |
+| `screens/LocalSearchScreen.kt` | 767 | 13 处字符串机械迁移 + 手工缝合（路由/BackHandler/分享/字符串格式化） |
+
+路由：`LyricoNavHost` 注册 `LocalSearchDestination`（`local_search`）—— 曲库页的搜索图标早就指向这个声明，这一次才真正落地成屏幕。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **`LocalSearchField.labelRes`：`@StringRes Int` → `StringResource`**。这是本批唯一需要改类型的地方：安卓用资源 id，桌面端用 `StringResource`。改完之后屏幕里那个私有 `LocalSearchTab.labelRes` 也跟着从 `Int` 变 `StringResource`，于是 `stringResource(tab.labelRes)` 三处编译错误一次消掉 —— **类型系统自己把接缝找了出来**，比 grep 可靠。
+2. **`BackHandler` 删掉**（桌面端没有系统返回手势）：菜单靠遮罩关、选择模式靠顶栏关闭按钮退，与 `FolderManagerScreen` / `AlbumDetailScreen` / `LibraryHomeScreen` 同一处缺口。
+3. **`SongActionSheets` 的分享/复制显式传入 + `batchShare` → `share`**（与 C-5 同款改动；`LocalClipboard` + `ClipEntry(StringSelection(...))`）。
+4. **三处 `stringResource(res, args)` → `formattedStringResource`**（歌/专辑/艺人三个分区标题的计数）：库的 vararg 格式化不替换普通 `%d`，由 `StringFormattingGuardTest` 抓住。
+5. **`@Destination<RootGraph>` + `DestinationsNavigator` → 路由注册 + 手写 `Navigator`**；`koinViewModel` 换多平台入口。
+
+#### 3. 无头取证（新增 1 类 2 项；全量 139 类 / 1171 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+`screens/LocalSearchScreenTest`（真路由 + 真 Koin 图 + 图**自己的**数据库）：
+
+| 项 | 钉住的东西 |
+|---|---|
+| 输入查询后只列匹配的歌 | 往搜索框真打字（`hasSetTextAction()`），匹配的歌出现、**不匹配的不出现**（后者是防「其实没过滤」的对照断言） |
+| 没输入任何东西时页面也能组合 | 真库 + 真图下的最小烟雾 |
+
+写这个测试时踩了一个自己造的坑并修掉：一开始用 `TestLibrary` 播种，而它打开的是**另一个**数据库文件（图开的是 `AppDirectories` 下那个），屏幕会很正确地什么都读不到。改成经 `GlobalContext` 拿图里的 `LyricoDatabase` 播种后一致。
+
+#### 4. 真窗口取证（`docs/port-evidence/c37d-local-search.*`，`-Plyrico.start.route=local_search`）
+
+| 文件 | 内容 | OCR 关键行 | 分析 |
+|---|---|---|---|
+| `c37d-local-search.png` | Local Search 页：搜索框（占位「Search song metadata」）+ 十一个字段页签（All / Title / Artists / Album / Album Artist / Date / Language / Genre / Lyricist / Composer / Copyright / Comment） | `y=50 :: Local Search`、`y=156 :: Title Artsts Album`、`y=156 :: Album Artist`、`y=157 :: Comment` | `VERDICT: OK` |
+
+**如实记录一处证据缺口**：这一页的「输入查询 → 出结果」没能在真窗口里拍到。试过两条路都不行 —— `click-window.ps1` 点击后另起一个 PowerShell 发 `SendKeys`（焦点已丢），以及「激活 → 真点击 → 同会话 SendKeys」（窗口在第二块显示器上、坐标是负的，点击本身到位了但字符仍然没进输入框）。所以窗口证据只证「页面在真窗口里长得对、十一个 `StringResource` 页签都渲染出来」，而**查询行为由上面那个无头测试钉住**（它往同一个输入框真打字并断言匹配/不匹配）。要补真实输入链得给取证脚本加一个「按客户区坐标点击 + 打字」的参数，列出为后续工具改进项。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **`@StringRes Int` → `StringResource` 的改动，编译器会替你找齐所有调用点**（而 grep 找不全）：改完声明后三处 `stringResource(tab.labelRes)` 报错，正好是全部接缝。
+2. **测试播种必须播进「图自己的那个数据库」**：`TestLibrary` 是另一个文件；症状是页面很正确地什么都不显示，让人误以为是屏幕 bug。同理，`SongLibraryRepositoryImpl` 要拿 `GlobalContext.get().get()` 得到的那一个 `LyricoDatabase`。
+3. **`onAllNodes` / `onNode` 是 `ComposeUiTest` 的成员，不是扩展函数**（C5b 已记过一次）：import 它们会编译失败，直接 `this` 上调即可。
+4. **窗口可能在第二块显示器上（坐标是负的）**：`capture-window.ps1` 会打印负的原点，而「屏幕坐标」要先减去那个原点才是屏幕点；`click-window.ps1` 自己算这个偏移所以没事，自己写 PowerShell 就会打偏。
+5. **`SendKeys` 打不进 Skiko 文本框**（本机的实测结论，至少对「另开会话」的方式）：窗口必须先真聚焦，且点击与打字要在同一次焦点保持期内完成；即使同会话试过也没成功，所以本页的输入链改由无头测试覆盖。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. **本页的真窗口证据只有渲染，没有查询结果**（上一节）：行为由无头测试覆盖，工具链的输入支持列为后续改进项。
+2. **桌面端没有系统返回手势**（同 C-5 / C-3 的缺口）。
+3. **`local_search` 现在有了正式入口**（曲库页搜索图标），不再是只能靠开发路由到达的页面。
+
+#### 7. 前沿（本批收口）
+
+java 主树 34 → **31**（三个都在前沿）；前沿 19 → **17**；被挡 15 → **14**；陈旧副本 **0**。
+
+算术：三个搬走的文件里**两个本在前沿**（`LocalSearchField` / `SearchSectionHeader`），**一个本在被挡名单**（`LocalSearchScreen`，它等的正是那两个叶子）；所以前沿 `19 - 2 = 17`、被挡 `15 - 1 = 14`、`34 - 3 = 31` 三者自洽。剩下的 16 个里 5 个是 `[ANDROID]` 待作废，其余属于 E（批量重命名/编辑）与尾部杂项。

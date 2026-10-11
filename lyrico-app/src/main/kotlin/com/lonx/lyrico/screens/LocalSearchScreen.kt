@@ -1,6 +1,5 @@
 package com.lonx.lyrico.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -43,11 +42,27 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.album_count
+import com.lonx.lyrico.resources.label_lyrics
+import com.lonx.lyrico.resources.local_search_hint
+import com.lonx.lyrico.resources.local_search_title
+import com.lonx.lyrico.resources.search_empty
+import com.lonx.lyrico.resources.search_section_albums
+import com.lonx.lyrico.resources.search_section_artists
+import com.lonx.lyrico.resources.search_type_all
+import com.lonx.lyrico.resources.song_count
+import com.lonx.lyrico.resources.swipe_selection_enter_selection
+import com.lonx.lyrico.resources.swipe_selection_range_end
+import com.lonx.lyrico.resources.swipe_selection_range_start
 import com.lonx.lyrico.data.model.entity.AlbumEntity
 import com.lonx.lyrico.data.model.entity.ArtistEntity
 import com.lonx.lyrico.data.model.entity.SongEntity
@@ -70,13 +85,13 @@ import com.lonx.lyrico.ui.components.song.SongListItem
 import com.lonx.lyrico.ui.components.song.SongListItemActions
 import com.lonx.lyrico.viewmodel.LocalSearchViewModel
 import com.lonx.lyrico.viewmodel.SongSelectionViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.AlbumDetailDestination
-import com.ramcosta.composedestinations.generated.destinations.ArtistDetailDestination
-import com.ramcosta.composedestinations.generated.destinations.EditMetadataDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import java.awt.datatransfer.StringSelection
+import com.lonx.lyrico.ui.navigation.AlbumDetailDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.ui.navigation.ArtistDetailDestination
+import com.lonx.lyrico.ui.navigation.EditMetadataDestination
+import com.lonx.lyrico.utils.formattedStringResource
+import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -94,10 +109,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-@Destination<RootGraph>(route = "local_search")
 fun LocalSearchScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: LocalSearchViewModel = koinViewModel()
     val selectionViewModel: SongSelectionViewModel = koinViewModel()
@@ -108,21 +123,21 @@ fun LocalSearchScreen(
     val swipeAnchorUri by selectionViewModel.swipeAnchorUri.collectAsStateWithLifecycle()
     val swipeSelectionLabel = stringResource(
         if (!isSelectionMode) {
-            R.string.swipe_selection_enter_selection
+            Res.string.swipe_selection_enter_selection
         } else if (swipeAnchorUri == null) {
-            R.string.swipe_selection_range_start
+            Res.string.swipe_selection_range_start
         } else {
-            R.string.swipe_selection_range_end
+            Res.string.swipe_selection_range_end
         }
     )
     val swipeSelectionSecondaryLabel = if (!isSelectionMode) {
-        stringResource(R.string.swipe_selection_range_start)
+        stringResource(Res.string.swipe_selection_range_start)
     } else {
         null
     }
     val topAppBarScrollBehavior = MiuixScrollBehavior()
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboard.current
     val searchTabs = LocalSearchTab.entries.filter {
         it != LocalSearchTab.Lyrics || uiState.lyricSearchEnabled
     }
@@ -156,14 +171,9 @@ fun LocalSearchScreen(
         }
     }
 
-    BackHandler(enabled = isSelectionMode) {
-        if (isFabMenuExpanded) {
-            isFabMenuExpanded = false
-        } else {
-            selectionViewModel.exitSelectionMode()
-        }
-    }
-
+    // 安卓在这里挂了一个 BackHandler（关 FAB 菜单 / 退出选择模式）。桌面端没有系统返回手势，于是菜单靠
+    // `ExpandableFabMenu` 的遮罩关、选择模式靠顶栏的关闭按钮退 —— 与 `FolderManagerScreen` /
+    // `AlbumDetailScreen` / `LibraryHomeScreen` 同一处缺口，`PLAN.md` 里记着。
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
@@ -209,12 +219,12 @@ fun LocalSearchScreen(
                             )
                         } else {
                             SmallTopAppBar(
-                                title = stringResource(R.string.local_search_title),
+                                title = stringResource(Res.string.local_search_title),
                                 navigationIcon = {
                                     IconButton(onClick = { navigator.popBackStack() }) {
                                         Icon(
                                             imageVector = MiuixIcons.Back,
-                                            contentDescription = stringResource(R.string.action_back)
+                                            contentDescription = stringResource(Res.string.action_back)
                                         )
                                     }
                                 },
@@ -252,7 +262,7 @@ fun LocalSearchScreen(
                         Column {
                             SearchBar(
                                 state = searchState,
-                                placeholder = stringResource(R.string.local_search_hint),
+                                placeholder = stringResource(Res.string.local_search_hint),
                                 onSearch = { keyword ->
                                     viewModel.onQueryChange(keyword)
                                 },
@@ -326,7 +336,8 @@ fun LocalSearchScreen(
             onExpandedChange = { isFabMenuExpanded = it },
             onSetSelectionUris = selectionViewModel::setSelectionUris,
             onBatchDelete = selectionViewModel::batchDelete,
-            onBatchShare = selectionViewModel::batchShare
+            // 安卓的 `batchShare`；桌面端两条分享路径都是「在资源管理器中显示」。
+            onBatchShare = selectionViewModel::share
         )
 
         SongActionSheets(
@@ -343,7 +354,13 @@ fun LocalSearchScreen(
             onShowDetail = { showDetailSheet = true },
             onShowDelete = { showDeleteDialog = true },
             onShowRename = { showRenameDialog = true },
-            onPlay = { song -> selectionViewModel.play(context, song) },
+            onPlay = { song -> selectionViewModel.play(song) },
+            onShare = { song -> selectionViewModel.share(listOf(song)) },
+            onCopy = { text ->
+                scope.launch {
+                    clipboardManager.setClipEntry(ClipEntry(StringSelection(text)))
+                }
+            },
             onDelete = { song -> selectionViewModel.delete(song) },
             onRename = { song, newFileName ->
                 selectionViewModel.renameSong(song, newFileName)
@@ -353,14 +370,14 @@ fun LocalSearchScreen(
 }
 
 private enum class LocalSearchTab(
-    val labelRes: Int,
+    val labelRes: StringResource,
     val field: LocalSearchField? = null
 ) {
-    All(R.string.search_type_all),
+    All(Res.string.search_type_all),
     Title(LocalSearchField.TITLE.labelRes, LocalSearchField.TITLE),
     Artists(LocalSearchField.ARTIST.labelRes, LocalSearchField.ARTIST),
     Albums(LocalSearchField.ALBUM.labelRes, LocalSearchField.ALBUM),
-    Lyrics(R.string.label_lyrics),
+    Lyrics(Res.string.label_lyrics),
     AlbumArtist(LocalSearchField.ALBUM_ARTIST.labelRes, LocalSearchField.ALBUM_ARTIST),
     Date(LocalSearchField.DATE.labelRes, LocalSearchField.DATE),
     Language(LocalSearchField.LANGUAGE.labelRes, LocalSearchField.LANGUAGE),
@@ -587,7 +604,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FieldSongsSection(
     item {
         SearchSectionHeader(
             title = stringResource(field.labelRes),
-            subtitle = stringResource(R.string.song_count, songs.size)
+            subtitle = formattedStringResource(Res.string.song_count, songs.size)
         )
     }
     items(
@@ -630,8 +647,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.LyricsSection(
 
     item {
         SearchSectionHeader(
-            title = stringResource(R.string.label_lyrics),
-            subtitle = stringResource(R.string.song_count, matches.size)
+            title = stringResource(Res.string.label_lyrics),
+            subtitle = formattedStringResource(Res.string.song_count, matches.size)
         )
     }
     items(
@@ -644,7 +661,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.LyricsSection(
             isSelected = selectedSongUris.contains(match.song.uri),
             swipeSelectionLabel = swipeSelectionLabel,
             swipeSelectionSecondaryLabel = swipeSelectionSecondaryLabel,
-            previewLabel = stringResource(R.string.label_lyrics),
+            previewLabel = stringResource(Res.string.label_lyrics),
             previewText = match.lyricLine,
             previewMatchQuery = query,
             pageSongs = pageSongs,
@@ -664,8 +681,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsSection(
 
     item {
         SearchSectionHeader(
-            title = stringResource(R.string.search_section_albums),
-            subtitle = stringResource(R.string.album_count, albums.size)
+            title = stringResource(Res.string.search_section_albums),
+            subtitle = formattedStringResource(Res.string.album_count, albums.size)
         )
     }
     items(
@@ -687,8 +704,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsSection(
 
     item {
         SearchSectionHeader(
-            title = stringResource(R.string.search_section_artists),
-            subtitle = stringResource(R.string.song_count, artists.size)
+            title = stringResource(Res.string.search_section_artists),
+            subtitle = formattedStringResource(Res.string.song_count, artists.size)
         )
     }
     items(
@@ -755,7 +772,7 @@ private fun SearchEmptyCard() {
             modifier = Modifier.padding(horizontal = 12.dp)
         ) {
             BasicComponent(
-                title = stringResource(R.string.search_empty)
+                title = stringResource(Res.string.search_empty)
             )
         }
     }

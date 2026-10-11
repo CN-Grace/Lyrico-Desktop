@@ -1,8 +1,8 @@
 package com.lonx.lyrico.data.model.search
 
-import androidx.annotation.StringRes
 import com.lonx.lyrico.data.model.entity.SongEntity
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
+import org.jetbrains.compose.resources.StringResource
 
 /** Text-searchable built-in metadata fields shown as dedicated local-search tabs. */
 enum class LocalSearchField(
@@ -21,8 +21,7 @@ enum class LocalSearchField(
     COPYRIGHT(MetadataFieldTarget.COPYRIGHT, SongEntity::copyright),
     COMMENT(MetadataFieldTarget.COMMENT, SongEntity::comment);
 
-    @get:StringRes
-    val labelRes: Int
+    val labelRes: StringResource
         get() = target.labelRes
 
     fun valueOf(song: SongEntity): String? = value(song)?.takeIf { it.isNotBlank() }

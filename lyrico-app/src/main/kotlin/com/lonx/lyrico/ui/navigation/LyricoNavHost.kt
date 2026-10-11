@@ -28,6 +28,7 @@ import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
 import com.lonx.lyrico.screens.EditMetadataScreen
 import com.lonx.lyrico.screens.LibraryHomeScreen
+import com.lonx.lyrico.screens.LocalSearchScreen
 import com.lonx.lyrico.screens.PluginConfigScreen
 import com.lonx.lyrico.screens.PluginManagerScreen
 import com.lonx.lyrico.screens.SearchCoverScreen
@@ -141,6 +142,11 @@ fun LyricoNavHost(
             }
             composable(route = SettingsDestination.ROUTE) {
                 SettingsScreen(navigator = navigator)
+            }
+            // The in-library search page. Android declared it `local_search` and the songs page's search
+            // icon already navigated to the declaration; this is the registration that makes it land.
+            composable(route = LocalSearchDestination.ROUTE) {
+                LocalSearchScreen(navigator = navigator)
             }
             // The three settings sub-pages: their destinations were declared by C3 (so the settings
             // screen's rows could navigate), and their screens arrive here.

@@ -1,0 +1,16 @@
+file: docs\port-evidence\c37d-local-search.png
+engine: zh-Hans-CN
+lines: 13
+  y=10 x=31 :: Lyrico 1 ℃ 〔 410555 引
+  y=107 x=58 :: Search song metadata
+  y=144 x=13 :: 0
+  y=156 x=72 :: Title Artsts Album
+  y=50 x=527 :: Local Search
+  y=156 x=266 :: Album Artist
+  y=157 x=372 :: Date
+  y=157 x=430 :: Language
+  y=157 x=517 :: Genre
+  y=157 x=584 :: LyrlCISt
+  y=157 x=654 :: Composer
+  y=156 x=745 :: Copyright
+  y=157 x=834 :: Comment

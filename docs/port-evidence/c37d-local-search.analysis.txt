@@ -1,0 +1,36 @@
+file: docs\port-evidence\c37d-local-search.png
+size: 1166x773
+distinct_colours: 1178  most_common_share: 0.873  text_pixels: 6486
+accent_blue_pixels: 1191  accent_warm_pixels: 164
+top_colours: (247, 247, 247)=786541, (232, 232, 232)=49532, (255, 255, 255)=34007, (253, 253, 253)=18196
+grid_rows_with_detail: 28/28
+density map (# ink, + detail, . faint):
+  ##++#++##++#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+  # .                                        .   ..  .                                           +
+  # ++                                       +++++##+#+                                          +
+  #                                                                                              +
+  #                                                                                              +
+  #     +#  .+.+  +++.  ++++++  .++  .++++. .+++  +++.  +++++  .++++. .+.++.                     +
+  #     ..  ....  ...   ....... ...  ..+.+  ....  ....  . ...  ...... .. ...                     +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+  #                                                                                              +
+VERDICT: OK - the window painted real content.
