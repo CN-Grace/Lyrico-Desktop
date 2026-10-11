@@ -2899,3 +2899,9 @@ lyrico-app/build/package/Lyrico-1.6.0-windows-x64-portable.zip
 - **行为层面**：全量 1279 项测试绿；关键路径（曲库、详情、设置簇、本地搜索、批量重命名/编辑、关于页与许可、语言切换、文件夹管理、缓存、导出导入）都有真实窗口证据。
 - **交付层面**：有一个能双击（`Lyrico.bat`）跑起来的 Windows 便携包，native 与 ffmpeg 侧车按加载器期望的布局随包，LGPL 的许可文本随 ffmpeg 一起分发。
 - **诚实记账**：12 条用户可见缺口、5 处已修的时序竞态、1 条 MSI 的构建阻塞，全部写在上面，没有藏。
+
+#### 8. 收尾核对（git 状态里唯一一处"不干净"的解释）
+
+`git status` 现在唯一的输出是 ` m lyrico-app/src/main/cpp/quickjs-ng`。它不是本移植改的：quickjs-ng 自己把 **test262 作为一个嵌套子模块**（`git ls-files | grep '^test262/'` 为 0，说明它只以 gitlink 形式存在），而这个嵌套子模块从未初始化过，所以 `git status` 把它报成 ` D test262`。它是 JS 一致性测试套件，**与构建 `quickjs-ng.dll` 无关**，初始化它会下载一整套无关的测试；因此保持现状，并在这里写明，免得后来者以为工作树坏了。
+
+台账（`todo`）：#37（剩余页面父任务）与 #38（安卓遗留源收口）在完成对应切片后忘了翻状态，已补记为 completed；至此所有条目均为 completed。
