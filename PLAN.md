@@ -2678,3 +2678,43 @@ java 主树 26 → **23**（3 个：`BatchEditViewModel` 与两个屏幕，都�
 java 主树 23 → **19**；前沿 15 → **13**；被挡 8 → **6**；陈旧副本 **0**（三个数来自 `port-frontier.py` 的实测输出）。
 
 算术：四个搬走的文件里**两个本在前沿**（`UpdateDialog` 与 `OpenSourceLicenceScreen`），**两个本在被挡名单**（`AboutScreen` / `AboutViewModel`，它们等的就是 `App.kt` 里的两个常量 —— 本批把那两个常量改成读 `BuildInfo`，所以没有新增任何文件，阻塞是「换掉依赖」而不是「搬进来」解除的）。于是前沿 `15 - 2 = 13`、被挡 `8 - 2 = 6`、`23 - 4 = 19`，三者自洽。剩下的 13 个前沿里 5 个是 `[ANDROID]` 待作废，其余是安卓外壳尾巴（`App.kt` / `di/AppModule.kt` / `MainActivity.kt` / `LyricoApp.kt`）、播放器选择与 `FriendlyPlayer` 簇、`ReferenceFloatingBar` + 6 个 liquid 组件、以及 `DeleteRawPropertiesMigration`。
+
+### P5 施工批次（#38：安卓遗留源收口 —— `src/main/java` 归零，2026-10-11）
+
+这一批没有「搬」任何东西：它把 java 主树最后 19 个文件按「机制已被替换 / 本来就不属于桌面」逐条作废，于是
+**`lyrico-app/src/main/java` 下的 Kotlin 文件数 = 0**，`port-frontier.py` 的三行输出变成 `0 files / 0 frontier / 0 blocked`，陈旧副本始终 0。
+
+#### 1. 作废清单（每个文件一行理由，理由都能在 kotlin 树里指到出处）
+
+| 文件 | 为什么可以作废（出处） |
+|---|---|
+| `App.kt` | 安卓 `Application`：启动序列搬进了 `Main.kt`（数据目录 → 原生库 → DI → 维护 → Coil → 开窗）；它携带的两个常量变成生成的 `BuildInfo.UPDATE_OWNER/UPDATE_REPO`（F 片） |
+| `di/AppModule.kt` | 安卓 DI 图：桌面端是 `di/DesktopAppModule.kt`（每个已搬的 VM/仓库都在那里注册过） |
+| `MainActivity.kt` | 安卓 Activity 外壳（含 `UpdateDialog` 的宿主与 `onNewIntent`）：窗口 + 外壳在 `Main.kt` / `LyricoDesktopApp.kt`；更新对话框的宿主改到关于页（F 片，缺口已记） |
+| `LyricoApp.kt` | 安卓 Compose 根（`NavHost` + 外部文件入口）：`LyricoDesktopApp` + `ui/navigation/LyricoNavHost.kt` |
+| `screens/QuickJsTestScreen.kt` | 调试用插件游乐场：C-3 已把设置页里那一行删掉，屏幕没有入口（也就没有被搬的理由） |
+| `ui/components/PainterUtils.kt` | 可移植的部分（`RoundedRectanglePainter` / `rememberTintedPainter`）已在 `ui/components/Painters.kt`；`Context` 相关的 `getBitmap`/`saveBitmap`/`getSystemWallpaperColor` 没有桌面等价物，壁纸取色的偏差在 C-3 记过 |
+| `platform/player/PlayerIntentFactory.kt`<br>`platform/player/InstalledAppChecker.kt`<br>`data/player/FriendlyPlayer.kt`<br>`data/player/FriendlyPlayerRegistry.kt`<br>`ui/components/player/PlayerPickerBottomSheet.kt` | 一整套「让用户挑一个外部播放器 App」的机制。`PlaybackRepository` 的 KDoc 写明：桌面端 `Desktop.open` 永远用系统默认程序，定向到包名与选择器都没有等价物（Windows 的「打开方式」在资源管理器里，不在应用里） |
+| `ui/components/library/ReferenceFloatingBar.kt`<br>`ui/components/library/liquid/*`（6 个） | 液态玻璃悬浮栏。`LibraryNavigationBar` 的 KDoc 记着这处删减：端口保留毛玻璃（`BarBlur`）与纯色，液态那一套的视觉效果没有搬，`LIQUID_GLASS` 这个枚举值仍然存在（旧偏好要能读出来）但不再有对应实现 |
+| `data/DeleteRawPropertiesMigration.kt` | 安卓 Room 的 `AutoMigrationSpec`。`LyricoDatabase` 的 KDoc 写着：「Android specifics that are gone: no `Context` … and no `AutoMigration`/`Migration` list」—— 桌面库的 schema 从版本 1 重新开始 |
+
+#### 2. 与 `build.gradle.kts` 的一处耦合（留给 #62）
+
+`lyrico-app/build.gradle.kts` 里那两行 `java.setSrcDirs(emptyList<String>())`（main 与 test）**现在还不能删**：KGP 从 java 源集推导 kotlin 源集，而 `src/test/java` 下还有 15 个从未编译过的安卓期测试。删掉这两行会把它们拉进编译，构建当场失败。等 #62 把那 15 个文件分类处置完（迁移 / 记录 / 删除），这两行才可以一起删。
+
+#### 3. 取证
+
+- **无头**：全量 **144 类 / 1190 项 / 0 失败 / 0 错误 / 3 门控跳过**（与 F 片同一口径；删的是未编译文件，所以数字不变 —— 这本身就是「端口不依赖它们」的证据）。
+- **前沿**：`port-frontier.py` → java 主树 **0**、前沿 **0**、被挡 **0**、陈旧副本 **0**。
+- **真窗口**：`build/tmp-probe/c38-boot.png`（未入库，见下）—— 删完之后应用照常启动并画出曲库页：`VERDICT: OK`、1334 种颜色、正文像素 15607、运行日志无异常。这条是「删掉的不是端口需要的东西」的运行时证据。
+- 说明：这张图**没有**进 `docs/port-evidence/`，因为它的内容与已入库的库页证据重复（同一个启动态）；它的作用是本次变更的运行时回归检查，故留在 `build/tmp-probe/` 并在本节记下它的分析输出。
+
+#### 4. 这一步之后还剩什么
+
+| 项 | 状态 |
+|---|---|
+| 所有屏幕 / 视图模型 / 仓库 / 工具 | ✅ 已搬完（java 主树 0） |
+| #62 死测试 | 15 个 `src/test/java` 文件待分类；分类完可删第 2 节那两行 `setSrcDirs` |
+| #42 测试卫生 | 全量偶发挂一次（不同类）的根因之一已修（C-5），旧的一半仍在 |
+| #7 打包 | jpackage/MSI + portable zip、ffmpeg 许可随包（`docs/third-party/ffmpeg-lgpl.md` 的 P6 open item） |
+| #6 收口 | P6 端到端验收 |
