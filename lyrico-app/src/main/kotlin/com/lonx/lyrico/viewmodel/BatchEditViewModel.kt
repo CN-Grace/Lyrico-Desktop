@@ -1,13 +1,14 @@
 package com.lonx.lyrico.viewmodel
 
-import android.net.Uri
-import android.util.Log
-import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lonx.audiotag.model.CustomTagField
 import com.lonx.audiotag.model.frontCoverOrFallback
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.batch_edit_cover_mismatch
+import com.lonx.lyrico.resources.batch_edit_result_summary
+import com.lonx.lyrico.resources.label_lyrics_offset
+import com.lonx.lyrico.resources.no_song_selected
 import com.lonx.lyrico.data.SharedSelectionManager
 import com.lonx.lyrico.data.model.metadata.MetadataFieldTarget
 import com.lonx.lyrico.data.editfield.CustomTagKey
@@ -17,16 +18,18 @@ import com.lonx.lyrico.data.editfield.EditFieldScene
 import com.lonx.lyrico.data.model.BatchTaskStatus
 import com.lonx.lyrico.data.model.BatchTaskType
 import com.lonx.lyrico.data.model.entity.SongEntity
-import com.lonx.lyrico.data.model.entity.getUri
 import com.lonx.lyrico.data.repository.BatchTaskRepository
 import com.lonx.lyrico.data.song.library.SongLibraryRepository
 import com.lonx.lyrico.data.song.search.SongSearchRepository
 import com.lonx.lyrico.data.song.tag.AudioTagRepository
 import com.lonx.lyrico.utils.LyricEncoder
+import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.utils.UiMessage
 import com.lonx.lyrico.worker.BatchTaskScheduler
 import com.lonx.lyrico.worker.processor.EditTagsCustomField
 import com.lonx.lyrico.worker.processor.EditTagsTaskConfig
+import java.io.File
+import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +71,7 @@ enum class BatchEditField(val target: MetadataFieldTarget) {
     COVER(MetadataFieldTarget.COVER),
     RATING(MetadataFieldTarget.RATING);
 
-    val labelResId: Int get() = target.labelRes
+    val labelResId: StringResource get() = target.labelRes
 }
 
 data class BatchEditUiState(
@@ -100,7 +103,7 @@ data class BatchEditUiState(
     val ratingModified: Boolean = false,
 
     /** 封面相关 */
-    val coverUri: Any? = null,
+    val coverUri: File? = null,
     val removeCover: Boolean = false,
 
     /** 歌词偏移（毫秒），0 表示不偏移 */
@@ -138,7 +141,7 @@ data class BatchEditPreview(
 )
 
 data class BatchEditPreviewChange(
-    val labelResId: Int?,
+    val labelResId: StringResource?,
     val customLabel: String?,
     val oldValue: String,
     val newValue: String
@@ -350,8 +353,8 @@ class BatchEditViewModel(
 
     // ── 封面管理 ──────────────────────────────────────────
 
-    fun updateCover(uri: Uri) {
-        _uiState.update { it.copy(coverUri = uri, removeCover = false) }
+    fun updateCover(cover: File) {
+        _uiState.update { it.copy(coverUri = cover, removeCover = false) }
     }
 
     fun removeCover() {
@@ -393,7 +396,7 @@ class BatchEditViewModel(
                         }
                         ?.value
                 } catch (e: Exception) {
-                    Log.e(TAG, "读取已选歌曲自定义标签失败: ${song.uri}", e)
+                    PlatformLog.e(TAG, "读取已选歌曲自定义标签失败: ${song.uri}", e)
                     null
                 }?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
 
@@ -438,7 +441,7 @@ class BatchEditViewModel(
                     title = song.title?.takeIf { title -> title.isNotBlank() } ?: song.fileName,
                     summary = song.artist.orEmpty(),
                     sourceUri = song.uri,
-                    previewUri = song.getUri.toString(),
+                    previewUri = song.uri,
                     fileLastModified = song.fileLastModified
                 )
             }
@@ -450,7 +453,7 @@ class BatchEditViewModel(
                 val tagData = audioTagRepository.read(uri)
                 tagData.pictures.frontCoverOrFallback()?.data
             } catch (e: Exception) {
-                Log.e(TAG, "读取已选歌曲封面失败: $uri", e)
+                PlatformLog.e(TAG, "读取已选歌曲封面失败: $uri", e)
                 null
             }
         }
@@ -471,7 +474,7 @@ class BatchEditViewModel(
                         }
                         .toMap()
                 } catch (e: Exception) {
-                    Log.e(TAG, "读取自定义标签预览失败: ${song.uri}", e)
+                    PlatformLog.e(TAG, "读取自定义标签预览失败: ${song.uri}", e)
                     emptyMap()
                 }
                 song.uri to customValues
@@ -501,7 +504,7 @@ class BatchEditViewModel(
         }
     }
 
-    private fun buildPreviewChanges(
+    internal fun buildPreviewChanges(
         song: SongEntity,
         state: BatchEditUiState,
         visibleFieldCodes: Set<String>
@@ -512,7 +515,7 @@ class BatchEditViewModel(
         fun addTextChange(
             changes: MutableList<BatchEditPreviewChange>,
             code: String,
-            labelResId: Int,
+            labelResId: StringResource,
             oldValue: String?,
             newValue: String
         ) {
@@ -572,7 +575,7 @@ class BatchEditViewModel(
             if (visible("lyrics_offset") && state.lyricsOffset != 0L && song.lyrics != null) {
                 add(
                     BatchEditPreviewChange(
-                        labelResId = R.string.label_lyrics_offset,
+                        labelResId = Res.string.label_lyrics_offset,
                         customLabel = null,
                         oldValue = song.lyrics,
                         newValue = LyricEncoder.shiftLyricsOffset(song.lyrics, state.lyricsOffset)
@@ -642,7 +645,7 @@ class BatchEditViewModel(
                     it.copy(
                         isSaving = false,
                         saveProgressBottomSheet = false,
-                        errorMessage = UiMessage.StringResource(R.string.no_song_selected)
+                        errorMessage = UiMessage.Localized(Res.string.no_song_selected)
                     )
                 }
                 return@launch
@@ -750,8 +753,8 @@ class BatchEditViewModel(
                         saveResultMessage = if (isRunning) {
                             null
                         } else {
-                            UiMessage.StringResource(
-                                R.string.batch_edit_result_summary,
+                            UiMessage.Localized(
+                                Res.string.batch_edit_result_summary,
                                 task.successCount,
                                 task.total,
                                 task.skippedCount,
@@ -768,7 +771,7 @@ class BatchEditViewModel(
         }
     }
 
-    private fun BatchEditUiState.toTaskConfig(
+    internal fun BatchEditUiState.toTaskConfig(
         visibleFieldCodes: Set<String>,
     ): EditTagsTaskConfig {
         val keep = EditTagsTaskConfig.KEEP_VALUE
@@ -899,7 +902,7 @@ class BatchEditViewModel(
             // 如果存在不一致的情况，更新错误消息并返回空列表
             if (hasMismatch || commonAlbum.isNullOrBlank()) {
                 _uiState.update {
-                    it.copy(errorMessage = UiMessage.StringResource(R.string.batch_edit_cover_mismatch))
+                    it.copy(errorMessage = UiMessage.Localized(Res.string.batch_edit_cover_mismatch))
                 }
                 return emptyList()
             }
@@ -924,7 +927,7 @@ class BatchEditViewModel(
                     return listOf(title to cover)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "读取同专辑歌曲封面失败: ${song.uri}", e)
+                PlatformLog.e(TAG, "读取同专辑歌曲封面失败: ${song.uri}", e)
             }
         }
 

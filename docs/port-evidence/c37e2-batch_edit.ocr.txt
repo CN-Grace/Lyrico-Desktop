@@ -1,0 +1,14 @@
+file: docs\port-evidence\c37e2-batch_edit.png
+engine: zh-Hans-CN
+lines: 11
+  y=10 x=31 :: Lyrico 1 ℃ 〔 177 巳 匚 0 引
+  y=149 x=29 :: 0 songs selected
+  y=477 x=41 :: Title 《 无
+  y=494 x=43 :: <keep>
+  y=568 x=56 :: i 呒 蒡 到
+  y=585 x=43 :: <keep>
+  y=659 x=41 :: AIbum Artist 《 无
+  y=676 x=43 :: <keep>
+  y=50 x=543 :: Ed it Tags
+  y=288 x=505 :: Tap 《 0 三 e 三 〔 OV image
+  y=101 x=835 :: Preview (O)

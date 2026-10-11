@@ -1,0 +1,32 @@
+file: docs\port-evidence\c37e2-character_mapping.png
+engine: zh-Hans-CN
+lines: 29
+  y=10 x=31 :: Lyrico 1 ℃ 〔 177 巳 匚 0 引
+  y=100 x=13 :: Tap character tO change its replacement
+  y=157 x=29 :: Character \
+  y=180 x=30 :: Select 3 replacement
+  y=231 x=29 :: Character /
+  y=254 x=30 :: Select 3 replacement
+  y=305 x=29 :: Character ：
+  y=328 x=30 :: Select 3 replacement
+  y=379 x=29 :: Character
+  y=402 x=30 :: Select 3 replacement
+  y=453 x=29 :: Character ？
+  y=476 x=30 :: Select 3 replacement
+  y=527 x=29 :: Character
+  y=550 x=30 :: Select 3 replacement
+  y=601 x=29 :: Character <
+  y=624 x=30 :: Select 3 replacement
+  y=675 x=29 :: Character >
+  y=698 x=30 :: Select 3 replacement
+  y=749 x=29 :: Character 《
+  y=50 x=449 :: Configure Character Mapping
+  y=168 x=969 :: Full-width backslash \ 〕
+  y=242 x=998 :: Full-width slash ／ 〕
+  y=316 x=994 :: Full-width calon ： ：
+  y=390 x=982 :: Full-width asterisk “
+  y=464 x=940 :: Full-width question mark 〕 ^
+  y=538 x=933 :: Full-width quotation mark [
+  y=612 x=943 :: Full-width less-than sign < 〕
+  y=686 x=921 :: Full-width greater-than sign > 〕
+  y=760 x=960 :: Full-width veltical bar 《 〕

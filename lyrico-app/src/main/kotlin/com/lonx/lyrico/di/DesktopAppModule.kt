@@ -92,6 +92,7 @@ import com.lonx.lyrico.viewmodel.AppLogViewModel
 import com.lonx.lyrico.viewmodel.ArtistLibraryViewModel
 import com.lonx.lyrico.viewmodel.ArtistPosterFoldersViewModel
 import com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel
+import com.lonx.lyrico.viewmodel.BatchEditViewModel
 import com.lonx.lyrico.viewmodel.BatchExportViewModel
 import com.lonx.lyrico.viewmodel.BatchLyricsFormatViewModel
 import com.lonx.lyrico.viewmodel.BatchMatchViewModel
@@ -442,6 +443,19 @@ fun desktopAppModule(directories: AppDirectories) = module {
     // this slice rather than of the folder-manager screen only. Every argument is named: three of these
     // are repository-shaped and two are scopes, which is exactly the kind of list that compiles after a
     // positional swap.
+    // The batch-edit page (E-2). Same shape as the rename view model's, plus the edit-field config it
+    // renders from.
+    viewModel {
+        BatchEditViewModel(
+            songLibraryRepository = get(),
+            songSearchRepository = get(),
+            audioTagRepository = get(),
+            selectionManager = get(),
+            batchTaskRepository = get(),
+            batchTaskScheduler = get(),
+            editFieldConfigRepository = get(),
+        )
+    }
     // The batch-rename page (E-1). Every argument is named: two of these are repositories and two are
     // batch-task collaborators, which is exactly the list a positional swap would still compile.
     viewModel {

@@ -16,18 +16,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.character_mapping_description
+import com.lonx.lyrico.resources.character_replacement_selector_subtitle
+import com.lonx.lyrico.resources.character_to_replace
+import com.lonx.lyrico.resources.configure_character_mapping
+import com.lonx.lyrico.resources.no_character_mappings
+import com.lonx.lyrico.resources.replacement_not_selected
 import com.lonx.lyrico.data.model.CharacterMappingRule
 import com.lonx.lyrico.data.model.ReplacementCharOption
 import com.lonx.lyrico.data.model.toReplacementOption
 import com.lonx.lyrico.ui.components.scaffoldTopHorizontalPadding
 import com.lonx.lyrico.viewmodel.CharacterMappingViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.utils.formattedStringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -43,9 +49,8 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
-@Destination<RootGraph>(route = "character_mapping")
 fun CharacterMappingScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: CharacterMappingViewModel = koinViewModel()
     val characterMappingConfig by viewModel.characterMappingConfig.collectAsState()
@@ -53,13 +58,13 @@ fun CharacterMappingScreen(
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = stringResource(R.string.configure_character_mapping),
+                title = stringResource(Res.string.configure_character_mapping),
                 navigationIcon = {
                     IconButton(
                         onClick = { navigator.popBackStack() }) {
                         Icon(
                             imageVector = MiuixIcons.Back,
-                            contentDescription = stringResource(R.string.action_back)
+                            contentDescription = stringResource(Res.string.action_back)
                         )
                     }
                 },
@@ -73,7 +78,7 @@ fun CharacterMappingScreen(
                 .padding(scaffoldTopHorizontalPadding(paddingValues))
         ) {
             Text(
-                text = stringResource(R.string.character_mapping_description),
+                text = stringResource(Res.string.character_mapping_description),
                 fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                 color = MiuixTheme.colorScheme.onSurfaceVariantActions,
                 modifier = Modifier.padding(12.dp)
@@ -116,7 +121,7 @@ private fun CharacterMappingRuleSection(
             modifier = Modifier.padding(horizontal = 12.dp),
         ) {
             Text(
-                text = stringResource(R.string.no_character_mappings),
+                text = stringResource(Res.string.no_character_mappings),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
@@ -124,7 +129,7 @@ private fun CharacterMappingRuleSection(
     }
 
     val optionLabels = listOf(
-        stringResource(R.string.replacement_not_selected)
+        stringResource(Res.string.replacement_not_selected)
     ) + ReplacementCharOption.entries.map { option ->
         stringResource(option.labelRes)
     }
@@ -139,8 +144,8 @@ private fun CharacterMappingRuleSection(
             val selectedIndex = currentOption?.let { ReplacementCharOption.entries.indexOf(it) + 1 } ?: 0
 
             WindowDropdownPreference(
-                title = stringResource(R.string.character_to_replace, character),
-                summary = stringResource(R.string.character_replacement_selector_subtitle),
+                title = formattedStringResource(Res.string.character_to_replace, character),
+                summary = stringResource(Res.string.character_replacement_selector_subtitle),
                 items = optionLabels,
                 selectedIndex = selectedIndex,
                 onSelectedIndexChange = { index ->

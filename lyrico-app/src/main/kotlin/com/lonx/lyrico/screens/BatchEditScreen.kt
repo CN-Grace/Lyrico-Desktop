@@ -1,9 +1,5 @@
 package com.lonx.lyrico.screens
 
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -35,7 +31,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.core.net.toUri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,17 +44,56 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_abort
+import com.lonx.lyrico.resources.action_add_custom_tag
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.action_undo_changes
+import com.lonx.lyrico.resources.batch_edit_cover_change
+import com.lonx.lyrico.resources.batch_edit_cover_hint
+import com.lonx.lyrico.resources.batch_edit_cover_remove
+import com.lonx.lyrico.resources.batch_edit_cover_revert
+import com.lonx.lyrico.resources.batch_edit_info_content
+import com.lonx.lyrico.resources.batch_edit_info_summary
+import com.lonx.lyrico.resources.batch_edit_loading_selected_values
+import com.lonx.lyrico.resources.batch_edit_no_selected_covers
+import com.lonx.lyrico.resources.batch_edit_no_selected_values
+import com.lonx.lyrico.resources.batch_edit_preview_change_count
+import com.lonx.lyrico.resources.batch_edit_preview_current_cover
+import com.lonx.lyrico.resources.batch_edit_preview_empty
+import com.lonx.lyrico.resources.batch_edit_preview_empty_value
+import com.lonx.lyrico.resources.batch_edit_preview_new_value
+import com.lonx.lyrico.resources.batch_edit_preview_old_value
+import com.lonx.lyrico.resources.batch_edit_preview_remove_cover
+import com.lonx.lyrico.resources.batch_edit_processing
+import com.lonx.lyrico.resources.batch_edit_select_cover_from_selected_songs
+import com.lonx.lyrico.resources.batch_edit_select_from_selected_songs
+import com.lonx.lyrico.resources.batch_edit_song_count
+import com.lonx.lyrico.resources.batch_edit_tab_config
+import com.lonx.lyrico.resources.batch_edit_tab_preview
+import com.lonx.lyrico.resources.batch_edit_title
+import com.lonx.lyrico.resources.batch_matching_failure
+import com.lonx.lyrico.resources.batch_matching_success
+import com.lonx.lyrico.resources.batch_matching_total_time
+import com.lonx.lyrico.resources.batch_replay_gain_skipped
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.edit_field_settings_title
+import com.lonx.lyrico.resources.ic_album_24dp
+import com.lonx.lyrico.resources.ic_filled_star_24dp
+import com.lonx.lyrico.resources.ic_outline_star_24dp
+import com.lonx.lyrico.resources.label_custom_tag_name
+import com.lonx.lyrico.resources.label_custom_tag_value
+import com.lonx.lyrico.resources.label_select_same_album_cover
 import com.lonx.lyrico.data.editfield.toEditFieldBlocks
 import com.lonx.lyrico.data.editfield.EditFieldRegistry
 import com.lonx.lyrico.ui.components.rememberTintedPainter
@@ -77,12 +111,15 @@ import com.lonx.lyrico.viewmodel.BatchEditSelectableCover
 import com.lonx.lyrico.viewmodel.BatchEditSelectableValue
 import com.lonx.lyrico.viewmodel.BatchEditUiState
 import com.lonx.lyrico.viewmodel.BatchEditViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.EditFieldSettingsDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.lonx.lyrico.ui.navigation.EditFieldSettingsDestination
+import com.lonx.lyrico.ui.navigation.Navigator
+import com.lonx.lyrico.platform.FileOpenPicker
+import com.lonx.lyrico.platform.rememberFileOpenPicker
+import com.lonx.lyrico.utils.formattedStringResource
+import java.io.File
+import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -115,15 +152,18 @@ import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
-private enum class BatchEditTab(val labelRes: Int) {
-    Config(R.string.batch_edit_tab_config),
-    Preview(R.string.batch_edit_tab_preview)
+private val LocalImageExtensions = listOf("jpg", "jpeg", "png", "webp", "bmp", "gif")
+
+private enum class BatchEditTab(val labelRes: StringResource) {
+    Config(Res.string.batch_edit_tab_config),
+    Preview(Res.string.batch_edit_tab_preview)
 }
 
 @Composable
-@Destination<RootGraph>(route = "batch_edit")
 fun BatchEditScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator,
+    // Nullable so a test can inject a fake (see `SongsPage` for why it is not a default argument).
+    fileOpenPicker: FileOpenPicker? = null,
 ) {
     val viewModel: BatchEditViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -162,9 +202,11 @@ fun BatchEditScreen(
         viewModel.loadCustomTagPreviewValues(visibleCustomKeys)
     }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri -> uri?.let { viewModel.updateCover(it) } }
+    // 桌面端没有 `PickVisualMedia`：选封面是原生文件对话框（挂起），拿到的就是 `File`。
+    val coverPicker = fileOpenPicker ?: rememberFileOpenPicker(
+        title = stringResource(Res.string.batch_edit_cover_change),
+        extensions = LocalImageExtensions
+    )
 
     val scope = rememberCoroutineScope()
 
@@ -220,12 +262,20 @@ fun BatchEditScreen(
 
     fun applyCoverSource(cover: Any) {
         when (cover) {
-            is String -> viewModel.updateCover(cover.toUri())
+            // A path from the album's own cover: on desktop that *is* the file.
+            is String -> viewModel.updateCover(File(cover))
             is ByteArray -> {
-                val tempFile = java.io.File.createTempFile("cover", ".jpg")
+                val tempFile = File.createTempFile("cover", ".jpg")
                 tempFile.writeBytes(cover)
-                viewModel.updateCover(android.net.Uri.fromFile(tempFile))
+                viewModel.updateCover(tempFile)
             }
+        }
+    }
+
+    fun pickCover() {
+        scope.launch {
+            val file = coverPicker.pick() ?: return@launch
+            viewModel.updateCover(file)
         }
     }
 
@@ -256,17 +306,8 @@ fun BatchEditScreen(
 
     val topAppBarScrollBehavior = MiuixScrollBehavior()
 
-    BackHandler(
-        enabled = !uiState.isSaving
-    ) {
-        if (!uiState.isSaving) {
-            if (expandedFabMenu){
-                expandedFabMenu = false
-            } else {
-                navigator.popBackStack()
-            }
-        }
-    }
+    // 桌面端没有系统返回手势（见 `FolderManagerScreen` / `AlbumDetailScreen`）：菜单靠遮罩关、选择模式
+    // 靠顶栏关闭按钮退。
     Box(
         modifier = Modifier.fillMaxSize()
     ){
@@ -274,7 +315,7 @@ fun BatchEditScreen(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 SmallTopAppBar(
-                    title = stringResource(R.string.batch_edit_title),
+                    title = stringResource(Res.string.batch_edit_title),
                     navigationIcon = {
                         IconButton(
                             onClick = {
@@ -283,7 +324,7 @@ fun BatchEditScreen(
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Back,
-                                contentDescription = stringResource(R.string.action_back)
+                                contentDescription = stringResource(Res.string.action_back)
                             )
                         }
                     },
@@ -317,7 +358,7 @@ fun BatchEditScreen(
                         val tabLabels = tabs.map { tab ->
                             when (tab) {
                                 BatchEditTab.Config -> stringResource(tab.labelRes)
-                                BatchEditTab.Preview -> stringResource(
+                                BatchEditTab.Preview -> formattedStringResource(
                                     tab.labelRes,
                                     editPreviews.size
                                 )
@@ -357,8 +398,8 @@ fun BatchEditScreen(
                                     // 歌曲数量信息
                                     item(key = "song_count") {
                                         SmallTitle(
-                                            text = stringResource(
-                                                R.string.batch_edit_song_count,
+                                            text = formattedStringResource(
+                                                Res.string.batch_edit_song_count,
                                                 uiState.songCount
                                             )
                                         )
@@ -486,7 +527,7 @@ fun BatchEditScreen(
             onExpandedChange = { expandedFabMenu = it }
         ) {
             FabMenuItem(
-                label = stringResource(R.string.action_add_custom_tag),
+                label = stringResource(Res.string.action_add_custom_tag),
                 icon = MiuixIcons.Add,
                 enabled = !uiState.isSaving,
                 onClick = {
@@ -495,16 +536,16 @@ fun BatchEditScreen(
                 }
             )
             FabMenuItem(
-                label = stringResource(R.string.edit_field_settings_title),
+                label = stringResource(Res.string.edit_field_settings_title),
                 icon = MiuixIcons.Settings,
                 enabled = !uiState.isSaving,
                 onClick = {
                     expandedFabMenu = false
-                    navigator.navigate(EditFieldSettingsDestination())
+                    navigator.navigate(EditFieldSettingsDestination)
                 }
             )
             FabMenuItem(
-                label = stringResource(R.string.batch_edit_info_summary),
+                label = stringResource(Res.string.batch_edit_info_summary),
                 icon = MiuixIcons.Info,
                 enabled = !uiState.isSaving,
                 onClick = {
@@ -533,32 +574,28 @@ fun BatchEditScreen(
                     colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.secondaryContainer)
                 ) {
                     ArrowPreference(
-                        title = stringResource(R.string.batch_edit_cover_change),
+                        title = stringResource(Res.string.batch_edit_cover_change),
                         onClick = {
                             showCoverOptionsSheet = false
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageOnly
-                                )
-                            )
+                            pickCover()
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.batch_edit_select_cover_from_selected_songs),
+                        title = stringResource(Res.string.batch_edit_select_cover_from_selected_songs),
                         onClick = {
                             showCoverOptionsSheet = false
                             openSelectedCoverSheet()
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.label_select_same_album_cover),
+                        title = stringResource(Res.string.label_select_same_album_cover),
                         onClick = {
                             showCoverOptionsSheet = false
                             loadSameAlbumCovers()
                         }
                     )
                     ArrowPreference(
-                        title = stringResource(R.string.batch_edit_cover_remove),
+                        title = stringResource(Res.string.batch_edit_cover_remove),
                         onClick = {
                             showCoverOptionsSheet = false
                             viewModel.removeCover()
@@ -566,7 +603,7 @@ fun BatchEditScreen(
                     )
                     if (uiState.coverUri != null || uiState.removeCover) {
                         ArrowPreference(
-                            title = stringResource(R.string.batch_edit_cover_revert),
+                            title = stringResource(Res.string.batch_edit_cover_revert),
                             onClick = {
                                 showCoverOptionsSheet = false
                                 viewModel.revertCover()
@@ -599,9 +636,9 @@ fun BatchEditScreen(
                             BasicComponent(
                                 title = stringResource(
                                     if (selectedValueOptionsLoading)
-                                        R.string.batch_edit_loading_selected_values
+                                        Res.string.batch_edit_loading_selected_values
                                     else
-                                        R.string.batch_edit_no_selected_values
+                                        Res.string.batch_edit_no_selected_values
                                 )
                             )
                         }
@@ -642,7 +679,7 @@ fun BatchEditScreen(
     WindowBottomSheet(
         show = showSelectedCoverSheet,
         enableNestedScroll = false,
-        title = stringResource(R.string.batch_edit_select_cover_from_selected_songs),
+        title = stringResource(Res.string.batch_edit_select_cover_from_selected_songs),
         onDismissRequest = { showSelectedCoverSheet = false }
     ) {
         LazyVerticalGrid(
@@ -665,9 +702,9 @@ fun BatchEditScreen(
                         BasicComponent(
                             title = stringResource(
                                 if (selectedCoverOptionsLoading)
-                                    R.string.batch_edit_loading_selected_values
+                                    Res.string.batch_edit_loading_selected_values
                                 else
-                                    R.string.batch_edit_no_selected_covers
+                                    Res.string.batch_edit_no_selected_covers
                             )
                         )
                     }
@@ -698,7 +735,7 @@ fun BatchEditScreen(
     // 批量编辑说明对话框
     WindowDialog(
         show = showInfoDialog,
-        title = stringResource(R.string.batch_edit_info_summary),
+        title = stringResource(Res.string.batch_edit_info_summary),
         onDismissRequest = { showInfoDialog = false }
     ) {
         Column(
@@ -708,13 +745,13 @@ fun BatchEditScreen(
                 .padding(horizontal = 12.dp)
         ) {
             Text(
-                text = stringResource(R.string.batch_edit_info_content),
+                text = stringResource(Res.string.batch_edit_info_content),
                 style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
             TextButton(
                 modifier = Modifier.fillMaxWidth(),
-                text = stringResource(R.string.confirm),
+                text = stringResource(Res.string.confirm),
                 onClick = { showInfoDialog = false },
                 colors = ButtonDefaults.textButtonColorsPrimary()
             )
@@ -733,7 +770,7 @@ fun BatchEditScreen(
             }
         },
         allowDismiss = !uiState.isSaving,
-        title = stringResource(R.string.batch_edit_title),
+        title = stringResource(Res.string.batch_edit_title),
     ) {
         Column(
             modifier = Modifier
@@ -753,10 +790,10 @@ fun BatchEditScreen(
                 ) {
                     Text(
                         text = if (uiState.isSaving) {
-                            uiState.currentFile.ifEmpty { stringResource(R.string.batch_edit_processing) }
+                            uiState.currentFile.ifEmpty { stringResource(Res.string.batch_edit_processing) }
                         } else {
                             // 保存完成后显示总用时
-                            stringResource(R.string.batch_matching_total_time, uiState.saveTimeMillis / 1000.0)
+                            formattedStringResource(Res.string.batch_matching_total_time, uiState.saveTimeMillis / 1000.0)
                         },
                         style = MiuixTheme.textStyles.subtitle,
                         maxLines = 1,
@@ -787,22 +824,22 @@ fun BatchEditScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = stringResource(
-                        R.string.batch_matching_success,
+                    text = formattedStringResource(
+                        Res.string.batch_matching_success,
                         uiState.successCount
                     ),
                     style = MiuixTheme.textStyles.main
                 )
                 Text(
-                    text = stringResource(
-                        R.string.batch_replay_gain_skipped,
+                    text = formattedStringResource(
+                        Res.string.batch_replay_gain_skipped,
                         uiState.skippedCount
                     ),
                     style = MiuixTheme.textStyles.main
                 )
                 Text(
-                    text = stringResource(
-                        R.string.batch_matching_failure,
+                    text = formattedStringResource(
+                        Res.string.batch_matching_failure,
                         uiState.failureCount
                     ),
                     style = MiuixTheme.textStyles.main
@@ -810,8 +847,8 @@ fun BatchEditScreen(
             }
 
             TextButton(
-                text = if (uiState.isSaving) stringResource(R.string.action_abort) else stringResource(
-                    R.string.confirm
+                text = if (uiState.isSaving) stringResource(Res.string.action_abort) else stringResource(
+                    Res.string.confirm
                 ),
                 onClick = {
                     if (uiState.isSaving) {
@@ -829,7 +866,7 @@ fun BatchEditScreen(
 
     WindowDialog(
         show = showAddCustomTagDialog,
-        title = stringResource(R.string.action_add_custom_tag),
+        title = stringResource(Res.string.action_add_custom_tag),
         onDismissRequest = { showAddCustomTagDialog = false }
     ) {
         var newCustomTagKey by remember { mutableStateOf("") }
@@ -838,27 +875,27 @@ fun BatchEditScreen(
             TextField(
                 value = newCustomTagKey,
                 onValueChange = { newCustomTagKey = it },
-                label = stringResource(R.string.label_custom_tag_name),
+                label = stringResource(Res.string.label_custom_tag_name),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
             TextField(
                 value = newCustomTagValue,
                 onValueChange = { newCustomTagValue = it },
-                label = stringResource(R.string.label_custom_tag_value),
+                label = stringResource(Res.string.label_custom_tag_value),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = { showAddCustomTagDialog = false },
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(20.dp))
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = {
                         if (newCustomTagKey.isNotBlank()) {
                             viewModel.addCustomFieldAndShow(
@@ -892,7 +929,7 @@ private fun BatchEditCoverOptionItem(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AsyncImage(
-            model = CoverRequest(option.previewUri.toUri(), option.fileLastModified),
+            model = CoverRequest(option.previewUri, option.fileLastModified),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -901,11 +938,11 @@ private fun BatchEditCoverOptionItem(
                 .clip(RoundedCornerShape(6.dp))
                 .background(LyricoColors.coverPlaceholder),
             placeholder = rememberTintedPainter(
-                painter = painterResource(id = R.drawable.ic_album_24dp),
+                painter = painterResource(Res.drawable.ic_album_24dp),
                 tint = LyricoColors.coverPlaceholderIcon
             ),
             error = rememberTintedPainter(
-                painter = painterResource(id = R.drawable.ic_album_24dp),
+                painter = painterResource(Res.drawable.ic_album_24dp),
                 tint = LyricoColors.coverPlaceholderIcon
             )
         )
@@ -980,7 +1017,7 @@ private fun BatchEditRatingItem(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = stringResource(R.string.action_undo_changes),
+                            text = stringResource(Res.string.action_undo_changes),
                             fontSize = 11.sp,
                             color = MiuixTheme.colorScheme.error,
                             fontWeight = FontWeight.Medium
@@ -1013,9 +1050,9 @@ private fun BatchEditRatingItem(
                         Icon(
                             painter = painterResource(
                                 if (isFilled)
-                                    R.drawable.ic_filled_star_24dp
+                                    Res.drawable.ic_filled_star_24dp
                                 else
-                                    R.drawable.ic_outline_star_24dp
+                                    Res.drawable.ic_outline_star_24dp
                             ),
                             contentDescription = null,
                             tint = if (isFilled)
@@ -1058,7 +1095,7 @@ private fun BatchEditCoverSection(
     ) {
         if (isRemoved) {
             Text(
-                text = stringResource(R.string.batch_edit_cover_remove),
+                text = stringResource(Res.string.batch_edit_cover_remove),
                 color = MiuixTheme.colorScheme.error,
                 fontWeight = FontWeight.Medium
             )
@@ -1069,11 +1106,11 @@ private fun BatchEditCoverSection(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
                 placeholder = rememberTintedPainter(
-                    painter = painterResource(id = R.drawable.ic_album_24dp),
+                    painter = painterResource(Res.drawable.ic_album_24dp),
                     tint = LyricoColors.coverPlaceholderIcon
                 ),
                 error = rememberTintedPainter(
-                    painter = painterResource(id = R.drawable.ic_album_24dp),
+                    painter = painterResource(Res.drawable.ic_album_24dp),
                     tint = LyricoColors.coverPlaceholderIcon
                 )
             )
@@ -1083,14 +1120,14 @@ private fun BatchEditCoverSection(
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_album_24dp),
+                    painter = painterResource(Res.drawable.ic_album_24dp),
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantActions
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.batch_edit_cover_hint),
+                    text = stringResource(Res.string.batch_edit_cover_hint),
                     color = MiuixTheme.colorScheme.onSurfaceVariantActions,
                     fontSize = 13.sp
                 )
@@ -1125,7 +1162,7 @@ private fun BatchEditPreviewTab(
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.batch_edit_preview_empty),
+                        text = stringResource(Res.string.batch_edit_preview_empty),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.onSurfaceVariantActions,
                         modifier = Modifier.padding(12.dp)
@@ -1156,7 +1193,7 @@ private fun BatchEditPreviewTab(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = stringResource(R.string.batch_edit_preview_change_count, preview.changes.size),
+                            text = formattedStringResource(Res.string.batch_edit_preview_change_count, preview.changes.size),
                             style = MiuixTheme.textStyles.footnote1,
                             color = MiuixTheme.colorScheme.onSurfaceVariantActions
                         )
@@ -1176,16 +1213,16 @@ private fun BatchEditPreviewTab(
                                             color = MiuixTheme.colorScheme.primary
                                         )
                                         Text(
-                                            text = stringResource(
-                                                R.string.batch_edit_preview_old_value,
+                                            text = formattedStringResource(
+                                                Res.string.batch_edit_preview_old_value,
                                                 displayBatchEditPreviewValue(change.oldValue)
                                             ),
                                             style = MiuixTheme.textStyles.footnote1,
                                             color = MiuixTheme.colorScheme.onSurfaceVariantActions
                                         )
                                         Text(
-                                            text = stringResource(
-                                                R.string.batch_edit_preview_new_value,
+                                            text = formattedStringResource(
+                                                Res.string.batch_edit_preview_new_value,
                                                 displayBatchEditPreviewValue(change.newValue)
                                             ),
                                             style = MiuixTheme.textStyles.footnote1,
@@ -1208,9 +1245,9 @@ private fun BatchEditPreviewTab(
 @Composable
 private fun displayBatchEditPreviewValue(value: String): String {
     return when (value) {
-        "<current_cover>" -> stringResource(R.string.batch_edit_preview_current_cover)
-        "<remove_cover>" -> stringResource(R.string.batch_edit_preview_remove_cover)
-        "" -> stringResource(R.string.batch_edit_preview_empty_value)
+        "<current_cover>" -> stringResource(Res.string.batch_edit_preview_current_cover)
+        "<remove_cover>" -> stringResource(Res.string.batch_edit_preview_remove_cover)
+        "" -> stringResource(Res.string.batch_edit_preview_empty_value)
         else -> value
     }
 }
@@ -1267,7 +1304,7 @@ private fun BatchEditFieldItem(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = stringResource(R.string.action_undo_changes),
+                            text = stringResource(Res.string.action_undo_changes),
                             fontSize = 11.sp,
                             color = MiuixTheme.colorScheme.error,
                             fontWeight = FontWeight.Medium
@@ -1277,7 +1314,7 @@ private fun BatchEditFieldItem(
                 IconButton(onClick = onSelectFromSongs) {
                     Icon(
                         imageVector = MiuixIcons.Basic.ArrowUpDown,
-                        contentDescription = stringResource(R.string.batch_edit_select_from_selected_songs)
+                        contentDescription = stringResource(Res.string.batch_edit_select_from_selected_songs)
                     )
                 }
             }
@@ -1316,7 +1353,7 @@ private fun BatchEditFieldItem(
                     IconButton(onClick = onSelectFromSongs) {
                         Icon(
                             imageVector = MiuixIcons.Basic.ArrowUpDown,
-                            contentDescription = stringResource(R.string.batch_edit_select_from_selected_songs)
+                            contentDescription = stringResource(Res.string.batch_edit_select_from_selected_songs)
                         )
                     }
                 }
@@ -1366,7 +1403,7 @@ private fun BatchEditCustomFieldItem(
                 IconButton(onClick = onSelectFromSongs) {
                     Icon(
                         imageVector = MiuixIcons.Basic.ArrowUpDown,
-                        contentDescription = stringResource(R.string.batch_edit_select_from_selected_songs)
+                        contentDescription = stringResource(Res.string.batch_edit_select_from_selected_songs)
                     )
                 }
             }

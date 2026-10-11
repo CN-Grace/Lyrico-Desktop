@@ -24,6 +24,8 @@ import com.lonx.lyrico.screens.EditFieldSettingsScreen
 import com.lonx.lyrico.screens.FolderManagerScreen
 import com.lonx.lyrico.screens.LyricsCleanupRulesScreen
 import com.lonx.lyrico.screens.SettingsScreen
+import com.lonx.lyrico.screens.BatchEditScreen
+import com.lonx.lyrico.screens.CharacterMappingScreen
 import com.lonx.lyrico.screens.BatchRenameScreen
 import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
@@ -153,6 +155,14 @@ fun LyricoNavHost(
             // which is ported; the route is registered here so those rows land on a real screen.
             composable(route = BatchRenameDestination.ROUTE) {
                 BatchRenameScreen(navigator = navigator)
+            }
+            // The batch-edit page and the character-mapping editor (E-2). The first is reached from the
+            // same batch menu as the rename page; the second from the rename page's own row.
+            composable(route = BatchEditDestination.ROUTE) {
+                BatchEditScreen(navigator = navigator)
+            }
+            composable(route = CharacterMappingDestination.ROUTE) {
+                CharacterMappingScreen(navigator = navigator)
             }
             // The three settings sub-pages: their destinations were declared by C3 (so the settings
             // screen's rows could navigate), and their screens arrive here.

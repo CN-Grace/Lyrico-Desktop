@@ -2546,3 +2546,72 @@ E 片按「引擎」与「批量编辑」切开：E-1 是重命名这条链（`C
 #### 7. 前沿（本批收口）
 
 java 主树 31 → **26**（5 个：2 个本在前沿、3 个本在被挡）；前沿 17 → **15**；被挡 14 → **11**；陈旧副本 **0**。
+
+### P5 施工批次（#37-E-2：批量编辑页（1427 行）+ 字符映射页（157 行）+ 936 行视图模型，2026-10-11）
+
+#### 1. 搬了什么（`git mv` 3 个 + 路由 2 条 + DI 1 条）
+
+| 文件 | 行数 | 说明 |
+|---|---|---|
+| `viewmodel/BatchEditViewModel.kt` | 938 | 4 处字符串机械迁移；`coverUri` 从 `Any?`/`Uri` 变 `File?`；`Log.e` → `PlatformLog.e`；`labelResId` 从 `Int` 变 `StringResource`；两个纯函数改 `internal`（见第 3 节） |
+| `screens/BatchEditScreen.kt` | 1427 | 40 处字符串机械迁移；SAF/ActivityResult 选封面 → `rememberFileOpenPicker` 接缝；`BackHandler` 删除；`Uri`→`File`；`CoverRequest(path)`；5 处 `stringResource(res, args)` → `formattedStringResource` |
+| `screens/CharacterMappingScreen.kt` | 157 | 7 处字符串机械迁移；路由形式；1 处 `formattedStringResource` |
+
+接线：`LyricoNavHost` 注册 `batch_edit` 与 `character_mapping`；`DesktopAppModule` 注册 `BatchEditViewModel`（又是安卓 `AppModule` 里有、桌面图里没有的一个）。
+
+`data/model/entity.getUri` 这个「阻塞项」最后是虚惊：桌面端的 `SongEntity.uri` 本身就是路径字符串，把那处 `song.getUri.toString()` 写成 `song.uri` 即可，**没有为它新增任何文件**——前沿脚本的依赖判断基于符号所在树，而这是安卓期的扩展函数，已在别处被同样处理过。
+
+#### 2. 桌面化改写点（逐条）
+
+1. **`Uri` 全线退场**：`updateCover(uri: Uri)` → `updateCover(cover: File)`；状态里的 `coverUri: Any?` → `coverUri: File?`；`applyCoverSource` 的 String 分支直接 `File(cover)`（桌面端那个字符串**就是**路径），ByteArray 分支写临时文件后传 `File`；`CoverRequest(option.previewUri)`（它的 `uri` 参数本来就是 `String`）。
+2. **选封面：`PickVisualMedia` → `rememberFileOpenPicker`**（可空参数供测试注入，理由同 `SongsPage`）；两个入口都是挂起调用，选完投给 ViewModel。
+3. **`stringResource(id = ...)` / `painterResource(id = ...)` 的具名参数去掉**（Compose Resources 的这两个函数没有 `id`）——本批各两处。
+4. **`Log.e` → `PlatformLog.e`**（桌面端的日志接缝，其它已搬的 VM 同款）。
+5. **`labelResId: Int` → `StringResource`**（字段枚举与预览项各一处）。
+6. **`BackHandler` 删除**（同前几片）。
+
+#### 3. 无头取证（新增 1 类 6 项；全量 142 类 / 1184 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+`viewmodel/BatchEditPreviewTest` 驱动的是这个 VM 里**决定「到底会写什么」**的两个纯函数（`buildPreviewChanges` 与 `toTaskConfig`，为了让测试能直接调用而从 `private` 改成 `internal`，这是本批唯一的可见性改动）：
+
+| 项 | 钉住的东西 |
+|---|---|
+| 编辑过的字段出现在预览里，带自己的标签资源 | 新旧值与标签都指向对的那个字段 |
+| 没动过的字段不产生预览行 | 未动 = `KEEP_VALUE` 哨兵，不是空串 |
+| 被配置隐藏的字段即使状态里有值也不进预览 | 显隐由「编辑字段」配置决定 |
+| 清空一个字段**会**作为「改成空」被预览 | 「清空」与「没动」是两回事 |
+| 没动过的字段进任务配置是 `keep` | 反向保证：不会把用户没碰的标签抹掉 |
+| 清空的字段进任务配置是空串 | 清空是一次真写入，不是 keep |
+
+写这批测试时的收获正好是个反例教材：我第一版把「没动过」写成空串，三条断言当场挂了 —— **代码是对的，我的假设错了**（哨兵 `KEEP_VALUE` 才是「没动」）。真窗口证据里每一行都显示 `<keep>`，与测试互相印证。
+
+没有为这两个页面写屏幕测试：它们的组合路径由真窗口证据覆盖（下面两张图），而它们真正自有的逻辑就是上面那两个函数。
+
+#### 4. 真窗口取证（`docs/port-evidence/c37e2-*`，两张各用 `-Plyrico.start.route` 起一次）
+
+| 文件 | 内容 | OCR 关键行 | 分析 |
+|---|---|---|---|
+| `c37e2-batch_edit.png` | Edit Tags：Config / Preview (0)、「0 songs selected」、封面上传占位、评分星、以及每行都是 `<keep>` 的字段（Title / Artists / Album Artist / Album …） | `y=101 :: Preview (O)`、`y=149 :: 0 songs selected`、`y=494/585/676 :: <keep>` | `VERDICT: OK` |
+| `c37e2-character_mapping.png` | Configure Character Mapping：提示行 + 每个字符一行，右侧是替换方案下拉（Full-width backslash ( ＼ ) 等） | `y=100 :: Tap character tO change its replacement`、`y=157 :: Character \`、`y=231 :: Character /` | `VERDICT: OK` |
+
+字符映射页那几行的标题正是 `formattedStringResource(Res.string.character_to_replace, character)` 的结果（字符被替进标题），所以这张图同时证明了那处格式化改写。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **`stringResource(res, args)` 的批量改名不能靠正则**：E-1 的教训（跨行正则改坏了文件）这次换成一个**括号/引号感知的小脚本**（`build/tmp-probe/format-calls.py`）：找到 `stringResource(` 后跳到配对的 `)`，只在**顶层有逗号**时替换，于是「单参数但跨行」的调用被正确放过。同一脚本把 `BatchEditScreen` 的 5 处与 `CharacterMappingScreen` 的 1 处各一次改对。
+2. **删 `BackHandler` 不能靠数括号**：它是 `BackHandler { … }`（尾随 lambda），从 `(` 开始配对括号只会删掉头部，留下一个孤立的 `if` 块 —— 报出来的是「顶层声明」语法错误。要连 lambda 体一起删。
+3. **`stringResource(id = …)` / `painterResource(id = …)` 是安卓形态**（本批各两处），Compose Resources 的这两个函数都没有 `id` 参数。
+4. **`internal` 是把纯函数暴露给测试的最轻手段**：不必引入接口或构造参数，也不要把它们挪出类（`toTaskConfig` 是成员扩展，测试里用 `with(viewModel()) { … }` 调用即可）。
+5. **UI 状态里「没动」用哨兵而不是空串**：这个 VM 用 `EditTagsTaskConfig.KEEP_VALUE`（`<keep>`），把「清空」与「没动」分开；写测试前先读实现，否则会像我第一版那样把语义读反（三条断言白挂）。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. 这两页的**正式入口都在曲库页的批量菜单里**（已注册的路由），字符映射页从重命名页/批量编辑页的行进入；现在都点得进去。
+2. 桌面端没有系统返回手势（同前几片）。
+3. **没有为这两页写屏幕级无头测试**（理由见第 3 节末）；窗口证据覆盖它们的组合与文案。
+
+#### 7. 前沿（本批收口）
+
+java 主树 26 → **23**（3 个：`BatchEditViewModel` 与两个屏幕，都不在前沿）；前沿 15 → **15**；被挡 11 → **8**；陈旧副本 **0**。
+
+算术：三个搬走的文件都在被挡名单（两个等 `BatchEditViewModel`、一个等 `getUri` 那个符号），所以被挡 `11 - 3 = 8`，前沿不变、`26 - 3 = 23`。剩下的 15 个前沿里 5 个 `[ANDROID]` 待作废（`PainterUtils` / `QuickJsTestScreen` / `PlayerIntentFactory` / `InstalledAppChecker` / `LyricoApp`），其余是 F（关于页/更新对话框/许可页）、`App.kt`+`di/AppModule`+`MainActivity` 这条安卓外壳尾巴与几个尾部杂项。
