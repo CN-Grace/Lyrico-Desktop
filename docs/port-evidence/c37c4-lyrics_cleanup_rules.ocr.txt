@@ -1,0 +1,32 @@
+file: build\tmp-probe\c37c4-lyrics_cleanup_rules.png
+engine: zh-Hans-CN
+lines: 29
+  y=10 x=31 :: Lyrico 1 〔 2ae6 〔 7 到
+  y=96 x=30 :: Filter Rules
+  y=50 x=473 :: Non-Lyric Content Rules
+  y=141 x=36 :: [by:
+  y=141 x=114 :: [kana:
+  y=142 x=209 :: [tra ns:
+  y=227 x=187 :: 配 唱 制 作 人 ．
+  y=142 x=305 :: [roma:
+  y=228 x=327 :: OP:
+  y=140 x=402 :: 作 词 ：
+  y=228 x=417 :: OP:
+  y=140 x=503 :: 作 词 ：
+  y=184 x=518 :: 录 音
+  y=140 x=591 :: 作 曲 ：
+  y=184 x=619 :: 录 音
+  y=140 x=692 :: 作 曲 ：
+  y=184 x=707 :: 母 带 ．
+  y=139 x=780 :: 编 曲 ．
+  y=184 x=808 :: 母 带 ．
+  y=139 x=881 :: 编 曲 ：
+  y=184 x=896 :: 和 声 ．
+  y=140 x=969 :: 制 作 人 ：
+  y=184 x=997 :: 和 声 ．
+  y=183 x=35 :: 制 作 人
+  y=227 x=35 :: 配 唱 制 作 人 ：
+  y=271 x=25 :: These rules are u 0 0 剂 y when № mo “ nan-lyric content is selected in single-song 0 r batch Format lyrics. Rules match complete text in the 喜 lyric 丽 已 Word-by-ward lyrics 3 j0ined into full
+  y=288 x=26 :: lines b 射 0 matching
+  y=331 x=269 :: Add rule
+  y=332 x=807 :: Reset 忆 default

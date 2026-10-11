@@ -1,0 +1,18 @@
+file: build\tmp-probe\c37c4-artist_split_settings.png
+engine: zh-Hans-CN
+lines: 15
+  y=10 x=31 :: Lyrico 1 〔 2ae6 〔 7 到
+  y=96 x=29 :: Artist split
+  y=139 x=30 :: Enable artist splitting
+  y=162 x=29 :: When enabled, multiple artists 彐 listed p ra ， in the artist view
+  y=213 x=30 :: Rebuild artist index
+  y=236 x=29 :: The current aftist index is up ta date
+  y=50 x=511 :: Artist split rules
+  y=279 x=29 :: Separators
+  y=438 x=30 :: No-split artists
+  y=482 x=29 :: Add no-split artist
+  y=324 x=748 :: feat.
+  y=324 x=855 :: ft.
+  y=387 x=807 :: Reset 忆 default
+  y=324 x=944 :: featuring
+  y=386 x=248 :: Add separator

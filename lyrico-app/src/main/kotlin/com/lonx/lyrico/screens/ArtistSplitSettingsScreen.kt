@@ -1,6 +1,5 @@
 package com.lonx.lyrico.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,25 +31,52 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.add_custom_separator
+import com.lonx.lyrico.resources.add_no_split_artist
+import com.lonx.lyrico.resources.artist_index_current
+import com.lonx.lyrico.resources.artist_index_rebuild_complete
+import com.lonx.lyrico.resources.artist_index_rebuild_failed
+import com.lonx.lyrico.resources.artist_index_rebuild_pending
+import com.lonx.lyrico.resources.artist_index_rebuilding
+import com.lonx.lyrico.resources.artist_name_input_hint
+import com.lonx.lyrico.resources.artist_split_delete_rule_message
+import com.lonx.lyrico.resources.artist_split_delete_rule_title
+import com.lonx.lyrico.resources.artist_split_enabled
+import com.lonx.lyrico.resources.artist_split_enabled_summary
+import com.lonx.lyrico.resources.artist_split_general_section
+import com.lonx.lyrico.resources.artist_split_settings_title
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.common_delete
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.duplicate_builtin_item
+import com.lonx.lyrico.resources.duplicate_item
+import com.lonx.lyrico.resources.edit_custom_separator
+import com.lonx.lyrico.resources.edit_no_split_artist
+import com.lonx.lyrico.resources.invalid_empty_input
+import com.lonx.lyrico.resources.rebuild_artist_index
+import com.lonx.lyrico.resources.rebuild_artist_index_now
+import com.lonx.lyrico.resources.reset_to_default
+import com.lonx.lyrico.resources.section_artist_separators
+import com.lonx.lyrico.resources.section_no_split_artists
+import com.lonx.lyrico.resources.separator_input_hint
 import com.lonx.lyrico.data.model.artist.ArtistSplitDefaults
 import com.lonx.lyrico.data.model.artist.CustomArtistSeparator
 import com.lonx.lyrico.data.model.artist.CustomNoSplitArtist
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
+import com.lonx.lyrico.ui.navigation.Navigator
 import com.lonx.lyrico.viewmodel.ArtistSplitSettingsViewModel
 import com.lonx.lyrico.viewmodel.ArtistSplitValidationError
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.utils.formattedStringResource
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -69,6 +95,8 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -76,13 +104,11 @@ import top.yukonga.miuix.kmp.window.WindowDialog
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-@Destination<RootGraph>(route = "artist_split_settings")
 fun ArtistSplitSettingsScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: ArtistSplitSettingsViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     var editingSeparator by remember { mutableStateOf<CustomArtistSeparator?>(null) }
     var addingSeparator by remember { mutableStateOf(false) }
@@ -90,23 +116,26 @@ fun ArtistSplitSettingsScreen(
     var addingNoSplitArtist by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<PendingRuleDelete?>(null) }
 
+    // Android 的两条 Toast 换成 Miuix 的 Snackbar：文案仍然在展示这一刻解析（语言切换后也跟着换），
+    // 状态清理的时机不变（提示发出后再清）。
+    val snackbarHostState = remember { SnackbarHostState() }
     uiState.error?.let { error ->
         val message = when (error) {
-            ArtistSplitValidationError.EMPTY -> stringResource(R.string.invalid_empty_input)
-            ArtistSplitValidationError.DUPLICATE -> stringResource(R.string.duplicate_item)
-            ArtistSplitValidationError.DUPLICATE_BUILTIN -> stringResource(R.string.duplicate_builtin_item)
-            ArtistSplitValidationError.REBUILD_FAILED -> stringResource(R.string.artist_index_rebuild_failed)
+            ArtistSplitValidationError.EMPTY -> stringResource(Res.string.invalid_empty_input)
+            ArtistSplitValidationError.DUPLICATE -> stringResource(Res.string.duplicate_item)
+            ArtistSplitValidationError.DUPLICATE_BUILTIN -> stringResource(Res.string.duplicate_builtin_item)
+            ArtistSplitValidationError.REBUILD_FAILED -> stringResource(Res.string.artist_index_rebuild_failed)
         }
         LaunchedEffect(error) {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            snackbarHostState.showSnackbar(message)
             viewModel.clearError()
         }
     }
 
     if (uiState.rebuildCompleted) {
-        val message = stringResource(R.string.artist_index_rebuild_complete)
+        val message = stringResource(Res.string.artist_index_rebuild_complete)
         LaunchedEffect(Unit) {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            snackbarHostState.showSnackbar(message)
             viewModel.clearRebuildCompleted()
         }
     }
@@ -114,15 +143,16 @@ fun ArtistSplitSettingsScreen(
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val topBarBackdrop = rememberBarBlurBackdrop()
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             BlurredTopBar(backdrop = topBarBackdrop) {
                 SmallTopAppBar(
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
-                    title = stringResource(R.string.artist_split_settings_title),
+                    title = stringResource(Res.string.artist_split_settings_title),
                     navigationIcon = {
                         IconButton(onClick = { navigator.popBackStack() }) {
-                            Icon(MiuixIcons.Back, contentDescription = stringResource(R.string.action_back))
+                            Icon(MiuixIcons.Back, contentDescription = stringResource(Res.string.action_back))
                         }
                     },
                     scrollBehavior = topAppBarScrollBehavior
@@ -144,34 +174,34 @@ fun ArtistSplitSettingsScreen(
             overscrollEffect = null
         ) {
             item(key = "config") {
-                SmallTitle(text = stringResource(R.string.artist_split_general_section))
+                SmallTitle(text = stringResource(Res.string.artist_split_general_section))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     SwitchPreference(
-                        title = stringResource(R.string.artist_split_enabled),
-                        summary = stringResource(R.string.artist_split_enabled_summary),
+                        title = stringResource(Res.string.artist_split_enabled),
+                        summary = stringResource(Res.string.artist_split_enabled_summary),
                         checked = uiState.config.enabled,
                         onCheckedChange = viewModel::setEnabled
                     )
                     ArrowPreference(
                         title = stringResource(
                             if (uiState.hasPendingIndexRebuild) {
-                                R.string.rebuild_artist_index_now
+                                Res.string.rebuild_artist_index_now
                             } else {
-                                R.string.rebuild_artist_index
+                                Res.string.rebuild_artist_index
                             }
                         ),
                         onClick = viewModel::rebuildArtistIndex,
                         summary = when {
-                            uiState.isRebuildingIndex -> stringResource(R.string.artist_index_rebuilding)
-                            uiState.hasPendingIndexRebuild -> stringResource(R.string.artist_index_rebuild_pending)
-                            else -> stringResource(R.string.artist_index_current)
+                            uiState.isRebuildingIndex -> stringResource(Res.string.artist_index_rebuilding)
+                            uiState.hasPendingIndexRebuild -> stringResource(Res.string.artist_index_rebuild_pending)
+                            else -> stringResource(Res.string.artist_index_current)
                         }
                     )
                 }
             }
 
             item(key = "separators") {
-                SmallTitle(text = stringResource(R.string.section_artist_separators))
+                SmallTitle(text = stringResource(Res.string.section_artist_separators))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     val separatorChips = ArtistSplitDefaults.BUILTIN_SEPARATORS
                         .filterNot { it.id in uiState.config.hiddenBuiltinSeparatorIds }
@@ -219,13 +249,13 @@ fun ArtistSplitSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         TextButton(
-                            text = stringResource(R.string.add_custom_separator),
+                            text = stringResource(Res.string.add_custom_separator),
                             onClick = { addingSeparator = true },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.textButtonColorsPrimary()
                         )
                         TextButton(
-                            text = stringResource(R.string.reset_to_default),
+                            text = stringResource(Res.string.reset_to_default),
                             onClick = viewModel::resetSeparators,
                             modifier = Modifier.weight(1f)
                         )
@@ -234,7 +264,7 @@ fun ArtistSplitSettingsScreen(
             }
 
             item(key = "custom_no_split") {
-                SmallTitle(text = stringResource(R.string.section_no_split_artists))
+                SmallTitle(text = stringResource(Res.string.section_no_split_artists))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     if (uiState.config.customNoSplitArtists.isNotEmpty()) {
                         ChipGrid(
@@ -256,7 +286,7 @@ fun ArtistSplitSettingsScreen(
                         }
                     }
                     ArrowPreference(
-                        title = stringResource(R.string.add_no_split_artist),
+                        title = stringResource(Res.string.add_no_split_artist),
                         onClick = { addingNoSplitArtist = true }
                     )
                 }
@@ -266,9 +296,9 @@ fun ArtistSplitSettingsScreen(
 
     ArtistSplitInputDialog(
         show = addingSeparator,
-        title = stringResource(R.string.add_custom_separator),
+        title = stringResource(Res.string.add_custom_separator),
         initialValue = "",
-        hint = stringResource(R.string.separator_input_hint),
+        hint = stringResource(Res.string.separator_input_hint),
         showDelete = false,
         onDismiss = { addingSeparator = false },
         onSave = {
@@ -278,9 +308,9 @@ fun ArtistSplitSettingsScreen(
 
     ArtistSplitInputDialog(
         show = editingSeparator != null,
-        title = stringResource(R.string.edit_custom_separator),
+        title = stringResource(Res.string.edit_custom_separator),
         initialValue = editingSeparator?.value.orEmpty(),
-        hint = stringResource(R.string.separator_input_hint),
+        hint = stringResource(Res.string.separator_input_hint),
         showDelete = true,
         onDismiss = { editingSeparator = null },
         onDelete = {
@@ -295,9 +325,9 @@ fun ArtistSplitSettingsScreen(
 
     ArtistSplitInputDialog(
         show = addingNoSplitArtist,
-        title = stringResource(R.string.add_no_split_artist),
+        title = stringResource(Res.string.add_no_split_artist),
         initialValue = "",
-        hint = stringResource(R.string.artist_name_input_hint),
+        hint = stringResource(Res.string.artist_name_input_hint),
         showDelete = false,
         onDismiss = { addingNoSplitArtist = false },
         onSave = {
@@ -307,9 +337,9 @@ fun ArtistSplitSettingsScreen(
 
     ArtistSplitInputDialog(
         show = editingNoSplitArtist != null,
-        title = stringResource(R.string.edit_no_split_artist),
+        title = stringResource(Res.string.edit_no_split_artist),
         initialValue = editingNoSplitArtist?.name.orEmpty(),
-        hint = stringResource(R.string.artist_name_input_hint),
+        hint = stringResource(Res.string.artist_name_input_hint),
         showDelete = true,
         onDismiss = { editingNoSplitArtist = null },
         onDelete = {
@@ -439,7 +469,7 @@ private fun RuleChip(
         )
         Icon(
             imageVector = MiuixIcons.Delete,
-            contentDescription = stringResource(R.string.common_delete),
+            contentDescription = stringResource(Res.string.common_delete),
             modifier = Modifier
                 .size(18.dp)
                 .clip(CircleShape)
@@ -483,20 +513,20 @@ private fun ArtistSplitInputDialog(
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 if (showDelete) {
                     TextButton(
-                        text = stringResource(R.string.common_delete),
+                        text = stringResource(Res.string.common_delete),
                         onClick = onDelete,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(Modifier.width(12.dp))
                 }
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(12.dp))
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = { onSave(text) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.textButtonColorsPrimary()
@@ -514,13 +544,13 @@ private fun ConfirmRuleDeleteDialog(
 ) {
     WindowDialog(
         show = pendingDelete != null,
-        title = stringResource(R.string.artist_split_delete_rule_title),
+        title = stringResource(Res.string.artist_split_delete_rule_title),
         onDismissRequest = onDismiss
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = stringResource(
-                    R.string.artist_split_delete_rule_message,
+                text = formattedStringResource(
+                    Res.string.artist_split_delete_rule_message,
                     pendingDelete?.label.orEmpty()
                 ),
                 color = MiuixTheme.colorScheme.onSurface
@@ -528,13 +558,13 @@ private fun ConfirmRuleDeleteDialog(
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(12.dp))
                 TextButton(
-                    text = stringResource(R.string.common_delete),
+                    text = stringResource(Res.string.common_delete),
                     onClick = {
                         pendingDelete?.let(onConfirm)
                     },

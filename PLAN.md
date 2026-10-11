@@ -2198,6 +2198,69 @@ java 主树 38 → **37**；前沿 22 → **22**；被挡 16 → **15**；陈旧
 
 下一片 C-4 是三个设置子页（`EditFieldSettingsScreen` / `LyricsCleanupRulesScreen` / `ArtistSplitSettingsScreen`），三个都已在 C-3 里声明了路由，且都在前沿（它们的视图模型早就搬完了）。
 
+### P5 施工批次（#37-C-4：三个设置子页（718 + 272 + 547 行），2026-10-11）
+
+#### 1. 搬了什么（`git mv` 3 个 + 路由注册 3 条）
+
+| 文件 | 行数 | 机械迁移的字符串数 | 手工改写 |
+|---|---|---|---|
+| `screens/EditFieldSettingsScreen.kt` | 718 | 31 | 路由形式；`LocalConfiguration` 的 sheet 高度；两处 `stringResource(res, args)` |
+| `screens/LyricsCleanupRulesScreen.kt` | 272 | 14 | 路由形式；一处 `stringResource(res, args)` |
+| `screens/ArtistSplitSettingsScreen.kt` | 547 | 29 | 路由形式；`Toast` → Snackbar；一处 `stringResource(res, args)` |
+
+路由：`LyricoNavHost` 里把 C-3 声明的三个 `Destination` 接上真实屏幕（之前它们只是「声明了但未注册」）。
+
+#### 2. 桌面化改写点（三条都是共性的，不是这三页各自的细节）
+
+1. **`@Destination<RootGraph>` + `DestinationsNavigator` → 路由注册 + 手写 `Navigator`**：三个文件都是同一个改法。
+2. **`Toast` → Miuix `Snackbar`**（仅 `ArtistSplitSettingsScreen`）：安卓用它报两类消息——输入校验失败与「索引重建完成」；现在都走 `snackbarHostState.showSnackbar(...)`，Scaffold 补 `snackbarHost`。文案仍然是可组合的 `stringResource`（在 `LaunchedEffect` 之外算好），而状态清理的时机不变（提示发出后再 `clearError()`）。
+3. **`LocalConfiguration.screenHeightDp` → 固定上限**（仅 `EditFieldSettingsScreen` 的歌曲 sheet）：安卓按屏幕高 55%（封顶 420dp）算列表高；桌面端没有那个配置对象，且窗口可缩放，所以直接取那个上限。这是**换写法而不是做不到**（sheet 在两种屏幕上都只是「别把窗口占满」）。
+
+#### 3. 无头取证（新增 1 类 6 项；全量 138 类 / 1169 项 / 0 失败 / 0 错误 / 3 门控跳过）
+
+`screens/SettingsSubPagesTest`（三个页各自挂在真实路由 + 真 Koin 图；数据全部先经真存储写入）：
+
+| 页 | 项 | 钉住的东西 |
+|---|---|---|
+| 编辑字段 | 2 | 标题渲染；先写入的自定义标签会出现在列表里 |
+| 歌词清理 | 2 | 标题渲染；存储里的规则会出现在列表里 |
+| 艺术家分隔 | 2 | 标题渲染；**空名字提交后校验消息以零食条形式出现**，且被拒的输入没有写进配置 |
+
+交互深度比 `SettingsScreenTest` 浅是故意的：这三页是长表单，每个控件的语义已由它们各自的视图模型测试钉住，屏幕这一层新增的是**组合、字符串、与消息通路**（而消息通路正好是本批改的东西）。
+
+全量：C-3 那节的 1163 → **1169**（+6）。这次又抳住四处安卓期的 `stringResource(res, args)`（删除确认框、启用计数、自定义标签删除提示），已改 `formattedStringResource`。
+
+#### 4. 真窗口取证（`docs/port-evidence/c37c4-*`，三页各自用 `-Plyrico.start.route=<route>` 起一次）
+
+| 文件 | 内容 | OCR 关键行 | 分析 |
+|---|---|---|---|
+| `c37c4-edit_field_settings.png` | 标题 Edit Fields；右上「22 / 22 enabled」（走 `formattedStringResource`）；12+ 行字段开关（Cover / Rating / Title / Artists / Album Artist / Album / Date / Language / Genre / Track Number / Disc Number / Lyricist…） | `y=100 x=1048 :: 22 / 22 enabled` | `VERDICT: OK` |
+| `c37c4-lyrics_cleanup_rules.png` | 标题 Non-Lyric Content Rules；默认规则芯片（[by: / [kana: / [trans: / [roma: / 作词: …）；说明文字；Add rule / Reset to default | `y=50 :: Non-Lyric Content Rules`、`y=331 :: Add rule` | `VERDICT: OK` |
+| `c37c4-artist_split_settings.png` | 标题 Artist split rules；Enable artist splitting（开）/ Rebuild artist index（The current artist index is up to date）；分隔符号芯片（/ \| ; ： ， 、 已启用，& feat. ft. featuring 未启用）；Add separator / Reset to default；Add no-split artist | `y=50 :: Artist split rules`、`y=96 :: Artist split`、`y=213 :: Rebuild artist index`、`y=386 :: Add separator` | `VERDICT: OK` |
+
+三张都是英文界面：上一切片（C-3）把 `app_language` 改成了 `en`，这一批没有任何地方再去撞它，所以跨进程重启仍然英文 —— 顺带证明了那条偏好真的落盘了。另外由证据看到一处存量小瑕疵：歌词清理页的默认芯片里有两对「看起来一样」的（`作词:` 与 `作词：`、`OP:` 与 `OP：`），实际是全角/半角冒号两条不同规则；默认列表来自 `LyricsProcessingOptions.DefaultTagLineKeywords`（安卓同源），不是本批引入，但这字体下用户很容易以为是重复项。
+
+#### 5. 这批实测出来的坑（都会再踩）
+
+1. **`StringFormattingGuardTest` 是搬文件的立即反馈**：本批四个文件搬进来时又共抳出 4 处 `stringResource(res, args)`。结论：**搬完一个文件先跑全量（或至少跑这个守卫）**，比最后一起发现便宜得多（C-3/C-5 都踩过同一条）。
+2. **`stringResource(res, args)` 的搜法不能靠肉眼看 `%1$s`**：本批的四处都是多行参数写法（`stringResource(\n Res.string.x,\n arg\n)`），行内 grep `stringResource\(R` 找不到；要么直接跑守卫，要么用「`stringResource(` 后跟逗号且跨行」的模式搜。
+3. **页面挂真实路由才能测 `koinViewModel()`**：三个测试都用「`NavHost` + `startDestination = 该页路由`」的写法（与已搬的屏幕测试一致），否则视图模型拿不到这个 entry 的生命周期。
+4. **确定性入口比点击链便宜**：三个页的窗口证据直接用 `-Plyrico.start.route=<route>` 起，比从设置页一路点进去少一堆坐标猜谜（C5b 加那个逃生口就是为这种场景）。
+
+#### 6. 用户可见缺口（如实记录）
+
+1. **设置子页的入口都在设置页里**，而设置页已经注册（C-3），所以这一批之后四页都可从界面到达；但**旧条目仍有指向未注册路由的行**（如插件管理 → 已注册；批量任务/关于/本地搜索 → 待 C6/F/D），点下去只会在日志里看到一条「未注册」警告，不崩。
+2. **`EditFieldSettingsScreen` 的歌曲 sheet 高度不再随窗口大小变**：固定 420dp 上限（改写点 3）。在极小的窗口里 sheet 可能偏高，在很大的窗口里则不会占满 —— 不影响功能，但不如安卓那样「总占屏高一半多」。
+3. **歌词清理默认芯片里的全角/半角冒号对子**（上文第 4 节）：存量数据，要改就动默认列表（影响行为，留给清理批次）。
+
+#### 7. 前沿（本批收口）
+
+java 主树 37 → **34**（三个都在前沿）；前沿 22 → **19**；被挡 15 → **15**；陈旧副本 **0**。
+
+算术：三个搬走的都在前沿（它们的视图模型/依赖早已搬完），所以 `37 - 3 = 34` 与 `22 - 3 = 19`；被挡名单不受影响（`SettingsScreen` 上批已走）。剩下的 19 个前沿文件里已有 5 个是 [`ANDROID`] 待作废（`PainterUtils` / `QuickJsTestScreen` / `PlayerIntentFactory` / `InstalledAppChecker` / `LyricoApp`），13 个属于 D（本地搜索）与 E（批量重命名/编辑）。
+
+下一片 C-6：本簇收口（全量 + 真窗口证据汇总 + 本批已写好的 PLAN 段落回查）。C-6 原本还要拍「语言切换前后两张图」，**这个已经在 C-3 完成了**（`c37c3-settings-en.png` 就是切换后），所以 C-6 只剩汇总与校验。
+
 ## 5. 待定分叉（到 P5 前必须由用户裁决）
 
 **「更新检查」指向哪个仓库**（`utils/UpdateManager.kt`）—— ✅ **已裁决：方案 B**（2026-10-09，用户选择）：指向本 fork `CN-Grace/Lyrico-Desktop`。以下为当初的选项留档：

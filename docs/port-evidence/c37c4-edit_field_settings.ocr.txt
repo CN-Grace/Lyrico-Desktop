@@ -1,0 +1,19 @@
+file: build\tmp-probe\c37c4-edit_field_settings.png
+engine: zh-Hans-CN
+lines: 16
+  y=10 x=31 :: Lyrico 1 〔 2ae6 〔 7 到
+  y=100 x=30 :: HO 氅 card tO reorder; use buttons for actions
+  y=146 x=26 :: Cover
+  y=200 x=26 :: RatIng
+  y=253 x=25 :: Title
+  y=308 x=25 :: Artlsts
+  y=361 x=25 :: Album Aftist
+  y=415 x=25 :: Album
+  y=470 x=26 :: Date
+  y=524 x=26 :: Language
+  y=578 x=26 :: Genre
+  y=631 x=25 :: Track Number
+  y=685 x=26 :: Disc Number
+  y=740 x=26 :: Lyrlclst
+  y=50 x=537 :: Ed it Fields
+  y=100 x=1048 :: 22 / 22 enabled

@@ -40,13 +40,43 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.cd_more_actions
+import com.lonx.lyrico.resources.common_delete
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.custom_tag_add_key
+import com.lonx.lyrico.resources.custom_tag_delete_message
+import com.lonx.lyrico.resources.custom_tag_delete_title
+import com.lonx.lyrico.resources.custom_tag_key
+import com.lonx.lyrico.resources.custom_tag_key_hint
+import com.lonx.lyrico.resources.custom_tag_key_invalid
+import com.lonx.lyrico.resources.custom_tag_library_empty
+import com.lonx.lyrico.resources.custom_tag_library_section
+import com.lonx.lyrico.resources.duplicate_item
+import com.lonx.lyrico.resources.edit_field_component_hint
+import com.lonx.lyrico.resources.edit_field_component_short_tag
+import com.lonx.lyrico.resources.edit_field_custom_short_tag
+import com.lonx.lyrico.resources.edit_field_manage_members
+import com.lonx.lyrico.resources.edit_field_settings_enabled_count
+import com.lonx.lyrico.resources.edit_field_settings_hint
+import com.lonx.lyrico.resources.edit_field_settings_reset_message
+import com.lonx.lyrico.resources.edit_field_settings_title
+import com.lonx.lyrico.resources.edit_field_songs_empty
+import com.lonx.lyrico.resources.edit_field_songs_truncated
+import com.lonx.lyrico.resources.edit_field_songs_with
+import com.lonx.lyrico.resources.edit_field_songs_without
+import com.lonx.lyrico.resources.edit_field_view_songs
+import com.lonx.lyrico.resources.group_replay_gain
+import com.lonx.lyrico.resources.invalid_empty_input
+import com.lonx.lyrico.resources.load_failed
+import com.lonx.lyrico.resources.reset_to_default
 import com.lonx.lyrico.data.editfield.EditFieldBlock
 import com.lonx.lyrico.data.editfield.EditFieldDefinition
 import com.lonx.lyrico.data.editfield.EditFieldListItem
@@ -65,14 +95,13 @@ import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
 import com.lonx.lyrico.ui.components.library.LibraryEmptyState
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
 import com.lonx.lyrico.ui.components.song.SongListItem
+import com.lonx.lyrico.ui.navigation.Navigator
 import com.lonx.lyrico.viewmodel.CustomTagKeyError
 import com.lonx.lyrico.viewmodel.EditFieldSettingsViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.EditMetadataDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.lonx.lyrico.ui.navigation.EditMetadataDestination
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.utils.formattedStringResource
+import org.koin.compose.viewmodel.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -107,9 +136,8 @@ import top.yukonga.miuix.kmp.window.WindowListPopup
 
 /** 内置字段与自定义标签共用一份可排序列表。 */
 @Composable
-@Destination<RootGraph>(route = "edit_field_settings")
 fun EditFieldSettingsScreen(
-    navigator: DestinationsNavigator,
+    navigator: Navigator,
 ) {
     val viewModel: EditFieldSettingsViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -146,17 +174,17 @@ fun EditFieldSettingsScreen(
         topBar = {
             BlurredTopBar(backdrop = topBarBackdrop) {
                 SmallTopAppBar(
-                    title = stringResource(R.string.edit_field_settings_title),
+                    title = stringResource(Res.string.edit_field_settings_title),
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
                     navigationIcon = {
                         IconButton(onClick = { navigator.popBackStack() }) {
-                            Icon(MiuixIcons.Back, stringResource(R.string.action_back))
+                            Icon(MiuixIcons.Back, stringResource(Res.string.action_back))
                         }
                     },
                     actions = {
                         IconButton(onClick = { showResetDialog = true }) {
-                            Icon(MiuixIcons.Reset, stringResource(R.string.reset_to_default))
+                            Icon(MiuixIcons.Reset, stringResource(Res.string.reset_to_default))
                         }
                         IconButton(onClick = {
                             viewModel.clearInputError()
@@ -164,7 +192,7 @@ fun EditFieldSettingsScreen(
                         }) {
                             Icon(
                                 MiuixIcons.Add,
-                                contentDescription = stringResource(R.string.custom_tag_add_key),
+                                contentDescription = stringResource(Res.string.custom_tag_add_key),
                             )
                         }
                     },
@@ -195,15 +223,15 @@ fun EditFieldSettingsScreen(
                     verticalAlignment = Alignment.Top,
                 ) {
                     Text(
-                        text = stringResource(R.string.edit_field_settings_hint),
+                        text = stringResource(Res.string.edit_field_settings_hint),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = stringResource(
-                            R.string.edit_field_settings_enabled_count,
+                        text = formattedStringResource(
+                            Res.string.edit_field_settings_enabled_count,
                             uiState.enabledCount,
                             uiState.items.size,
                         ),
@@ -244,7 +272,7 @@ fun EditFieldSettingsScreen(
                                 pendingOpenSongUri = null
                                 val composite = block?.isComposite == true
                                 viewModel.showFieldSongs(
-                                    if (composite) item.field.copy(titleRes = R.string.group_replay_gain) else item.field,
+                                    if (composite) item.field.copy(titleRes = Res.string.group_replay_gain) else item.field,
                                     component = composite,
                                 )
                                 showSongsSheet = true
@@ -282,9 +310,9 @@ fun EditFieldSettingsScreen(
 
     YesNoDialog(
         show = pendingDeleteKey != null,
-        title = stringResource(R.string.custom_tag_delete_title),
-        summary = stringResource(R.string.custom_tag_delete_message, pendingDeleteKey.orEmpty()),
-        confirmText = stringResource(R.string.common_delete),
+        title = stringResource(Res.string.custom_tag_delete_title),
+        summary = formattedStringResource(Res.string.custom_tag_delete_message, pendingDeleteKey.orEmpty()),
+        confirmText = stringResource(Res.string.common_delete),
         onDismissRequest = { pendingDeleteKey = null },
         onConfirm = {
             pendingDeleteKey?.let(viewModel::removeCustomTag)
@@ -294,9 +322,9 @@ fun EditFieldSettingsScreen(
 
     YesNoDialog(
         show = showResetDialog,
-        title = stringResource(R.string.reset_to_default),
-        summary = stringResource(R.string.edit_field_settings_reset_message),
-        confirmText = stringResource(R.string.confirm),
+        title = stringResource(Res.string.reset_to_default),
+        summary = stringResource(Res.string.edit_field_settings_reset_message),
+        confirmText = stringResource(Res.string.confirm),
         onDismissRequest = { showResetDialog = false },
         onConfirm = {
             viewModel.resetAll()
@@ -383,9 +411,9 @@ private fun EditFieldRow(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val menuItems = buildList<Pair<String, () -> Unit>> {
-        if (component != null) add(stringResource(R.string.edit_field_manage_members) to onManageComponent)
-        add(stringResource(R.string.edit_field_view_songs) to onOpenSongs)
-        if (item.field.custom) add(stringResource(R.string.common_delete) to onDelete)
+        if (component != null) add(stringResource(Res.string.edit_field_manage_members) to onManageComponent)
+        add(stringResource(Res.string.edit_field_view_songs) to onOpenSongs)
+        if (item.field.custom) add(stringResource(Res.string.common_delete) to onDelete)
     }
     val content: @Composable () -> Unit = {
         Row(
@@ -407,18 +435,18 @@ private fun EditFieldRow(
                 )
                 if (component != null || item.field.custom) {
                     FieldTagChip(stringResource(
-                        if (component != null) R.string.edit_field_component_short_tag
-                        else R.string.edit_field_custom_short_tag
+                        if (component != null) Res.string.edit_field_component_short_tag
+                        else Res.string.edit_field_custom_short_tag
                     ))
                 }
             }
             Box {
                 PillButton(
-                    text = stringResource(R.string.cd_more_actions),
+                    text = stringResource(Res.string.cd_more_actions),
                     showText = false,
                     style = PillButtonDefaults.style(PillButtonSize.Small),
                     onClick = { showMenu = true },
-                    leading = { Icon(MiuixIcons.More, stringResource(R.string.cd_more_actions), Modifier.size(20.dp)) },
+                    leading = { Icon(MiuixIcons.More, stringResource(Res.string.cd_more_actions), Modifier.size(20.dp)) },
                 )
                 WindowListPopup(
                     show = showMenu,
@@ -453,7 +481,7 @@ private fun EditFieldRow(
 
 @Composable
 private fun EditFieldBlock.title(): String = stringResource(
-    if (isComposite) R.string.group_replay_gain else fields.first().titleRes
+    if (isComposite) Res.string.group_replay_gain else fields.first().titleRes
 )
 
 @Composable
@@ -488,7 +516,7 @@ private fun ComponentFieldsBottomSheet(
         LaunchedEffect(savedCodes) { orderState.updateSaved(savedCodes) }
         Column(Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
             Text(
-                stringResource(R.string.edit_field_component_hint),
+                stringResource(Res.string.edit_field_component_hint),
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -556,7 +584,10 @@ private fun FieldSongsBottomSheet(
     onDismissFinished: () -> Unit,
     onSongClick: (SongEntity) -> Unit,
 ) {
-    val pagerHeight = (LocalConfiguration.current.screenHeightDp.dp * 0.55f).coerceAtMost(420.dp)
+    // 安卓按 `LocalConfiguration.screenHeightDp` 的 55% 算 sheet 里的列表高度（封顶 420dp）。
+    // 桌面端没有那个配置对象，而且窗口是可缩放的：直接用一个固定上限，让 sheet 自己按内容排。
+    // 这是换写法而不是做不到 —— sheet 在两种屏幕上都只是“别把窗口占满”。
+    val pagerHeight = 420.dp
     WindowBottomSheet(
         show = show,
         title = sheetTitle,
@@ -572,8 +603,8 @@ private fun FieldSongsBottomSheet(
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             TabRowWithContour(
                 tabs = listOf(
-                    stringResource(R.string.edit_field_songs_with),
-                    stringResource(R.string.edit_field_songs_without),
+                    stringResource(Res.string.edit_field_songs_with),
+                    stringResource(Res.string.edit_field_songs_without),
                 ),
                 selectedTabIndex = pagerState.currentPage,
                 onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
@@ -592,7 +623,7 @@ private fun FieldSongsBottomSheet(
                     when {
                         isLoading -> CircularProgressIndicator(size = 32.dp)
                         songs.isEmpty() -> LibraryEmptyState(
-                            title = stringResource(if (loadFailed) R.string.load_failed else R.string.edit_field_songs_empty),
+                            title = stringResource(if (loadFailed) Res.string.load_failed else Res.string.edit_field_songs_empty),
                         )
                         else -> Card(
                             modifier = Modifier.fillMaxSize(),
@@ -604,7 +635,7 @@ private fun FieldSongsBottomSheet(
                                 contentPadding = PaddingValues(bottom = 16.dp),
                             ) {
                                 if (loadFailed) {
-                                    item { Text(stringResource(R.string.load_failed), modifier = Modifier.padding(16.dp)) }
+                                    item { Text(stringResource(Res.string.load_failed), modifier = Modifier.padding(16.dp)) }
                                 }
                                 items(songs, key = { it.uri }) { song ->
                                     SongListItem(song = song, onClick = { onSongClick(song) })
@@ -612,7 +643,7 @@ private fun FieldSongsBottomSheet(
                                 if (truncated) {
                                     item {
                                         Text(
-                                            text = stringResource(R.string.edit_field_songs_truncated),
+                                            text = stringResource(Res.string.edit_field_songs_truncated),
                                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                             fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                                             modifier = Modifier.padding(16.dp),
@@ -643,7 +674,7 @@ private fun AddCustomTagDialog(
 
     WindowDialog(
         show = show,
-        title = stringResource(R.string.custom_tag_add_key),
+        title = stringResource(Res.string.custom_tag_add_key),
         onDismissRequest = onDismiss,
         onDismissFinished = onDismissFinished,
     ) {
@@ -651,9 +682,9 @@ private fun AddCustomTagDialog(
             Text(
                 text = stringResource(
                     if (availableKeys.isEmpty()) {
-                        R.string.custom_tag_library_empty
+                        Res.string.custom_tag_library_empty
                     } else {
-                        R.string.custom_tag_library_section
+                        Res.string.custom_tag_library_section
                     }
                 ),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -680,16 +711,16 @@ private fun AddCustomTagDialog(
             TextField(
                 value = typed,
                 onValueChange = { typed = it },
-                label = stringResource(R.string.custom_tag_key),
+                label = stringResource(Res.string.custom_tag_key),
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 text = when (error) {
-                    null -> stringResource(R.string.custom_tag_key_hint)
-                    CustomTagKeyError.EMPTY -> stringResource(R.string.invalid_empty_input)
-                    CustomTagKeyError.INVALID -> stringResource(R.string.custom_tag_key_invalid)
-                    CustomTagKeyError.DUPLICATE -> stringResource(R.string.duplicate_item)
+                    null -> stringResource(Res.string.custom_tag_key_hint)
+                    CustomTagKeyError.EMPTY -> stringResource(Res.string.invalid_empty_input)
+                    CustomTagKeyError.INVALID -> stringResource(Res.string.custom_tag_key_invalid)
+                    CustomTagKeyError.DUPLICATE -> stringResource(Res.string.duplicate_item)
                 },
                 color = if (error == null) {
                     MiuixTheme.colorScheme.onSurfaceVariantSummary
@@ -701,13 +732,13 @@ private fun AddCustomTagDialog(
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(20.dp))
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = { onConfirm(typed) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.textButtonColorsPrimary(),

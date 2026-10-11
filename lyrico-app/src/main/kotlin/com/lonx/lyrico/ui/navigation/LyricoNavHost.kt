@@ -19,7 +19,10 @@ import com.lonx.lyrico.screens.AlbumDetailScreen
 import com.lonx.lyrico.screens.AppLogScreen
 import com.lonx.lyrico.screens.ArtistDetailScreen
 import com.lonx.lyrico.screens.ArtistPosterFoldersScreen
+import com.lonx.lyrico.screens.ArtistSplitSettingsScreen
+import com.lonx.lyrico.screens.EditFieldSettingsScreen
 import com.lonx.lyrico.screens.FolderManagerScreen
+import com.lonx.lyrico.screens.LyricsCleanupRulesScreen
 import com.lonx.lyrico.screens.SettingsScreen
 import com.lonx.lyrico.screens.BatchTaskDetailScreen
 import com.lonx.lyrico.screens.BatchTaskListScreen
@@ -138,6 +141,17 @@ fun LyricoNavHost(
             }
             composable(route = SettingsDestination.ROUTE) {
                 SettingsScreen(navigator = navigator)
+            }
+            // The three settings sub-pages: their destinations were declared by C3 (so the settings
+            // screen's rows could navigate), and their screens arrive here.
+            composable(route = EditFieldSettingsDestination.ROUTE) {
+                EditFieldSettingsScreen(navigator = navigator)
+            }
+            composable(route = LyricsCleanupRulesDestination.ROUTE) {
+                LyricsCleanupRulesScreen(navigator = navigator)
+            }
+            composable(route = ArtistSplitSettingsDestination.ROUTE) {
+                ArtistSplitSettingsScreen(navigator = navigator)
             }
             composable(route = FolderManagerDestination.ROUTE) {
                 FolderManagerScreen(navigator = navigator)

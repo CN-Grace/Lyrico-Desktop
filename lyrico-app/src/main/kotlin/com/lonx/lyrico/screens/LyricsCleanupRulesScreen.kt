@@ -19,20 +19,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.lonx.lyrico.ui.components.blur.BlurredTopBar
 import com.lonx.lyrico.ui.components.blur.blurSource
 import com.lonx.lyrico.ui.components.blur.rememberBarBlurBackdrop
-import com.lonx.lyrico.R
+import com.lonx.lyrico.resources.Res
+import com.lonx.lyrico.resources.action_back
+import com.lonx.lyrico.resources.add_non_lyrics_cleanup_rule
+import com.lonx.lyrico.resources.cancel
+import com.lonx.lyrico.resources.common_delete
+import com.lonx.lyrico.resources.confirm
+import com.lonx.lyrico.resources.edit_non_lyrics_cleanup_rule
+import com.lonx.lyrico.resources.invalid_or_duplicate_rule
+import com.lonx.lyrico.resources.non_lyrics_cleanup_delete_rule_message
+import com.lonx.lyrico.resources.non_lyrics_cleanup_delete_rule_title
+import com.lonx.lyrico.resources.non_lyrics_cleanup_rule_input_hint
+import com.lonx.lyrico.resources.non_lyrics_cleanup_rules_hint
+import com.lonx.lyrico.resources.non_lyrics_cleanup_rules_section
+import com.lonx.lyrico.resources.non_lyrics_cleanup_rules_title
+import com.lonx.lyrico.resources.reset_to_default
 import com.lonx.lyrico.ui.components.ChipGrid
 import com.lonx.lyrico.ui.components.ManagedChip
 import com.lonx.lyrico.ui.components.scaffoldContentPadding
+import com.lonx.lyrico.ui.navigation.Navigator
 import com.lonx.lyrico.viewmodel.SettingsViewModel
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
+import com.lonx.lyrico.utils.formattedStringResource
+import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -52,9 +65,8 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 
 @Composable
-@Destination<RootGraph>(route = "lyrics_cleanup_rules")
 fun LyricsCleanupRulesScreen(
-    navigator: DestinationsNavigator
+    navigator: Navigator
 ) {
     val viewModel: SettingsViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -63,7 +75,7 @@ fun LyricsCleanupRulesScreen(
     var editingRule by remember { mutableStateOf<String?>(null) }
     var deletingRule by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    val invalidOrDuplicateRule = stringResource(R.string.invalid_or_duplicate_rule)
+    val invalidOrDuplicateRule = stringResource(Res.string.invalid_or_duplicate_rule)
 
     val topBarBackdrop = rememberBarBlurBackdrop()
     Scaffold(
@@ -72,12 +84,12 @@ fun LyricsCleanupRulesScreen(
                 SmallTopAppBar(
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
-                    title = stringResource(R.string.non_lyrics_cleanup_rules_title),
+                    title = stringResource(Res.string.non_lyrics_cleanup_rules_title),
                     navigationIcon = {
                         IconButton(onClick = { navigator.popBackStack() }) {
                             Icon(
                                 MiuixIcons.Back,
-                                contentDescription = stringResource(R.string.action_back)
+                                contentDescription = stringResource(Res.string.action_back)
                             )
                         }
                     },
@@ -100,7 +112,7 @@ fun LyricsCleanupRulesScreen(
             overscrollEffect = null
         ) {
             item(key = "rules") {
-                SmallTitle(text = stringResource(R.string.non_lyrics_cleanup_rules_section))
+                SmallTitle(text = stringResource(Res.string.non_lyrics_cleanup_rules_section))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     ChipGrid(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
@@ -114,7 +126,7 @@ fun LyricsCleanupRulesScreen(
                         }
                     }
                     Text(
-                        text = stringResource(R.string.non_lyrics_cleanup_rules_hint),
+                        text = stringResource(Res.string.non_lyrics_cleanup_rules_hint),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         fontSize = MiuixTheme.textStyles.footnote1.fontSize,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -126,7 +138,7 @@ fun LyricsCleanupRulesScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         TextButton(
-                            text = stringResource(R.string.add_non_lyrics_cleanup_rule),
+                            text = stringResource(Res.string.add_non_lyrics_cleanup_rule),
                             onClick = {
                                 errorMessage = null
                                 addingRule = true
@@ -135,7 +147,7 @@ fun LyricsCleanupRulesScreen(
                             colors = ButtonDefaults.textButtonColorsPrimary()
                         )
                         TextButton(
-                            text = stringResource(R.string.reset_to_default),
+                            text = stringResource(Res.string.reset_to_default),
                             onClick = viewModel::resetNonLyricsContentRules,
                             modifier = Modifier.weight(1f)
                         )
@@ -147,7 +159,7 @@ fun LyricsCleanupRulesScreen(
 
     CleanupRuleInputDialog(
         show = addingRule,
-        title = stringResource(R.string.add_non_lyrics_cleanup_rule),
+        title = stringResource(Res.string.add_non_lyrics_cleanup_rule),
         initialValue = "",
         errorMessage = errorMessage,
         onDismiss = {
@@ -166,7 +178,7 @@ fun LyricsCleanupRulesScreen(
 
     CleanupRuleInputDialog(
         show = editingRule != null,
-        title = stringResource(R.string.edit_non_lyrics_cleanup_rule),
+        title = stringResource(Res.string.edit_non_lyrics_cleanup_rule),
         initialValue = editingRule.orEmpty(),
         errorMessage = errorMessage,
         onDismiss = {
@@ -186,13 +198,13 @@ fun LyricsCleanupRulesScreen(
 
     WindowDialog(
         show = deletingRule != null,
-        title = stringResource(R.string.non_lyrics_cleanup_delete_rule_title),
+        title = stringResource(Res.string.non_lyrics_cleanup_delete_rule_title),
         onDismissRequest = { deletingRule = null }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = stringResource(
-                    R.string.non_lyrics_cleanup_delete_rule_message,
+                text = formattedStringResource(
+                    Res.string.non_lyrics_cleanup_delete_rule_message,
                     deletingRule.orEmpty()
                 ),
                 color = MiuixTheme.colorScheme.onSurface
@@ -200,13 +212,13 @@ fun LyricsCleanupRulesScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = { deletingRule = null },
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(12.dp))
                 TextButton(
-                    text = stringResource(R.string.common_delete),
+                    text = stringResource(Res.string.common_delete),
                     onClick = {
                         deletingRule?.let(viewModel::removeNonLyricsContentRule)
                         deletingRule = null
@@ -244,7 +256,7 @@ private fun CleanupRuleInputDialog(
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = errorMessage ?: stringResource(R.string.non_lyrics_cleanup_rule_input_hint),
+                text = errorMessage ?: stringResource(Res.string.non_lyrics_cleanup_rule_input_hint),
                 color = if (errorMessage == null) {
                     MiuixTheme.colorScheme.onSurfaceVariantSummary
                 } else {
@@ -255,13 +267,13 @@ private fun CleanupRuleInputDialog(
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(Res.string.cancel),
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(12.dp))
                 TextButton(
-                    text = stringResource(R.string.confirm),
+                    text = stringResource(Res.string.confirm),
                     onClick = { onSave(text) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.textButtonColorsPrimary()
