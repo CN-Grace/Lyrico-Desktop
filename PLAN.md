@@ -3056,3 +3056,42 @@ properly delegate isDispatchNeeded and dispatch calls.
 `git status` 现在唯一的输出是 ` m lyrico-app/src/main/cpp/quickjs-ng`。它不是本移植改的：quickjs-ng 自己把 **test262 作为一个嵌套子模块**（`git ls-files | grep '^test262/'` 为 0，说明它只以 gitlink 形式存在），而这个嵌套子模块从未初始化过，所以 `git status` 把它报成 ` D test262`。它是 JS 一致性测试套件，**与构建 `quickjs-ng.dll` 无关**，初始化它会下载一整套无关的测试；因此保持现状，并在这里写明，免得后来者以为工作树坏了。
 
 台账（`todo`）：#37（剩余页面父任务）与 #38（安卓遗留源收口）在完成对应切片后忘了翻状态，已补记为 completed；至此所有条目均为 completed。
+
+#### 6h. 后续工作第 6 条：桌面交互补齐的验收与取证（#69，2026-10-15）
+
+6g 的「建议修复顺序」里 P1/P3/P4 那几条（右键菜单、Ctrl/Shift 选择、Esc 退出多选、窗口几何持久化、单实例锁）这一批全部落地，并补上真窗口证据。落地细节见提交 `a25a5b9`；这一节只写**验收方法与两处自我更正**，因为验收工具本身出了一个错，而它一度让「证据」变成假象。
+
+**一、验收工具自身的 bug：`SendInput` 一直在静默失败。**
+
+`scripts/send-keys.ps1` 里 `INPUT` 结构的 `InputUnion` 只声明了 `KEYBDINPUT` 一个成员，于是 `Marshal.SizeOf(INPUT)` 是 **32** 字节而不是 40 —— `SendInput` 对尺寸不符的返回是**返回 0 并置 `ERROR_INVALID_PARAMETER(87)`，不抛异常**。旧脚本没有检查返回值，所以「注入键盘 → 截图 → OCR」这条链上的每一次「按了没反应」都可能是**注入器坏了**，而不是应用坏了。修法：三个成员（`MOUSEINPUT`/`KEYBDINPUT`/`HARDWAREINPUT`）全部声明，并检查每一个 Win32 返回值。这条已写进 6g 的「check every return value」教训里，此处只留位置索引。
+
+**二、由此产生的假证据，已替换。**
+
+`docs/port-evidence/c9-03-esc-closes-menu.png` 是上一轮在注入器坏掉时留下的，文件名声称「Esc 关掉了右键菜单」，实测与 `c9-02-row-menu.png` **逐像素相同（差异像素 0）** —— 也就是它拍到的是菜单还开着的画面。已用修好注入器后重拍的帧替换：同一对照下差异像素 **592191（65.7%）**，OCR 里 `Play Music`/`Rename File`/`Delete Song` 三行从 3 行变为 **0 行**。
+
+**三、键盘注入的两条实测结论（这台机器上）。**
+
+1. **`SendInput` 的虚拟键进不了 Skiko 窗口**：返回 1、前台正确、应用毫无反应 —— Windows 的文本输入走 TSF/IME 通道，注入键在那里就被吃掉了。**`PostMessage(WM_KEYDOWN/WM_KEYUP)` 能进去**（直接进窗口消息队列，在文本通道之下）；lParam 要带扫描码（`MapVirtualKey(vk, 0)` 放 bit 16–23，重复次数 1，抬起再加 bit 30/31），Skiko 是从 lParam 读扫描码的。
+2. **修饰键状态送不进去**：`SendInput` 按住 Ctrl（真实键状态）+ `PostMessage` 补一次 Ctrl 按下（应用可见状态），两条通道都试过，`Ctrl+A` 到达时仍被当作**普通 A**。所以**「Ctrl+A 全选」在这台机器上没有真窗口证据** —— 与本地搜索输入框那条限制同类，如实标注，不再尝试更多注入变体。
+
+**四、E 项取证（9 张，全在 `docs/port-evidence/`）。**
+
+| 图 | 断言 | 客观读数 |
+| --- | --- | --- |
+| `c9-01-home.png` | 库首页正常渲染 | OCR 读出曲目行与三 tab |
+| `c9-02-rightclick.png` / `c9-02-row-menu.png` | 右键行弹出菜单 | OCR 读出 `Play Music`/`Rename File`/`Delete Song` |
+| `c9-03-esc-closes-menu.png` | **Esc 关掉菜单** | 与菜单开启帧差 **65.7%**，菜单三项 OCR **0** 行 |
+| `c9-04-selection-ctrl-click.png` | Ctrl+点进入多选 | OCR `Selected 1` |
+| `c9-05-esc-exits-selection.png` | **Esc 退出多选** | 同图 OCR `Selected` **0** 次 |
+| `c9-06-shift-range.png` | Shift+点选范围 | OCR `Selected 5 items`（Ctrl 点第 1 行 + Shift 点第 6 行） |
+| `c9-07-ctrl-a-injection-blocked.png` | Ctrl+A 注入受限（负证据） | 仍是 `Selected 5 items` —— 记录限制本身 |
+| `c9-08-window-geometry-restart.png` | **窗口几何跨重启** | `MoveWindow` 到 1000x700@(120,140) → 正常关闭 → `data/window.json` = `{"x":120,"y":140,"width":1000,"height":700}` → 重启后窗口客户区 **986x693 @ (127,140)**（外框 1000x700，边框差 14/7） |
+| `c9-09-second-instance.png` | **第二实例拒绝启动** | 弹出「Lyrico 已在运行」对话框（OCR 读出数据目录路径与说明），关闭后第二实例两个进程退出、第一实例窗口仍在 |
+
+**五、Ctrl+A 改为无头覆盖（比「没证据」更结实）。**
+
+`SelectionModeShortcutsTest` 现在**驱动真实的 `KeyEvent`**：桌面源集里有 `KeyEvent(key, type, isCtrlPressed = ...)` 工厂（`@InternalComposeUiApi`，opt-in 限制在该测试的 helper 里），所以三个被读取的字段可以直接递进去，无需窗口。新增 5 项：Ctrl+A 全选可见曲目、普通 A 不动、Esc 退出多选、**Esc 先给打开的 sheet**（用真实 `NavigationEventDispatcher` + `EscapeBackKey`，断言 handler 收到恰好 1 次 back 且多选仍在）、抬起不触发。`SelectionModeShortcuts` 的 KDoc 里「`KeyEvent` 只能由真实 `java.awt.event.KeyEvent` 构造、故这几行无法测试」这句话是错的，已更正 —— 只测 `shortcutFor` 的测试会在「Ctrl+A 到达时变成了普通 A」时依然全绿，而那正是要抓的失败。
+
+**六、这一批的测试总数**：**165 类 / 1346 项 / 0 失败 / 0 错误 / 4 门控跳过**（本批起点 165 类 / 1341 项）。
+
+**七、仍然没有证据的**（如实记账）：① Ctrl+A 真窗口（见上）；② MSI（本机无安装权限，用与 MSI 同源的镜像做验收）；③ 滚动条可见性（代码层，见 6g 第 12 条）。

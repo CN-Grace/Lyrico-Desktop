@@ -18,6 +18,10 @@
     powershell -ExecutionPolicy Bypass -File scripts/click-window.ps1 -X 39 -Y 209 -TitleLike "Lyrico 1.6"
 
 .EXAMPLE
+    # Act on an exact window, when more than one could match the title
+    powershell -ExecutionPolicy Bypass -File scripts/click-window.ps1 -X 700 -Y 296 -Button right -Hwnd 14028660
+
+.EXAMPLE
     # Long-press the first song row to enter selection mode (~800 ms hold)
     powershell -ExecutionPolicy Bypass -File scripts/click-window.ps1 -X 200 -Y 97 -Button longpress -TitleLike "Lyrico 1.6"
 
@@ -29,6 +33,13 @@
 param(
     # Window title (or part of it) to look for.
     [string]$TitleLike = "Lyrico",
+
+    # Act on this window handle directly instead of searching by title.
+    #
+    # Two instances of the app can carry the same title, and the title also changes with the build (it
+    # carries the commit), so a title match is neither unique nor stable. The handle is what the capture
+    # scripts already take, so the evidence workflow can hold one handle across click and capture.
+    [long]$Hwnd = 0,
 
     # Click position in *client* coordinates, i.e. the coordinates the app itself hit-tests in. A window
     # capture is taken from the DWM frame rectangle, which starts at the OS title bar, so a point read off
@@ -70,7 +81,14 @@ param(
     # composition buffer, and a space commits a composition, so this is what makes the field's content reach
     # the app (the space is removed again by the backspace). Verified on the local-search page: without it the
     # field looked filled while the view model's query stayed empty.
-    [switch]$CommitIme
+    [switch]$CommitIme,
+
+    # Modifier keys to hold down for the click, as `ctrl` and/or `shift` (`-Modifiers ctrl,shift`). Held
+    # with a real `SendInput` key-down rather than a flag on the mouse message, because that is what a
+    # person's keyboard does: the OS then reports the modifier state with the click, which is the state
+    # the app reads. Releasing happens in a `finally` so a failed click cannot leave Ctrl stuck down.
+    [ValidateSet("ctrl", "shift")]
+    [string[]]$Modifiers = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -131,14 +149,18 @@ function Get-WindowTitles {
 
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 $window = $null
-while ((Get-Date) -lt $deadline) {
-    $window = Get-WindowTitles | Where-Object { $_.Title -like "*$TitleLike*" } | Select-Object -First 1
-    if ($window) { break }
-    Start-Sleep -Milliseconds 500
+if ($Hwnd -ne 0) {
+    $window = Get-WindowTitles | Where-Object { $_.Handle -eq $Hwnd } | Select-Object -First 1
+} else {
+    while ((Get-Date) -lt $deadline) {
+        $window = Get-WindowTitles | Where-Object { $_.Title -like "*$TitleLike*" } | Select-Object -First 1
+        if ($window) { break }
+        Start-Sleep -Milliseconds 500
+    }
 }
 
 if (-not $window) {
-    Write-Error "No visible window matching '*$TitleLike*' appeared within $TimeoutSeconds s."
+    Write-Error "No visible window matching '*$TitleLike*' (hwnd=$Hwnd) appeared within $TimeoutSeconds s."
 }
 
 Write-Host "Found window: '$($window.Title)' (hwnd=$($window.Handle))"
@@ -195,6 +217,22 @@ try {
     $screenX = $client.X + $X
     $screenY = $client.Y + $Y
 
+    # VK codes, held for the duration of the click. Ctrl=0x11, Shift=0x10; `KEYEVENTF_KEYUP` releases.
+    $VK_CONTROL = 0x11
+    $VK_SHIFT = 0x10
+    $KEYEVENTF_KEYUP = 0x0002
+    $INPUT_KEYBOARD = 1
+    $heldKeys = @()
+    foreach ($modifier in $Modifiers) {
+        $heldKeys += if ($modifier -eq "ctrl") { $VK_CONTROL } else { $VK_SHIFT }
+    }
+
+    function Send-KeyEvent([int]$vk, [uint32]$flags) {
+        [void][LyricoWin32.Native]::SendInput(1, @(
+            [pscustomobject]@{ type = 1; u = [pscustomobject]@{ ki = [pscustomobject]@{ wVk = [uint16]$vk; wScan = 0; dwFlags = $flags; time = 0; dwExtraInfo = [System.UIntPtr]::Zero } } }
+        ), [System.Runtime.InteropServices.Marshal]::SizeOf([type][LyricoWin32.Native+INPUT]))
+    }
+
     [void][LyricoWin32.Native]::SetCursorPos($screenX, $screenY)
     Start-Sleep -Milliseconds 120
 
@@ -221,6 +259,17 @@ try {
         Write-Host "Window was not in front, so a first click was spent on activation (at the title bar, so it hits no app content)."
     }
 
+    foreach ($vk in $heldKeys) {
+        Send-KeyEvent $vk 0
+    }
+    if ($heldKeys.Count -gt 0) {
+        # A short beat so the modifier is down before the button goes down: the app reads the modifier state
+        # that comes with the click message.
+        Start-Sleep -Milliseconds 120
+        Write-Host "Holding $($Modifiers -join '+') for this click"
+    }
+
+    try {
     switch ($Button) {
         "left" {
             [LyricoWin32.Native]::mouse_event($leftDown, 0, 0, 0, [UIntPtr]::Zero)
@@ -250,6 +299,14 @@ try {
             # the caller can check the pointer really landed inside the client area.
         }
     }
+    }
+    finally {
+        # Released whatever the click did: a modifier left down would turn every later click in this session
+        # into a modified one, and the next capture would record the wrong thing.
+        foreach ($vk in $heldKeys) {
+            Send-KeyEvent $vk $KEYEVENTF_KEYUP
+        }
+    }
 }
 finally {
     if ($attached) {
@@ -271,7 +328,6 @@ if ($Text -ne "") {
     # `SendInput` with `KEYEVENTF_UNICODE` synthesises a plain Unicode character key event, which is what
     # the app's text input actually consumes.
     $KEYEVENTF_UNICODE = 0x0004
-    $KEYEVENTF_KEYUP = 0x0002
     $INPUT_KEYBOARD = 1
     foreach ($ch in $Text.ToCharArray()) {
         $scan = [uint16][int][char]$ch

@@ -1,5 +1,6 @@
 package com.lonx.lyrico
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
@@ -10,6 +11,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import com.lonx.audiotag.internal.NativeLibraryLoader
 import com.lonx.lyrico.data.SharedSelectionManager
 import com.lonx.lyrico.data.repository.AppLogRepository
@@ -20,6 +22,7 @@ import com.lonx.lyrico.platform.InstanceLock
 import com.lonx.lyrico.platform.WindowGeometry
 import com.lonx.lyrico.platform.WindowGeometryStore
 import com.lonx.lyrico.platform.clampToScreen
+import com.lonx.lyrico.ui.EscapeBackKey
 import com.lonx.lyrico.ui.SelectionModeShortcuts
 import com.lonx.lyrico.utils.logging.PlatformLog
 import com.lonx.lyrico.utils.coil.installImageLoader
@@ -121,11 +124,20 @@ fun main(args: Array<String>) {
         .onFailure { PlatformLog.e(LOG_TAG, "封面缓存目录初始化失败", it) }
 
     application {
+        // `Esc` is a back request for whatever overlay is in front (a Miuix sheet or dialog), and the
+        // framework never raises one on the desktop -- see [EscapeBackKey]. The key is created here, but
+        // it is *attached* inside the window: the dispatcher is a host default, and a host default only
+        // exists inside a host's content (reading it from the application block throws).
+        val escapeBackKey = remember { EscapeBackKey() }
+
         // The keyboard half of the desktop selection mode (Esc / Ctrl+A). Resolved here rather than
         // from a screen because it belongs to the window, and because the handler must be the one
         // `Window` calls *after* the focused component has had its chance -- see [SelectionModeShortcuts].
         val selectionShortcuts = remember {
-            SelectionModeShortcuts(GlobalContext.get().get<SharedSelectionManager>())
+            SelectionModeShortcuts(
+                selectionManager = GlobalContext.get().get<SharedSelectionManager>(),
+                escapeBackKey = escapeBackKey,
+            )
         }
 
         // Android handed the Activity a window and forgot about it. Here the geometry is the user's, so
@@ -164,6 +176,15 @@ fun main(args: Array<String>) {
             // location and the screens' bounds are device pixels straight from AWT, with no density
             // conversion in between that could be wrong by a scale factor.
             LaunchedEffect(Unit) { keepWindowOnScreen(window) }
+
+            // The one thing that has to happen *inside* the window: the back dispatcher the overlays and
+            // the navigation stack register their handlers on is a host default, and the host is the
+            // window. Attaching it here is what lets `Esc` reach a Miuix sheet -- see [EscapeBackKey].
+            val backDispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
+            DisposableEffect(escapeBackKey, backDispatcher) {
+                val unregister = backDispatcher?.let { escapeBackKey.attachTo(it) }
+                onDispose { unregister?.invoke() }
+            }
 
             // Windows' equivalent of Android's `Intent` extra: when the app is started through a
             // file association ("open with"), the file is the first command-line argument.

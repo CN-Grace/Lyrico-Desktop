@@ -10,12 +10,16 @@ import kotlin.test.assertTrue
  * Selection state, exercised against the real object rather than a mock.
  *
  * This class is portable verbatim from Android -- no `Context`, no `Uri`, just three `StateFlow`s over
- * `String` keys -- so the only thing worth asserting is the state machine itself. Two rules here are
- * easy to get wrong when the class is only skimmed, and both are pinned below:
+ * `String` keys -- so the only thing worth asserting is the state machine itself. Three rules here are
+ * easy to get wrong when the class is only skimmed, and all three are pinned below:
  *
  * - **Toggling the last song off leaves selection mode on.** `toggle` sets the mode unconditionally, so
- *   deselecting everything is *not* an exit; only `exitSelectionMode()` (or `clearAll()`) clears it.
- *   Anything that infers "empty selection means mode off" would leave the toolbar up forever.
+ *   the toolbar stays up at a zero count: deselecting everything is *not* an exit; only
+ *   `exitSelectionMode()` (or `clearAll()`) clears it. Anything that infers "empty selection means mode
+ *   off" would leave the toolbar up forever.
+ * - **The anchor is the last row clicked, not the last row selected.** `toggle` moves it even when the
+ *   click removed a song, which is what makes ctrl+click then shift+click select a run -- and what lets
+ *   the long press that opens selection mode anchor the swipe drag that follows it.
  * - **A completed range swipe clears the anchor; a fallback swipe sets it.** `selectSwipeRange` nulls
  *   `swipeAnchorUri` once it has selected a contiguous range, and points it at the target whenever it
  *   could not (no anchor, anchor not selected, anchor or target outside the visible window). That is
@@ -272,7 +276,7 @@ class SharedSelectionManagerTest {
     }
 
     @Test
-    fun `a range selection survives a plain toggle elsewhere in the list`() {
+    fun `a ctrl click moves the shift anchor, as Explorer does`() {
         val manager = SharedSelectionManager()
         manager.extendRange("b.mp3", visible)
         manager.extendRange("c.mp3", visible)
@@ -281,9 +285,65 @@ class SharedSelectionManagerTest {
 
         assertEquals(setOf("a.mp3", "b.mp3", "c.mp3"), manager.selectedUris.value)
         assertEquals(
-            "b.mp3",
+            "a.mp3",
             manager.swipeAnchorUri.value,
-            "a ctrl+click elsewhere must not move the shift anchor",
+            "the anchor follows the last row clicked, so the next shift+click measures from the ctrl+click",
+        )
+    }
+
+    @Test
+    fun `a ctrl click followed by a shift click selects the run between them`() {
+        val manager = SharedSelectionManager()
+
+        manager.toggle("b.mp3")
+        manager.extendRange("d.mp3", visible)
+
+        assertEquals(
+            setOf("b.mp3", "c.mp3", "d.mp3"),
+            manager.selectedUris.value,
+            "ctrl+click then shift+click is the ordinary desktop way to select a run",
+        )
+        assertEquals("b.mp3", manager.swipeAnchorUri.value)
+    }
+
+    @Test
+    fun `a ctrl click that deselects still moves the shift anchor`() {
+        val manager = SharedSelectionManager()
+        manager.toggle("b.mp3")
+        manager.toggle("c.mp3")
+
+        manager.toggle("c.mp3")
+
+        assertEquals(setOf("b.mp3"), manager.selectedUris.value)
+        assertEquals(
+            "c.mp3",
+            manager.swipeAnchorUri.value,
+            "Explorer keeps the anchor on the row clicked, whether that click selected or deselected it",
+        )
+
+        manager.extendRange("b.mp3", visible)
+
+        assertEquals(
+            setOf("b.mp3", "c.mp3"),
+            manager.selectedUris.value,
+            "a deselected anchor is still a valid place to measure a shift+click range from",
+        )
+    }
+
+    @Test
+    fun `the long press that starts selection mode anchors the swipe`() {
+        val manager = SharedSelectionManager()
+
+        // The long press enters selection mode through `toggle`, and the drag that follows it goes
+        // through `selectSwipeRange`. Both halves have to agree on the anchor or the drag selects
+        // nothing but the row it started on.
+        manager.toggle("b.mp3")
+        manager.selectSwipeRange("d.mp3", visible)
+
+        assertEquals(
+            setOf("b.mp3", "c.mp3", "d.mp3"),
+            manager.selectedUris.value,
+            "a swipe after a long press must select the run, not just the row dragged onto",
         )
     }
 }

@@ -1,7 +1,12 @@
 package com.lonx.lyrico.ui
 
+import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventHandler
+import androidx.navigationevent.NavigationEventInfo
 import com.lonx.lyrico.data.SharedSelectionManager
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,9 +22,12 @@ import kotlin.test.assertTrue
  * state change each shortcut causes is asserted against a real [SharedSelectionManager] instead of a
  * mock, because the point of `Ctrl+A` is precisely *which* songs end up selected.
  *
- * `SelectionModeShortcuts.onKeyEvent` itself is not exercised: building a Compose `KeyEvent` needs a
- * real `java.awt.event.KeyEvent`, i.e. a real window. Its two inputs are covered here and its effect on
- * the manager is covered through `applyShortcut`, which is all it does.
+ * The second half drives `SelectionModeShortcuts.onKeyEvent` through a real `KeyEvent`. That was once
+ * believed impossible without a window -- building one from a `java.awt.event.KeyEvent` does need AWT --
+ * but the desktop source set has a `KeyEvent(key, type, isCtrlPressed = ...)` factory, so the three
+ * fields the class reads can be handed over directly, headlessly, and the *unpacking* is covered too.
+ * That distinction is not academic: a test of `shortcutFor` alone stays green while `Ctrl+A` arrives as
+ * a plain `A`, which is the failure worth catching.
  */
 class SelectionModeShortcutsTest {
 
@@ -123,5 +131,103 @@ class SelectionModeShortcutsTest {
         val shortcuts = SelectionModeShortcuts(manager)
 
         assertFalse(shortcuts.applyShortcut(null))
+    }
+
+    @Test
+    fun `ctrl+a through a key event selects every song on screen`() {
+        val manager = managerWith("a", "b", "c")
+        manager.toggle("a")
+        val shortcuts = SelectionModeShortcuts(manager)
+
+        val consumed = shortcuts.onKeyEvent(keyEvent(Key.A, isCtrlPressed = true))
+
+        assertTrue(consumed, "Ctrl+A belongs to the window while a list is being selected")
+        assertEquals(setOf("a", "b", "c"), manager.selectedUris.value)
+    }
+
+    @Test
+    fun `a plain a through a key event is left alone`() {
+        val manager = managerWith("a", "b", "c")
+        manager.toggle("a")
+        val shortcuts = SelectionModeShortcuts(manager)
+
+        val consumed = shortcuts.onKeyEvent(keyEvent(Key.A))
+
+        assertFalse(consumed, "typing a is not selecting everything")
+        assertEquals(setOf("a"), manager.selectedUris.value)
+    }
+
+    @Test
+    fun `escape through a key event leaves selection mode`() {
+        val manager = managerWith("a", "b", "c")
+        manager.toggle("a")
+        val shortcuts = SelectionModeShortcuts(manager)
+
+        val consumed = shortcuts.onKeyEvent(keyEvent(Key.Escape))
+
+        assertTrue(consumed, "Esc is the desktop way out of selection mode")
+        assertFalse(manager.isSelectionMode.value)
+    }
+
+    @Test
+    fun `escape goes to the open sheet before it leaves selection mode`() {
+        val manager = managerWith("a", "b", "c")
+        manager.toggle("a")
+        val dispatcher = NavigationEventDispatcher()
+        val escapeBackKey = EscapeBackKey()
+        escapeBackKey.attachTo(dispatcher)
+        val handler = RecordingHandler()
+        dispatcher.addHandler(handler)
+        val shortcuts = SelectionModeShortcuts(manager, escapeBackKey)
+
+        val consumed = shortcuts.onKeyEvent(keyEvent(Key.Escape))
+
+        assertTrue(consumed, "the sheet owns the key")
+        assertEquals(1, handler.backCount, "the sheet was asked to dismiss itself")
+        assertTrue(manager.isSelectionMode.value, "and the list behind it is still being selected from")
+    }
+
+    @Test
+    fun `a key up through a key event is not a shortcut`() {
+        val manager = managerWith("a", "b", "c")
+        manager.toggle("a")
+        val shortcuts = SelectionModeShortcuts(manager)
+
+        val consumed = shortcuts.onKeyEvent(keyEvent(Key.Escape, type = KeyEventType.KeyUp))
+
+        assertFalse(consumed, "only the press acts, or the key would fire twice")
+        assertTrue(manager.isSelectionMode.value)
+    }
+
+    /** The dispatcher only carries info about where a back request came from; nothing reads it here. */
+    private class TestInfo : NavigationEventInfo()
+
+    private class RecordingHandler : NavigationEventHandler<NavigationEventInfo>(
+        initialInfo = TestInfo(),
+        isBackEnabled = true,
+    ) {
+        var backCount = 0
+
+        override fun onBackCompleted() {
+            backCount++
+        }
+    }
+
+    /**
+     * `@InternalComposeUiApi`, and the opt-in is deliberate: it is the only way to hand the class a
+     * `KeyEvent` at all. The value-class constructor takes an `InternalKeyEvent`, and every other route
+     * -- `java.awt.event.KeyEvent` included -- ends in a cast to that same internal type. Reaching one
+     * level into the framework to cover the window's key handling is worth more than the shortcuts going
+     * unverified, and the opt-in stays confined to this helper.
+     */
+    @OptIn(InternalComposeUiApi::class)
+    private fun keyEvent(
+        key: Key,
+        type: KeyEventType = KeyEventType.KeyDown,
+        isCtrlPressed: Boolean = false,
+    ) = KeyEvent(key = key, type = type, isCtrlPressed = isCtrlPressed)
+
+    private fun managerWith(vararg visible: String) = SharedSelectionManager().apply {
+        publishVisibleUris(visible.toList())
     }
 }

@@ -54,17 +54,24 @@ class SharedSelectionManager {
         }
     }
 
+    /**
+     * Adds or removes one song -- the ctrl+click, the tap inside selection mode, and the long press
+     * that starts it.
+     *
+     * The anchor moves to [uri] whether the click selected it or deselected it. Explorer does the same
+     * -- the shift anchor follows the last row clicked, not the last row selected -- and it is what
+     * makes the ordinary desktop gesture work: ctrl+click one row, shift+click another, and get the run
+     * between them. It is also the anchor Android's swipe selection expects, because the long press that
+     * enters selection mode goes through here too; without it a drag could only ever add single rows.
+     */
     fun toggle(uri: String) {
         _isSelectionMode.value = true
-        val selectedUris = if (_selectedUris.value.contains(uri)) {
+        _selectedUris.value = if (_selectedUris.value.contains(uri)) {
             _selectedUris.value - uri
         } else {
             _selectedUris.value + uri
         }
-        _selectedUris.value = selectedUris
-        if (swipeAnchorUriValue !in selectedUris) {
-            swipeAnchorUriValue = null
-        }
+        swipeAnchorUriValue = uri
     }
 
     fun selectAll(uris: Set<String>) {

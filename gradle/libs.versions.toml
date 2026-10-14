@@ -16,6 +16,11 @@ koin = "4.2.2"
 # Compose directly through the small typed adapter in ui/navigation/. 2.9.2 is the newest stable
 # whose module metadata publishes a `desktopApiElements` variant.
 navigationCompose = "2.9.2"
+# Compose Multiplatform's back-request plumbing. Reached directly for one thing: raising a back event
+# from the Esc key, which the framework never does on the desktop (see ui/EscapeBackKey.kt). The
+# version is the one Compose's own `ui-backhandler` already resolves to, so declaring it here adds no
+# second copy of the artifact to the runtime image.
+navigationEvent = "1.1.2"
 # The lifecycle family the desktop build compiles against. JetBrains publishes the multiplatform
 # `androidx.lifecycle` classes under org.jetbrains.androidx.lifecycle; Navigation Compose (desktop)
 # resolves to that family (2.9.6). Google's androidx.lifecycle:2.11.0 also publishes a -desktop
@@ -96,6 +101,8 @@ koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+navigation-event = { module = "androidx.navigationevent:navigationevent", version.ref = "navigationEvent" }
+navigation-event-compose = { module = "androidx.navigationevent:navigationevent-compose", version.ref = "navigationEvent" }
 jetbrains-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "jetbrainsLifecycle" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koinAndroid" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koinAndroidxCompose" }

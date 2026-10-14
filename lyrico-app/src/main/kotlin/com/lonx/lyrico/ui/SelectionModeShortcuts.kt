@@ -21,21 +21,39 @@ import com.lonx.lyrico.data.SharedSelectionManager
  * component, so `Ctrl+A` inside the search field would select every song in the library instead of the
  * text the user is editing, and `Esc` would leave selection mode instead of dismissing whatever dialog
  * is open. The bubble handler runs only after nothing else claimed the key, so a text field keeps its
- * own `Ctrl+A`, a dialog keeps its own `Esc`, and these two shortcuts only fire when the key really was
- * meant for the window.
+ * own `Ctrl+A`, and these two shortcuts only fire when the key really was meant for the window.
+ *
+ * The dialog half of that contract needs [EscapeBackKey]: "a dialog keeps its own `Esc`" is only true if
+ * something hands the key to the dialog, and on the desktop nothing does until the window raises the
+ * back request itself.
  *
  * [visibleUris] is what `Ctrl+A` acts on. It cannot be "every song in the database": selecting songs
  * the user cannot see would make the batch actions (delete, rename) operate on rows that were never on
  * screen, so the list currently being displayed publishes itself instead -- see
  * [SharedSelectionManager.publishVisibleUris].
  */
-class SelectionModeShortcuts(private val selectionManager: SharedSelectionManager) {
+class SelectionModeShortcuts(
+    private val selectionManager: SharedSelectionManager,
+    private val escapeBackKey: EscapeBackKey? = null,
+) {
 
     /**
      * Returns true when the key was consumed, which is what `Window(onKeyEvent = ...)` expects.
+     *
+     * `Esc` is offered to the overlay layer first: a sheet or dialog in front of the list owns the key,
+     * and only when nothing is listening does it mean "leave selection mode". Without that order the
+     * shortcut would fire behind an open menu, which is the one thing the bubble handler was chosen to
+     * prevent.
      */
-    fun onKeyEvent(event: KeyEvent): Boolean =
-        applyShortcut(
+    fun onKeyEvent(event: KeyEvent): Boolean {
+        if (event.type == KeyEventType.KeyDown &&
+            event.key == Key.Escape &&
+            escapeBackKey?.press() == true
+        ) {
+            return true
+        }
+
+        return applyShortcut(
             shortcutFor(
                 key = event.key,
                 type = event.type,
@@ -43,12 +61,13 @@ class SelectionModeShortcuts(private val selectionManager: SharedSelectionManage
                 isSelectionMode = selectionManager.isSelectionMode.value,
             )
         )
+    }
 
     /**
      * Performs the decision, separated from reading the key so that both halves can be tested: the
      * decision is a pure function of the key and the selection state, and this is the state change it
-     * causes. Only the four lines of [onKeyEvent] that unpack a `KeyEvent` are untested, because a
-     * `KeyEvent` can only be built from a real `java.awt.event.KeyEvent`.
+     * causes. Both halves are covered in `SelectionModeShortcutsTest` -- the decision directly, and
+     * [onKeyEvent] through a real `KeyEvent` built with the desktop source set's own factory.
      */
     internal fun applyShortcut(shortcut: SelectionShortcut?): Boolean =
         when (shortcut) {

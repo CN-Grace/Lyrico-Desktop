@@ -1,0 +1,46 @@
+file: lyrico-app/build/evidence-scratch/v161-geometry-restart.png
+engine: zh-Hans-CN
+lines: 43
+  y=10 x=31 :: Lyrico 1 ℃ 25a55g 〕
+  y=121 x=154 :: 周 华 爵 · 朋 友
+  y=153 x=35 :: 0
+  y=185 x=154 :: 周 华 爵 · 朋 友
+  y=229 x=155 :: September
+  y=250 x=155 :: Earth, Wind & Fire · Septemhr
+  y=51 x=486 :: Songs （ 24 ）
+  y=271 x=20 :: AIbums
+  y=292 x=155 :: 山 丘
+  y=313 x=154 :: 李 宗 盛 · 山 丘
+  y=356 x=154 :: 演 示 曲 目 01
+  y=378 x=154 :: Various Artists
+  y=420 x=154 :: 演 示 曲 目 02
+  y=442 x=154 :: Various Artists
+  y=484 x=154 :: 演 示 曲 目 03
+  y=506 x=154 :: Various Artists
+  y=548 x=154 :: 演 示 曲 目 04
+  y=570 x=154 :: Various Artists
+  y=612 x=154 :: 演 示 曲 目 05
+  y=634 x=154 :: Various Artists
+  y=676 x=154 :: 演 示 曲 目 06
+  y=383 x=247 :: 。 演 示 合 隼
+  y=447 x=247 :: 。 演 示 合 隼
+  y=511 x=247 :: 。 演 示 合 隼
+  y=575 x=247 :: 。 演 示 合 隼
+  y=639 x=247 :: 。 演 示 合 隼
+  y=104 x=902 :: 住 03
+  y=122 x=888 :: 128kbps
+  y=168 x=902 :: 住 03
+  y=186 x=898 :: 」 bps
+  y=232 x=902 :: 住 03
+  y=296 x=902 :: 住 03
+  y=360 x=902 :: 住 03
+  y=378 x=898 :: 」 bps
+  y=424 x=902 :: 住 03
+  y=442 x=898 :: 」 bps
+  y=488 x=902 :: 住 03
+  y=506 x=898 :: 」 bps
+  y=552 x=902 :: 住 03
+  y=570 x=898 :: 」 bps
+  y=616 x=902 :: 住 03
+  y=634 x=898 :: 」 bps
+  y=680 x=902 :: 住 03

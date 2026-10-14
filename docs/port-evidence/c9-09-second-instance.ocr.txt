@@ -1,0 +1,7 @@
+file: lyrico-app/build/evidence-scratch/v161-second-instance.png
+engine: zh-Hans-CN
+lines: 4
+  y=10 x=10 :: Lyrico 已 在 运 行
+  y=45 x=59 :: Lyrico 己 经 在 运 行 。
+  y=80 x=58 :: 数 刂 叾 目 录 ： CflUsers\Grace\AppData\Local\TempWrico-161\Lyrico\data
+  y=117 x=58 :: 两 个 卖 例 会 同 时 读 与 同 一 个 音 乐 厍 ． 请 切 换 到 己 打 开 的 窗 口 ． 或 先 关 团 它 再 启 动 。

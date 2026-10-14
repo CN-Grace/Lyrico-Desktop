@@ -275,6 +275,13 @@ dependencies {
     // adapter in ui/navigation/ (see PLAN section 6 risk 3 for the resolution evidence).
     implementation(libs.navigation.compose)
 
+    // The back-request dispatcher behind `ui-backhandler`. Declared explicitly (rather than left as a
+    // runtime-only transitive) because the window raises one back event itself: `Esc` is the desktop
+    // stand-in for the system back gesture that Miuix's sheets and dialogs listen for, and nothing in
+    // Compose turns the key into one. See ui/EscapeBackKey.kt.
+    implementation(libs.navigation.event)
+    implementation(libs.navigation.event.compose)
+
     // Drag-to-reorder for the plugin list. Android pulled this in the same way (sh.calvin.reorderable);
     // the library publishes a real `jvm` variant, so the ported `PluginManagerScreen` keeps its
     // long-press-drag interaction instead of degrading to up/down buttons.
