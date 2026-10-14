@@ -1,0 +1,134 @@
+桌面适配专项审计（P6 §6g）—— 真窗口测量记录
+=============================================
+
+被测实例：开发构建，窗口标题 "Lyrico 1.6.0 (8bb5254)"，数据库为仓库内的种子库
+（周华健 / 李宗盛 / September / 演示曲目 01..，共 24 首），非用户真实曲库。
+测量纪律：每次施加刺激前先做「静止性检查」——同状态连拍两张，差异必须 ≈ 0。
+
+工具：scripts/capture-window.ps1（-Hwnd 精确指定窗口）、scripts/click-window.ps1
+（本轮新增 -Button hover）、scripts/analyze-window-capture.py（--compare 逐像素比较）、
+scripts/ocr-window-capture.ps1、scripts/probe-scrollbar.py（本轮新增，判读不可靠，见四）。
+
+一、两次方法/结论错误及其更正（先说这个，因为第一版结论被它们反转了）
+----------------------------------------------------------------
+**错误一：悬停测试没把刺激送到目标。** 第一版把指针移到「硬编码屏幕坐标」(455,278) 来测
+悬停，得到「悬停歌曲行 = 0 像素变化」，据此写下「桌面端没有任何悬停反馈」。**这个结论是错的。**
+
+原因：`click-window.ps1` 在做任何操作前会先确保窗口在前台（必要时在标题栏补一次中性激活
+点击，避免把内容页点跳转），而裸 `SetCursorPos` 不会。指针没有真正落在窗口内容上时，像素
+表现与「控件忽略了指针」完全一样 —— 一个未到达的刺激和一个被忽略的刺激不可区分。
+
+更正做法：给 `click-window.ps1` 加 `-Button hover`，复用脚本自身的 client→screen 换算，
+并把落点打印出来（`Hovered at client (400,130) = screen (456,209)`）。同时加对照实验：
+悬停一个**已知有反馈**的控件（Miuix 导航项）。
+
+教训：**测「没有反应」之前，必须先证明刺激到达了目标。** 只报 0 像素变化而不做对照，
+等于没测。
+
+**错误二：找能力只看了「我以为它该在」的那个文件。** 第一版写了「`DesktopOpener` 缺
+revealInExplorer」。复核后该能力**完整存在**：
+  - `platform/FileRevealer.kt` 的 `ExplorerFileRevealer`：`explorer.exe /select,<path>`
+    （KDoc 已记录两个 Windows 细节：`/select,` 必须与路径逗号相连；explorer.exe 的退出码
+    不能当成败信号，它返回 1 也表示成功）
+  - `data/repository/FileRevealRepository.kt`：`Revealed` / `NothingToReveal` /
+    `FilesUnavailable` / `Failed` 四种结果
+  - DI 注册：`DesktopAppModule.kt:229`
+  - 界面接线：`AlbumDetailScreen.kt` / `ArtistDetailScreen.kt` 的
+    `onShare = { song -> selectionViewModel.share(listOf(song)) }`
+
+教训：**找能力要 grep 能力名（`reveal` / `select,`），不要 grep 你以为它应该在的那个文件。**
+
+**错误三（同源）：库内 hover 支持的判断方式错了。** 第一版说「Miuix 0.9.4 的 7 个 desktop jar
+里 hover 相关类 = 0」—— 那次只扫了**类名**。本轮用 `javap` 扫**类内容**，7 个 desktop jar
+里共 8 个类含 hover 成员：`MiuixIndication$MiuixIndicationInstance`（`isHovered`）、
+`MiuixIndicationKt`（`HOVER_ALPHA_DELTA` + `HoverEnterSpring`/`HoverExitSpring`）、
+`Slider`/`RangeSlider`/`VerticalSlider`（`isHoveringThumb`）。教训：扫类名 != 扫内容。
+
+二、交互原语实测（全部改用脚本落点 + 对照实验）
+----------------------------------------------
+基准：c8v-settle.png（指针停在窗口外，与 c8v-base.png 差异 0 像素）
+
+  刺激（client 坐标）                        变化像素      占比     变化区域
+  悬停歌曲第 1 行 (400,130)                  68571        7.61%    x[82..1164] y[147..210] = 1083 x 64
+  悬停左侧导航项 Albums (80,325)             6066         0.67%    （对照：库自带反馈确实存在）
+  右键歌曲第 1 行 (400,130)                  68571        7.61%    仅该行：悬停高亮消失，无任何弹出区域
+  长按歌曲第 1 行 (400,130)                  83601        9.28%    x[82..1164] y[32..767]（整屏）
+
+判读：
+  1. **悬停反馈存在**（第一版结论作废）：悬停整行产生 1083x64 的高亮，正好是一行的矩形；
+     悬停 Miuix 导航项也有反馈。来源是 Miuix 的 `MiuixIndication`（库内确有 `isHovered` +
+     `HOVER_ALPHA_DELTA` + `HoverEnterSpring`/`HoverExitSpring`），所以凡是 `clickable` 的
+     元素都有悬停反馈 —— 第一版说「Miuix 库内 hover 相关类 = 0」也是错的（那次只扫了类名，
+     没扫类内容；本轮用 javap 扫类内容，7 个 desktop jar 里共 8 个类含 hover 成员）。
+  2. **右键没有任何菜单**：右键后唯一的像素变化就是该行悬停高亮消失（区域仍是 1083x64），
+     没有任何新的弹出区域 —— 即右键被完全忽略。
+  3. **长按是进入多选的唯一入口**：长按使整屏变化，按行分布为顶栏 ~9000 px（标题变成
+     "Selected 1 items"、右侧 "Select All"，且 x[0..120] y[20..90] 出现 187 px 的新图标 =
+     顶栏关闭按钮）、该行状态 ~57000 px、底部 ~4500 px（列表高度变化引起的重排）。
+     代码侧对应 `SongsPage.kt:277-279` 的 `onSelectAll` / `onDeselectAll` /
+     `onClose = selectionViewModel::exitSelectionMode` —— 退出只有鼠标入口。
+
+三、缩放自适应（正向结论：实测有效）
+------------------------------------
+  窗口客户区尺寸     结果
+  1166 x 773        正常；左侧竖排导航栏（Albums 在 x=20, y=271）
+   686 x 193        正常；**导航改为底部横栏**（Albums 出现在 y=166 底部）
+   506 x 413        正常，长文案按预期折行
+   346 x 273        正常
+   286 x 693        正常，标题截断为 "Song.."（预期内）
+
+未发现破版、空白区或内容重叠。即自适应布局是真的；应用没有 minimumSize，极限窄（<360 px）
+时标题开始截断，属体验问题而非崩溃问题。
+
+四、滚动条覆盖（代码层结论；运行时确认未取得）
+----------------------------------------------
+代码层（确定）：`VerticalScrollbar`/`ScrollbarAdapter` 共 11 处，只在 2 个文件里；
+`LibraryScrollbar` 被接到 4 个屏幕：SongsPage、AlbumsPage、ArtistsPage、OpenSourceLicenceScreen。
+全量：Lazy 容器 77 处 + verticalScroll/horizontalScroll 64 处 = 141 个可滚动面，即约 137 个
+可滚动容器没有可见滚动条。滚轮在这些页面可用（实测设置页滚轮使整窗 5.98% 像素变化）。
+
+运行时确认**未取得**，两种探针都失败，如实记录：
+  1) `probe-scrollbar.py` 在歌曲页给出 100% / 4% 两种互相矛盾的读数 —— 列表未满一屏时滑块
+     ≈整条轨道或按需隐藏，加上窗口自身 1 px 描边，无法用「右边缘是否有连续异色竖条」区分；
+  2) 「滚动后右边缘带是否变化」也不行 —— 该页内容铺到右边缘，滚动本身就会改变那些像素
+     （实测变化 5.63%）。
+因此本条只作代码层结论，不声称有运行时截图证据。
+
+五、其余缺口（全部为代码层计数，无运行时测量）
+----------------------------------------------
+复核方式：因为上面错了两次，全部重做了一轮**宽口径 grep**，而不是只看直觉位置。
+全树计数均为 **0** 的：
+  Tooltip / TooltipArea                     0 处（Miuix 库内 tooltip 相关 26 处，应用未用）
+  pointerHoverIcon / PointerIcon            0 处（光标不进截图，只能代码层）
+  onKeyEvent / onPreviewKeyEvent / KeyEvent 0 处
+  keyboardActions / focusable               0 处
+  ContextMenu                               0 处
+  onExternalDrag / dragAndDropTarget / DragAndDrop  0 处
+  FileLock / singleInstance                 0 处 -> 两实例共用同一 data 目录的 Room 库
+  MenuBar / Tray                            0 处
+  minimumSize                               0 处
+  WindowPosition / WindowPlacement / preferredSize  0 处 -> 窗口几何不持久化
+
+计数非零但需正确解读的：
+  DropdownMenu   14 处（都是鼠标点击的「更多」菜单，**不是右键菜单**，结论不变）
+  focusRequester  4 处，全在 `ui/components/bar/SearchBar.kt`（自动聚焦搜索框）
+  Mutex          16 处（协程锁，与单实例保护无关）
+  Key.           62 处命中**全是误命中**（`ForeignKey` / `CustomTagKey` / `titleGroupKey`），
+                 无一是键盘 API
+
+其他（单独核实的）：
+  对话框          应用 73 处 Dialog( + 19 处 Miuix WindowDialog；
+                  而 Miuix 0.9.4 的 7 个 desktop jar 中**没有任何类引用 DialogWindow**
+                  -> 全部是 androidx.compose.ui.window.Dialog（窗口内模态），
+                     不能拖出窗口/移到别的显示器；小窗口下固定高度面板（420dp）会被裁
+  裁剪器缩放      只有拖动手柄（getHitHandle / calculateNewRect / DragHandle），无滚轮缩放
+  A-Z 索引条      AlphaBetSideBar 用 detectTapGestures 拖动（鼠标可用，触控目标偏小）
+
+六、无法运行时验证的两项（如实标注）
+------------------------------------
+  1) 键盘行为（Enter 提交搜索、Esc 关闭对话框）：本仓已诊断过注入输入进不了 Compose
+     （SendInput 与 PostMessage 均失败，走 TSF/IME 通道），故只有代码层判断：SearchBar 用
+     ImeAction.Search + onKeyboardAction；对话框用 Compose 的 Dialog，其 Esc -> onDismissRequest
+     由框架提供。
+  2) 运行中跟随系统深色模式：ThemeMode.AUTO -> isSystemInDarkTheme() 代码正确，但验证需要
+     切换用户的系统主题设置（侵入性），未做。

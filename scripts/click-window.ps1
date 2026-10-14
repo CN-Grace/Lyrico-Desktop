@@ -20,6 +20,10 @@
 .EXAMPLE
     # Long-press the first song row to enter selection mode (~800 ms hold)
     powershell -ExecutionPolicy Bypass -File scripts/click-window.ps1 -X 200 -Y 97 -Button longpress -TitleLike "Lyrico 1.6"
+
+.EXAMPLE
+    # Move the pointer over a row and leave it there, so a capture taken next shows the hover state
+    powershell -ExecutionPolicy Bypass -File scripts/click-window.ps1 -X 400 -Y 130 -Button hover -TitleLike "Lyrico 1.6"
 #>
 [CmdletBinding()]
 param(
@@ -42,7 +46,12 @@ param(
     # How long to wait after the click, so the app has drawn the result before the next capture.
     [int]$SettleMs = 1200,
 
-    [ValidateSet("left", "right", "double", "longpress")]
+    # `hover` presses no button at all: it only puts the pointer where a click would land and leaves it
+    # there, which is the only way to capture a hover state. Use it when the *absence* of a reaction is the
+    # thing being measured — a hand-written SetCursorPos is easy to get wrong, because the screen position
+    # depends on where the window happens to be, and a pointer that missed the window looks exactly like a
+    # widget that ignored the pointer.
+    [ValidateSet("left", "right", "double", "longpress", "hover")]
     [string]$Button = "left",
 
     # How long to hold the button down for `-Button longpress`. Compose's long-press threshold is the
@@ -235,6 +244,11 @@ try {
             Start-Sleep -Milliseconds $HoldMs
             [LyricoWin32.Native]::mouse_event($leftUp, 0, 0, 0, [UIntPtr]::Zero)
         }
+        "hover" {
+            # Nothing to inject: `SetCursorPos` above already put the pointer on the target, and it stays
+            # there after this script returns, so the next capture sees the hover state. Reported below so
+            # the caller can check the pointer really landed inside the client area.
+        }
     }
 }
 finally {
@@ -294,4 +308,8 @@ if ($Text -ne "") {
     Write-Host "Typed '$Text' into client ($X,$Y) after the click in '$($window.Title)'"
 }
 
-Write-Host "Clicked $Button at client ($X,$Y) = screen ($screenX,$screenY) in '$($window.Title)'"
+$verb = if ($Button -eq "hover") { "Hovered" } else { "Clicked $Button" }
+Write-Host "$verb at client ($X,$Y) = screen ($screenX,$screenY) in '$($window.Title)'"
+if ($Button -eq "hover") {
+    Write-Host "The pointer is left there; capture now to record the hover state."
+}

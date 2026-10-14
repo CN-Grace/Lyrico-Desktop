@@ -3002,6 +3002,48 @@ properly delegate isDispatchNeeded and dispatch calls.
 
 **一处操作教训（记下来，避免再犯）**：取证脚本按窗口标题匹配，而用户自己也在跑一个 Lyrico 实例（标题同样以 `Lyrico 1.6` 开头），于是第一次截图抓到的是**用户自己的曲库**（347 项选中、周杰伦的歌）。发现后立刻删掉了那张图和它的 OCR，改成用 `capture-window.ps1 -Hwnd <句柄>` 精确指定自己的实例（并用 `Stop-Process -Id` 只杀自己那个），用户的实例（PID 153652）全程未被触碰。结论：**同时可能开着多个实例时，不要用标题匹配截图，也不要用模糊命令行匹配杀进程。**
 
+#### 6g. 桌面适配专项审计（用户问「检查当前对于 pc 端适配的问题」）
+
+按「触屏惯用法残留 / 桌面能力缺失 / 固定尺寸 / 窗口与 DPI」四条轴逐项取证。完整测量记录见 `docs/port-evidence/c8-desktop-adaptation.txt`，截图证据 `docs/port-evidence/c8v-*.png`、`c8-home-small.png`、`c8-geom-*.png`、`c8-set-small.png`。
+
+**这一轮审计自己错了两次，都记在这里。** ① 第一版把指针移到硬编码屏幕坐标来测悬停，得到「悬停歌曲行 = 0 像素变化」，据此写下「桌面端没有任何悬停反馈」。这是**错的**。`click-window.ps1` 在操作前会先确保窗口在前台（必要时在标题栏补一次中性激活点击），裸 `SetCursorPos` 不会 —— 而**一个没到达目标的刺激和一个被忽略的刺激，在像素上完全一样**。更正：给脚本加 `-Button hover`（复用脚本自身的 client→screen 换算并打印落点），并加对照实验（悬停一个已知有反馈的控件）。重测后结论反转（悬停整行有 1083x64 的高亮），同时发现第一版「Miuix 库内 hover 相关类 = 0」也错（那次只扫类名没扫类内容；本轮用 `javap` 扫内容，7 个 desktop jar 里共 8 个类含 hover 成员，`MiuixIndication` 带 `isHovered` + `HoverEnterSpring`）。**教训一：测「没有反应」之前必须先证明刺激到达了目标；只报 0 像素变化而不做对照，等于没测。** ② 第一版写了「`DesktopOpener` 缺 revealInExplorer」，因为只看了 `DesktopOpener.kt` 这一个文件 —— 而能力其实完整存在：`platform/FileRevealer.kt` 的 `ExplorerFileRevealer`（`explorer.exe /select,<path>`，KDoc 里还记了 `/select,` 必须与路径逗号相连、以及 explorer.exe 退出码不能当成败信号两个 Windows 细节）+ `FileRevealRepository`（带 `Revealed`/`NothingToReveal`/`FilesUnavailable`/`Failed` 四种结果）+ DI 注册（`DesktopAppModule.kt:229`）+ 界面接线（`AlbumDetailScreen`/`ArtistDetailScreen` 的 `onShare = selectionViewModel.share(...)`）。**教训二：找能力要 grep 能力名（`reveal`/`select,`），不要 grep 你以为它应该在的那个文件。**
+
+**实测结论（真窗口，每次刺激前先做静止性检查，两张基准图差异 0 像素）**：
+
+| 刺激（client 坐标） | 变化像素 | 变化区域 | 判读 |
+|---|---|---|---|
+| 悬停歌曲第 1 行 (400,130) | 68571（7.61%） | x[82..1164] y[147..210] = 1083x64 | **悬停反馈存在**，正好是一行的矩形 |
+| 悬停左侧导航项 Albums (80,325) | 6066（0.67%） | — | 对照实验：库自带反馈确实存在 |
+| 右键歌曲第 1 行 (400,130) | 68571（7.61%） | 仅该行（悬停高亮消失） | **右键被完全忽略**，无任何弹出区域 |
+| 长按歌曲第 1 行 (400,130) | 83601（9.28%） | x[82..1164] y[32..767] | **进入多选**：顶栏 ~9000 px（含左上角 187 px 新图标 = 关闭）、该行 ~57000 px、底部重排 ~4500 px |
+
+**缩放自适应：实测有效（正向结论）**。1166x773 用左侧竖排导航栏，686x193 **自动改为底部横栏**；506x413 / 346x273 / 286x693 全部正常渲染，未发现破版、空白区或内容重叠，极窄时标题按预期截断为 `Song..`。即应用没有 `minimumSize` 也不崩，只是 <360 px 宽开始难看。
+
+**真缺口，按严重度**（标「实测」的有真窗口证据，标「代码层」的只有 grep/反编译计数）：
+
+1. **P1 多选只有长按入口**（实测）：右键无菜单、无 Ctrl+点击、无 Shift 范围选、无 Delete 删除、无 Esc 退出（`SongsPage.kt:277-279` 只有 `onSelectAll`/`onDeselectAll`/`onClose`，退出仅鼠标入口）。桌面选择约定整体缺失。
+2. **P2 无 tooltip**（代码层）：Miuix 自带 tooltip（库内 26 处），应用 0 处使用；图标按钮（返回/更多/播放/FAB/选择条）没有文字说明。
+3. **P2 光标形状不变**（代码层）：`pointerHoverIcon`/`PointerIcon` 全为 0；光标不进截图，故只能代码层判断。
+4. **P2 无键盘支持**（代码层）：`onKeyEvent`/`onPreviewKeyEvent`/`KeyEvent` 全为 0；无 Ctrl+F、无 Esc 返回、无 Enter 打开、无 Tab 焦点指示。
+5. **P3 滚动条覆盖不足**（代码层）：141 个可滚动面里只有 4 个屏幕装了 `LibraryScrollbar`（Songs/Albums/Artists/开源许可）。**运行时确认未取得**：两种探针都失败（列表未满一屏时滑块≈轨道/按需隐藏，窗口自身 1 px 描边干扰；且内容铺到右边缘，滚动本身就改变右边缘像素），如实记录，不声称截图证据。
+6. **P3 窗口几何不持久化 + 无 minimumSize**（代码层）：每次启动回到 1180x780 居中，最大化/位置丢失（`WindowPosition`/`WindowPlacement`/`preferredSize` 均为 0，`Main.kt` 用固定值 `rememberWindowState(width = 1180.dp, height = 780.dp)`）。
+7. **P3 无文件拖放**（代码层）：`onExternalDrag`/`dragAndDropTarget`/`DragAndDrop` 全为 0 —— 把音乐文件夹拖到窗口上没有任何反应。
+8. **P4 无单实例保护**（代码层）：`FileLock`/`singleInstance` 为 0（`Mutex` 的 16 处是协程锁，与本项无关），两个实例指向同一 data 目录时共享同一个 Room 数据库。
+9. **P4 对话框全部是窗口内模态**（代码层 + 反编译核实）：应用 73 处 `Dialog(` + 19 处 Miuix `WindowDialog`，而 Miuix 0.9.4 的 7 个 desktop jar 里**没有任何类引用 `DialogWindow`** —— 即全都落到 `androidx.compose.ui.window.Dialog`，不能拖出窗口/移到别的显示器；小窗口下固定高度面板（420dp）会被裁（已知缺口）。
+10. **P4 无菜单栏/托盘**（代码层）：`MenuBar`/`Tray` 0 处。
+11. **P4 裁剪器无滚轮缩放**（代码层）：只有拖动手柄（`getHitHandle`/`calculateNewRect`/`DragHandle`）。
+12. **P5 A-Z 索引条触控目标偏小**（代码层）：`detectTapGestures` 拖动，鼠标可用但不精确。
+
+（原编号 8「无在资源管理器中显示」已删除：复核后确认该能力完整存在，见上面教训二。）
+
+**代码层结论的复核方式**（因为上面错了两次，全部重做了一轮宽口径 grep，而不是只看直觉位置）：`Tooltip`/`pointerHoverIcon`/`PointerIcon`/`onKeyEvent`/`onPreviewKeyEvent`/`KeyEvent`/`keyboardActions`/`focusable`/`ContextMenu`/`onExternalDrag`/`dragAndDropTarget`/`DragAndDrop`/`FileLock`/`singleInstance`/`MenuBar`/`Tray`/`minimumSize`/`WindowPosition`/`preferredSize` 全树计数均为 **0**；`DropdownMenu` 14 处（都是鼠标点击的「更多」菜单，不是右键菜单，结论不变）；`focusRequester` 4 处全在 `SearchBar.kt`（自动聚焦搜索框）；`Key.` 的 62 处命中全是 `ForeignKey`/`CustomTagKey`/`titleGroupKey` 之类误命中，无一是键盘 API。
+
+**两条无法运行时验证的**（如实标注）：① 键盘行为（Enter 提交搜索、Esc 关对话框）—— 本仓已诊断注入输入进不了 Compose（TSF/IME 通道），只有代码层判断；② 运行中跟随系统深色模式 —— `ThemeMode.AUTO -> isSystemInDarkTheme()` 代码正确，但验证需改用户的系统设置（侵入性）。
+
+**顺带记：安卓惯用法残留是干净的。** `BackHandler`(6)/`Toast`(15)/`ActivityResult`(7)/`LocalContext`(7) 的引用**全是注释或 KDoc**（记录「安卓有、桌面没有」的迁移取舍），无自定义 shim；`LocalConfiguration.screenHeightDp` 实际代码行 0。真正属于触屏手势的只有 4 处：`SongListItem`（`combinedClickable` 长按 + 56.dp 阈值横向拖动滑出）、`AlbumGridItem`（`onLongPress`）、`PluginManagerScreen`（2 处 `combinedClickable`）、`ImageCropper`/`AlphaBetSideBar`（拖动）—— 鼠标都能用。
+
+**建议修复顺序**：P1 右键菜单 + Ctrl/Shift 选择 + Esc 退出多选（一处状态机改动即可覆盖全部列表页）；P2 tooltip（库自带）+ 光标形状 + 快捷键；P3 窗口几何持久化与最小尺寸、文件拖放；P3 滚动条推广到长列表页；P4 单实例锁。
+
 #### 7. 这一版的结论
 
 - **代码层面**：安卓源树（main/test/androidTest/res/manifest）全部处置完，端口在自己的一套源里自洽；`port-frontier.py` 三项为零。
