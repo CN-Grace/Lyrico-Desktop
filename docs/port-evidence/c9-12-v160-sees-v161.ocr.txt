@@ -1,0 +1,35 @@
+file: docs/port-evidence/c9-12-v160-sees-v161.png
+engine: zh-Hans-CN
+lines: 32
+  y=7 x=21 :: 《 Lyrico 1 ℃ 25a55g 〕
+  y=111 x=25 :: Songs
+  y=153 x=35 :: 0
+  y=271 x=21 :: AIbums
+  y=121 x=154 :: 周 华 儺 。 朋 友
+  y=164 x=154 :: 朋 友
+  y=185 x=154 :: 周 华 儺 。 朋 友
+  y=229 x=155 :: September
+  y=250 x=155 :: Earth, Wind & Fire ·
+  y=292 x=155 :: 山 丘
+  y=313 x=154 :: 李 宗 盛 · 山 丘
+  y=356 x=154 :: 演 示 曲 目 01
+  y=378 x=154 :: Various Artist5 。
+  y=420 x=154 :: 演 示 曲 目 02
+  y=442 x=154 :: Various Artist5 。
+  y=484 x=154 :: 演 示 曲 目 03
+  y=506 x=154 :: Various Artist5 。
+  y=548 x=154 :: 演 示 曲 目 04
+  y=570 x=154 :: Various Artist5 · 演 了
+  y=612 x=154 :: 演 示 曲 目 05
+  y=634 x=154 :: Various Artist5 。 演 示 合 隼
+  y=676 x=154 :: 演 示 曲 目 06
+  y=51 x=486 :: Songs （ 24 ）
+  y=163 x=418 :: 发 现 新 版 本 ： vl ． 6 ． 1
+  y=209 x=322 :: Lyrico 1 ． 6 ． 1 (Windows
+  y=259 x=319 :: × 64 桌 面 版 ）
+  y=294 x=320 :: Lyrico 的 Windows 原 生 卓 面 版 ： 从 原 Andraid 版 完 薹
+  y=312 x=323 :: 飞 刂 Kotlin/JVM + Campose Multiplatform, 界 面 一 匕 亻 乃 是
+  y=331 x=348 :: 的 Miuix 风 ， 数 恬 格 式 与 安 卓 版 同 源 〔 同 一 套
+  y=351 x=320 :: Raom 陌 构 与 廡 好 〕 适牛于本地音千@的际签犏
+  y=369 x=319 :: 辑 、 词 处 理 、 封 面 管 理 与 批 量 任 务 。
+  y=398 x=319 :: 下 载 哪 个

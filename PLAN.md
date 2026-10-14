@@ -3119,4 +3119,6 @@ properly delegate isDispatchNeeded and dispatch calls.
 2. **`Start-Process -RedirectStandardOutput` + `.bat` 那条探针挂了 20 分钟**（`cmd.exe` 包一层再等子进程），换成分两步（先 `cmd /c start` 或直接 `Lyrico.exe`，再读文件）就正常。`Lyrico.exe` 是 GUI 启动器，**标准输出不可得**，所以安装包那条只按窗口/文件取证，不声称看到了 `native OK`。
 3. **7z 能解 MSI 但会丢掉目录结构**（263 个文件全是 `file<hash>` 名字，没有路径），无法还原 app image；要按真实布局解包就用 `msiexec /a`。
 
-**升级链路**：v1.6.0 的实例在 v1.6.1 发布后启动检查更新应当走 `NewVersion` 分支（线上 `v1.6.1` > 本地 `1.6.0`）。发布后按此复核，证据另存 `docs/port-evidence/c9-12-*`。
+**升级链路：已实测走通。** 发布后启动一个 v1.6.0 实例（`lyrico-161\Lyrico\Lyrico.exe`，标题 `Lyrico 1.6.0 (a25a5b9)`，库内 24 首），启动检查更新读到线上 `v1.6.1`，主窗口内弹出「**发现新版本：v1.6.1**」并渲染 Release 说明正文（OCR 读出 `Lyrico 1.6.1 (Windows x64 桌面版)` 与「下载哪个」等本页文字）。证据 `docs/port-evidence/c9-12-v160-sees-v161.png` + `.ocr.txt`。这一条同时证明三件事：Release 真的对外可见、`UpdateRepositoryImpl` 的版本比较在真实响应上成立、更新对话框能渲染出远端说明。
+
+**两处旧实例的处置**：本机此前跑着用户自己的 Lyrico 1.6.0（标题同样以 `Lyrico 1.6` 开头）。本轮所有截图都用 `capture-window.ps1 -Hwnd <句柄>` 精确指定，杀进程一律按 PID（`Stop-Process -Id`），并且只杀本轮自己启动的实例（1.6.0 那台是本轮为验证升级链路专门重启的、数据目录在 `%TEMP%\lyrico-161` 的实例）。
