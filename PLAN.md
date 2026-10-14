@@ -3095,3 +3095,28 @@ properly delegate isDispatchNeeded and dispatch calls.
 **六、这一批的测试总数**：**165 类 / 1346 项 / 0 失败 / 0 错误 / 4 门控跳过**（本批起点 165 类 / 1341 项）。
 
 **七、仍然没有证据的**（如实记账）：① Ctrl+A 真窗口（见上）；② MSI（本机无安装权限，用与 MSI 同源的镜像做验收）；③ 滚动条可见性（代码层，见 6g 第 12 条）。
+
+#### 6i. 发 v1.6.1（#70，2026-10-15）
+
+**版本**：`baseVersionName` 1.6.0 → **1.6.1**，`baseVersionCode` 20 → **21**（`lyrico-app/build.gradle.kts`，与安卓模块的 versionName/versionCode 对齐）。构建期由 `git rev-parse --short HEAD` 生成的 `BuildInfo.COMMIT` 因此写进窗口标题，两个产物标题都是 `Lyrico 1.6.1 (e1c1480)`。
+
+| 项 | 值 |
+|---|---|
+| tag | `v1.6.1` |
+| 标题 | Lyrico 1.6.1（Windows x64 桌面版） |
+| assets | `Lyrico-1.6.1.msi`（147000026 字节 / 140.2 MiB）、`Lyrico-1.6.1-windows-x64-portable.zip`（120612810 字节 / 115.0 MiB） |
+| notes | `docs/releases/v1.6.1.md`（同时入库留档）：下载选择、本版要点（含「验收工具自身的 bug」与假证据替换）、验证、sha256、9 条已知限制 |
+| sha256 | msi `55ff3caff5803f18710314a5317717adb81f0587f24d3abe73b2f97e3aeaf9da`；zip `2448030f608a0caceeae15a305d4231b520e124af27baaab746ad4633e62d2d5` |
+
+**产物在本机实跑过，两条路径分别验。**
+
+1. **便携版**：解压 zip（112 个条目，布局是**内容直接在 zip 根**，没有 `Lyrico/` 外层目录 —— `portableZip` 的 `from(portableDir)` 展开的是目录内容，所以是解压后双击 `Lyrico.bat`）→ 启动 → 标准输出：`I/Lyrico: 数据目录=…\lyrico-161-verify\data (便携模式)`、`[INFO] taglib: loaded native library from …\native\taglib.dll`、`I/Lyrico: native OK: java.library.path`；同时启动检查更新读到线上 `最新版本: v1.6.0 当前版本: 1.6.1`、`比较版本: [1, 6, 0] vs [1, 6, 1]` —— 这一行同时说明**版本比较用的是真实接口响应**（不是 mock），留档 `docs/port-evidence/c9-11-v161-portable-startup.txt`。
+2. **安装包**：`msiexec /a <msi> /qn TARGETDIR=<dir>`（**管理安装**，只是解包，不需要管理员权限）→ 得到内部 app image → 直接运行 `Lyrico.exe` → 窗口标题 `Lyrico 1.6.1 (e1c1480)`、1180x780；并核实 `runtime\bin\server\jvm.dll` 随包存在（即不依赖系统 Java）、`data\lyrico.db` 按便携优先建在安装目录下。证据 `c9-10-v161-msi-image.*`。
+
+**三条操作教训（都是这一轮踩到的）。**
+
+1. **路径里的中文 + PowerShell 5.1 读 .ps1 用 ANSI/GBK**：`msiexec` 第一次返回 **1619（ERROR_INSTALL_PACKAGE_OPEN_FAILED）**，因为 `.ps1` 里的 MSI 路径含 `03-应用`，脚本文件是 UTF-8 无 BOM，被按 GBK 读成了乱码路径。修法：把 MSI 复制到纯 ASCII 路径（`%TEMP%\Lyrico-1.6.1.msi`）再解包。同一个坑也解释了为什么按中文标题匹配窗口的探针会「找不到对话框」——**`.ps1` 里不要写中文字面量**；要匹配中文标题就按句柄，或者写 UTF-8 **带 BOM**。
+2. **`Start-Process -RedirectStandardOutput` + `.bat` 那条探针挂了 20 分钟**（`cmd.exe` 包一层再等子进程），换成分两步（先 `cmd /c start` 或直接 `Lyrico.exe`，再读文件）就正常。`Lyrico.exe` 是 GUI 启动器，**标准输出不可得**，所以安装包那条只按窗口/文件取证，不声称看到了 `native OK`。
+3. **7z 能解 MSI 但会丢掉目录结构**（263 个文件全是 `file<hash>` 名字，没有路径），无法还原 app image；要按真实布局解包就用 `msiexec /a`。
+
+**升级链路**：v1.6.0 的实例在 v1.6.1 发布后启动检查更新应当走 `NewVersion` 分支（线上 `v1.6.1` > 本地 `1.6.0`）。发布后按此复核，证据另存 `docs/port-evidence/c9-12-*`。

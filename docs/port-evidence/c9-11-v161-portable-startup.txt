@@ -1,0 +1,6 @@
+I/Lyrico: 数据目录=C:\Users\Grace\AppData\Local\Temp\lyrico-161-verify\data (便携模式)
+[INFO] taglib: loaded native library from C:\Users\Grace\AppData\Local\Temp\lyrico-161-verify\native\taglib.dll
+I/Lyrico: native OK: java.library.path
+D/UpdateRepositoryImpl: 开始检查更新
+D/UpdateRepositoryImpl: 最新版本: v1.6.0 当前版本: 1.6.1
+D/UpdateRepositoryImpl: 比较版本: [1, 6, 0] vs [1, 6, 1]

@@ -28,8 +28,8 @@ plugins {
 group = "com.lonx.lyrico"
 
 // Remember to bump these when releasing (mirrors the Android module's versionName/versionCode).
-val baseVersionName = "1.6.0"
-val baseVersionCode = 20
+val baseVersionName = "1.6.1"
+val baseVersionCode = 21
 
 fun gitCommitHash(): Provider<String> = providers.exec {
     commandLine("git", "rev-parse", "--short", "HEAD")

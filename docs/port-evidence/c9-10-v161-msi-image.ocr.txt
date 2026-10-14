@@ -1,0 +1,9 @@
+file: docs/port-evidence/c9-10-v161-msi-image.png
+engine: zh-Hans-CN
+lines: 6
+  y=10 x=31 :: Lyrico 1.6.1 1 芒 480
+  y=153 x=35 :: 0
+  y=48 x=577 :: 歌 曲 〔 0 ）
+  y=378 x=562 :: 尚 耒 添 加 文 亻 牛 夹
+  y=407 x=482 :: 添 加 音 乐 文 荚 Lyrico 会 扫 癃 其 中 的 音 文 件
+  y=450 x=581 :: 添 加 文 件 夹
