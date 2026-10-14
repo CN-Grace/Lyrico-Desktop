@@ -15,11 +15,34 @@ class SharedSelectionManager {
     private val _swipeAnchorUri = MutableStateFlow<String?>(null)
     val swipeAnchorUri: StateFlow<String?> = _swipeAnchorUri.asStateFlow()
 
+    private val _visibleUris = MutableStateFlow<List<String>>(emptyList())
+
+    /**
+     * The songs the list currently on screen is showing, in display order.
+     *
+     * This exists for one caller: the window-level `Ctrl+A` shortcut, which has to select "everything
+     * the user can see" but sits above every screen and therefore has no list of its own. It is
+     * published by the screens rather than derived here because only they know what survived their
+     * filter and sort -- `Ctrl+A` in a search result must select the matches, not the whole library.
+     *
+     * Empty until a list has published, which makes `Ctrl+A` a no-op on the screens that show no songs
+     * rather than a way to select rows that are not on screen.
+     */
+    val visibleUris: StateFlow<List<String>> = _visibleUris.asStateFlow()
+
     private var swipeAnchorUriValue: String?
         get() = _swipeAnchorUri.value
         set(value) {
             _swipeAnchorUri.value = value
         }
+
+    /**
+     * Records what the calling list is displaying. Purely informational: it changes no selection state,
+     * so a screen may publish on every list change without affecting what the user has selected.
+     */
+    fun publishVisibleUris(uris: List<String>) {
+        _visibleUris.value = uris
+    }
 
     fun setUris(uris: Set<String>) {
         _selectedUris.value = uris
@@ -95,6 +118,44 @@ class SharedSelectionManager {
         _selectedUris.value = selectedUris + visibleUris.subList(start, end + 1)
         _isSelectionMode.value = true
         swipeAnchorUriValue = null
+    }
+
+    /**
+     * Replaces the selection with the run of rows between the anchor and [uri] -- the desktop
+     * shift+click, which has no Android original.
+     *
+     * Two deliberate differences from [selectSwipeRange], which does the same thing for a drag:
+     *
+     * - **The anchor is kept, not cleared.** A drag is a one-shot gesture that ends when the finger
+     *   lifts, so the next drag has to start a new range. A user holding shift clicks one row after
+     *   another, and every one of those clicks must measure from the same anchor -- clearing it would
+     *   restart the range at each click and make the second shift+click shrink the selection back to
+     *   two rows.
+     * - **It replaces the selection instead of adding to it.** This is what Explorer does, and it is
+     *   what makes shift+click usable as "select up to here": the range is the answer, not the union
+     *   of every range ever clicked.
+     *
+     * A click with no usable anchor (nothing selected yet, or the anchor is no longer in
+     * [visibleUris] because the list was re-sorted) selects [uri] alone and anchors there, which is
+     * also how the first shift+click of a session behaves.
+     */
+    fun extendRange(uri: String, visibleUris: List<String>) {
+        val anchorUri = swipeAnchorUriValue
+        val anchorIndex = anchorUri?.let { visibleUris.indexOf(it) } ?: -1
+        val uriIndex = visibleUris.indexOf(uri)
+
+        if (anchorIndex == -1 || uriIndex == -1) {
+            _isSelectionMode.value = true
+            _selectedUris.value = setOf(uri)
+            swipeAnchorUriValue = uri
+            return
+        }
+
+        val start = minOf(anchorIndex, uriIndex)
+        val end = maxOf(anchorIndex, uriIndex)
+        _isSelectionMode.value = true
+        _selectedUris.value = visibleUris.subList(start, end + 1).toSet()
+        swipeAnchorUriValue = anchorUri
     }
 
     fun replaceUris(uriMapping: Map<String, String>) {

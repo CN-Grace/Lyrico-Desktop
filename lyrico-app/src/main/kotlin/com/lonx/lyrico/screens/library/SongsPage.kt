@@ -193,6 +193,12 @@ fun SongsPage(
         viewModel.clearSearch()
     }
 
+    // Publishes what this list shows so the window-level ctrl+A selects these songs and not the whole
+    // library; see SharedSelectionManager.publishVisibleUris.
+    LaunchedEffect(songs) {
+        selectionViewModel.publishVisibleSongs(songs)
+    }
+
     val scope = rememberCoroutineScope()
     val folderPicker = directoryPicker ?: rememberDirectoryPicker(
         title = stringResource(Res.string.action_add_folder)
@@ -445,6 +451,13 @@ fun SongsPage(
                                 onSwipeSelection = {
                                     selectionViewModel.swipeSelect(song, songs)
                                 },
+                                onRangeSelection = {
+                                    selectionViewModel.extendSelection(song, songs)
+                                },
+                                onSecondaryClick = {
+                                    selectedSong = song
+                                    showMenuSheet = true
+                                },
                                 trailingContent = {
                                     Box(modifier = Modifier.padding(end = 8.dp)) {
                                         SongListItemActions(
@@ -508,7 +521,7 @@ fun SongsPage(
                     selectionViewModel.play(song)
                 },
                 onShare = { song ->
-                    selectionViewModel.share(listOf(song))
+                    selectionViewModel.revealSong(song)
                 },
                 onCopy = { text ->
                     scope.launch {

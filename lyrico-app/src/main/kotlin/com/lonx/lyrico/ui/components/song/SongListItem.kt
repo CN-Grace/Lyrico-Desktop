@@ -33,6 +33,15 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.PointerKeyboardModifiers
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -67,8 +76,18 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * no `LocalView` and no vibration motor, so a long press or a completed swipe simply has no feedback to
  * give. Everything else -- the swipe-to-extend-selection offsets, the selection background, the cover
  * request -- is unchanged.
+ *
+ * Three desktop affordances were added on top, because the row is the only place the pointer lands:
+ *
+ * - **Right click** ([onSecondaryClick]) opens the song's action menu, which on this platform is the
+ *   expected way to reach "rename", "reveal in Explorer" and the rest.
+ * - **Ctrl+click** toggles this row's selection and **shift+click** ([onRangeSelection]) selects the
+ *   range from the anchor, matching the two modifiers a Windows user will try first.
+ * - **The pointer turns into a hand** over the row. Compose Desktop does not do this on its own and
+ *   Miuix does not either (its desktop jars contain no `pointerHoverIcon` call at all), so without
+ *   this line every row of the library looks inert.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun SongListItem(
     song: SongEntity,
@@ -85,8 +104,30 @@ fun SongListItem(
     onClick: () -> Unit,
     onToggleSelection: (() -> Unit)? = null,
     onSwipeSelection: (() -> Unit)? = null,
+    /**
+     * Desktop right-click on the row: opens that song's action menu. Null on the screens that have no
+     * per-song menu, and then the secondary button is simply ignored.
+     *
+     * It deliberately does **not** touch the selection, unlike Explorer: every entry of the menu this
+     * opens acts on one song (`play`/`delete`/`rename`/`reveal` all take the song itself), so entering
+     * selection mode as a side effect would only change the top bar and the row backgrounds for no
+     * reason. Selection is entered by ctrl+click, shift+click or a long press, as it is elsewhere.
+     */
+    onSecondaryClick: (() -> Unit)? = null,
+    /**
+     * Desktop shift+click: extends the selection from the anchor to this row. Wired to the same
+     * callback as [onSwipeSelection] on every call site -- both mean "select the range that ends
+     * here", they just arrive from different gestures.
+     */
+    onRangeSelection: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
+
+    // The modifiers of the press that is currently in flight. Read from the pointer event rather than
+    // from `LocalWindowInfo.keyboardModifiers` for two reasons: the event is the state that belonged
+    // to *this* click (the window value is whatever the keyboard is doing now, including a key pressed
+    // after the mouse), and the event can be injected by a test while the window value cannot.
+    var pressModifiers by remember { mutableStateOf<PointerKeyboardModifiers?>(null) }
     val swipeThresholdPx = with(density) { 56.dp.toPx() }
     val maxSwipeOffsetPx = swipeThresholdPx * 1.35f
     var swipeOffsetX by remember(song.uri) { mutableFloatStateOf(0f) }
@@ -206,12 +247,25 @@ fun SongListItem(
                     Modifier
                 }
             )
+            .onPointerEvent(PointerEventType.Press) { event ->
+                pressModifiers = event.keyboardModifiers
+                if (event.buttons.isSecondaryPressed) {
+                    onSecondaryClick?.invoke()
+                }
+            }
+            .pointerHoverIcon(PointerIcon.Hand)
             .combinedClickable(
                 onClick = {
-                    if (isSelectionMode) {
-                        onToggleSelection?.invoke()
-                    } else {
-                        onClick()
+                    val modifiers = pressModifiers
+                    when {
+                        modifiers?.isShiftPressed == true && onRangeSelection != null ->
+                            onRangeSelection()
+
+                        modifiers?.isCtrlPressed == true && onToggleSelection != null ->
+                            onToggleSelection()
+
+                        isSelectionMode -> onToggleSelection?.invoke()
+                        else -> onClick()
                     }
                 },
                 onLongClick = if (isSelectionMode) {

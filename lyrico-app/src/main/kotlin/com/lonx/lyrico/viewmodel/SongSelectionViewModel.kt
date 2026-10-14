@@ -74,6 +74,37 @@ class SongSelectionViewModel(
         )
     }
 
+    /**
+     * The desktop shift+click: selects the run of rows between the anchor and [song]. Separate from
+     * [swipeSelect] because the two gestures need different anchor lifetimes -- see
+     * [SharedSelectionManager.extendRange].
+     */
+    fun extendSelection(song: SongEntity, visibleSongs: List<SongEntity>) {
+        selectionManager.extendRange(
+            uri = song.uri,
+            visibleUris = visibleSongs.map { it.uri }
+        )
+    }
+
+    /**
+     * Reveals one song in Explorer without consulting the selection.
+     *
+     * [share] exists for the selection and filters its input through the selected set, which is
+     * Android's behaviour and correct for the batch action. It is wrong for the row menu: a
+     * right-clicked song is not necessarily selected, and the menu entry used to do nothing at all in
+     * that case (the filter dropped it, and the empty list was returned early). The menu path goes
+     * through here instead, so "reveal this file" means the file that was right-clicked.
+     */
+    fun revealSong(song: SongEntity) {
+        when (val result = fileRevealRepository.reveal(listOf(song.path))) {
+            is RevealResult.Revealed, RevealResult.NothingToReveal -> Unit
+            is RevealResult.Failed ->
+                sendMessage(Res.string.unknown_error, result.throwable.message.orEmpty())
+
+            is RevealResult.FilesUnavailable -> sendMessage(Res.string.no_player_found)
+        }
+    }
+
     fun exitSelectionMode() {
         selectionManager.exitSelectionMode()
     }
@@ -84,6 +115,14 @@ class SongSelectionViewModel(
 
     fun selectAll(songs: List<SongEntity>) {
         selectionManager.selectAll(songs.map { it.uri }.toSet())
+    }
+
+    /**
+     * Records what the calling list is displaying, so the window-level `Ctrl+A` shortcut can select it
+     * without a list of its own. Selection-neutral -- see [SharedSelectionManager.publishVisibleUris].
+     */
+    fun publishVisibleSongs(visibleSongs: List<SongEntity>) {
+        selectionManager.publishVisibleUris(visibleSongs.map { it.uri })
     }
 
     /**

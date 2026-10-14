@@ -2,11 +2,13 @@ package com.lonx.lyrico.ui.components.song
 
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.MouseButton
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.lonx.lyrico.data.model.entity.SongEntity
@@ -152,5 +154,53 @@ class SongListItemTest {
             assertEquals(1, selections, "a long press must start selection")
             assertEquals(1, opens, "a long press must not also open the song")
         }
+    }
+
+    @Test
+    fun `a right click opens the row menu and does not open the song`() = runComposeUiTest {
+        var opens = 0
+        var menus = 0
+
+        setContent {
+            LyricoTheme {
+                SongListItem(
+                    song = song(),
+                    onClick = { opens++ },
+                    onSecondaryClick = { menus++ },
+                )
+            }
+        }
+
+        onNodeWithText("Blue Rondo à la Turk").performMouseInput {
+            press(MouseButton.Secondary)
+            release(MouseButton.Secondary)
+        }
+
+        runOnIdle {
+            assertEquals(1, menus, "the secondary button must open the row menu")
+            assertEquals(
+                0,
+                opens,
+                "a right click must not fall through to the row's own click, which navigates away",
+            )
+        }
+    }
+
+    @Test
+    fun `a right click is ignored on rows that have no menu`() = runComposeUiTest {
+        var opens = 0
+
+        setContent {
+            LyricoTheme {
+                SongListItem(song = song(), onClick = { opens++ })
+            }
+        }
+
+        onNodeWithText("Blue Rondo à la Turk").performMouseInput {
+            press(MouseButton.Secondary)
+            release(MouseButton.Secondary)
+        }
+
+        runOnIdle { assertEquals(0, opens, "without a menu the secondary button must do nothing at all") }
     }
 }

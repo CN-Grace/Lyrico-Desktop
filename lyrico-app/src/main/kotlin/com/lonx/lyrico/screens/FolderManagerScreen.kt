@@ -144,6 +144,12 @@ fun FolderManagerScreen(
     val currentFolderSongs by viewModel.currentFolderSongs.collectAsState()
     val isSelectionMode by selectionViewModel.isSelectionMode.collectAsState()
     val selectedSongUris by selectionViewModel.selectedSongUris.collectAsState()
+
+    // Publishes what the current folder page shows so the window-level ctrl+A selects those songs and
+    // not the whole library; see SharedSelectionManager.publishVisibleUris.
+    LaunchedEffect(currentFolderSongs) {
+        selectionViewModel.publishVisibleSongs(currentFolderSongs)
+    }
     val clipboardManager = LocalClipboard.current
     val swipeAnchorUri by selectionViewModel.swipeAnchorUri.collectAsState()
     val swipeSelectionLabel = stringResource(
@@ -545,7 +551,7 @@ fun FolderManagerScreen(
                 onPlay = { song ->
                     selectionViewModel.play(song)
                 },
-                onShare = { song -> selectionViewModel.share(listOf(song)) },
+                onShare = { song -> selectionViewModel.revealSong(song) },
                 onCopy = { text ->
                     scope.launch {
                         // The same AWT-backed clipboard call the other ported song lists make; in a
@@ -913,6 +919,9 @@ private fun FolderPage(
                 onSwipeSelection = { song ->
                     selectionViewModel.swipeSelect(song, snapshot.songs)
                 },
+                onRangeSelection = { song ->
+                    selectionViewModel.extendSelection(song, snapshot.songs)
+                },
                 onShowSongMenu = onShowSongMenu,
                 modifier = modifier
             )
@@ -1007,6 +1016,7 @@ private fun FolderCurrentSongsPage(
     onSongClick: (SongEntity) -> Unit,
     onToggleSelection: (SongEntity) -> Unit,
     onSwipeSelection: (SongEntity) -> Unit,
+    onRangeSelection: (SongEntity) -> Unit,
     onShowSongMenu: (SongEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1043,6 +1053,12 @@ private fun FolderCurrentSongsPage(
                 },
                 onSwipeSelection = {
                     onSwipeSelection(song)
+                },
+                onRangeSelection = {
+                    onRangeSelection(song)
+                },
+                onSecondaryClick = {
+                    onShowSongMenu(song)
                 },
                 trailingContent = {
                     Box(modifier = Modifier.padding(end = 8.dp)) {

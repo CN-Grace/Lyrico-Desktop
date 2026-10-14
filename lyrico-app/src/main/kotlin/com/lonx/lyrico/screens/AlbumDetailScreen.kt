@@ -179,6 +179,12 @@ fun AlbumDetailScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteAlbumDialog by remember { mutableStateOf(false) }
 
+    // Publishes what this list shows so the window-level ctrl+A selects these songs and not the whole
+    // library; see SharedSelectionManager.publishVisibleUris.
+    LaunchedEffect(songs) {
+        selectionViewModel.publishVisibleSongs(songs)
+    }
+
     // Android showed these through `Toast.makeText(context, message.asString(context), SHORT)`; the
     // message is resolved where it is displayed so it lands in the language the UI is showing now.
     LaunchedEffect(albumActionsViewModel) {
@@ -311,6 +317,13 @@ fun AlbumDetailScreen(
                                 onSwipeSelection = {
                                     selectionViewModel.swipeSelect(song, songs)
                                 },
+                                onRangeSelection = {
+                                    selectionViewModel.extendSelection(song, songs)
+                                },
+                                onSecondaryClick = {
+                                    selectedSong = song
+                                    showMenuSheet = true
+                                },
                                 trailingContent = {
                                     Box(modifier = Modifier.padding(end = 8.dp)) {
                                         SongListItemActions(
@@ -346,7 +359,7 @@ fun AlbumDetailScreen(
                     onShowDelete = { showDeleteDialog = true },
                     onShowRename = { showRenameDialog = true },
                     onPlay = { song -> selectionViewModel.play(song) },
-                    onShare = { song -> selectionViewModel.share(listOf(song)) },
+                    onShare = { song -> selectionViewModel.revealSong(song) },
                     onCopy = { text ->
                         scope.launch {
                             // The same AWT-backed clipboard call the songs page makes; in a headless

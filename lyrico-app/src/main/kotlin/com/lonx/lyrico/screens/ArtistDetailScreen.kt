@@ -208,6 +208,12 @@ fun ArtistDetailScreen(
     val clipboardManager = LocalClipboard.current
     val copiedMessage = stringResource(Res.string.msg_copied_to_clipboard)
 
+    // Publishes what this list shows so the window-level ctrl+A selects these songs and not the whole
+    // library; see SharedSelectionManager.publishVisibleUris.
+    LaunchedEffect(songs) {
+        selectionViewModel.publishVisibleSongs(songs)
+    }
+
     // 头像只是设置入口：用户选好去向后，再从本地选一张图片。
     val posterFolder by viewModel.artistPosterFolder.collectAsStateWithLifecycle()
     val artistPosterState by viewModel.artistPosterEmbedState.collectAsStateWithLifecycle()
@@ -386,6 +392,9 @@ fun ArtistDetailScreen(
                                 onSwipeSelection = { song ->
                                     selectionViewModel.swipeSelect(song, songs)
                                 },
+                                onRangeSelection = { song ->
+                                    selectionViewModel.extendSelection(song, songs)
+                                },
                                 onShowSongMenu = { song ->
                                     selectedSong = song
                                     showMenuSheet = true
@@ -425,7 +434,7 @@ fun ArtistDetailScreen(
                     onShowDelete = { showDeleteDialog = true },
                     onShowRename = { showRenameDialog = true },
                     onPlay = { song -> selectionViewModel.play(song) },
-                    onShare = { song -> selectionViewModel.share(listOf(song)) },
+                    onShare = { song -> selectionViewModel.revealSong(song) },
                     onCopy = { text ->
                         scope.launch {
                             // The same AWT-backed clipboard call the other pages make; in a headless test
@@ -573,6 +582,7 @@ private fun ArtistSongsPage(
     onSongClick: (SongEntity) -> Unit,
     onToggleSelection: (SongEntity) -> Unit,
     onSwipeSelection: (SongEntity) -> Unit,
+    onRangeSelection: (SongEntity) -> Unit,
     onShowSongMenu: (SongEntity) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -601,6 +611,8 @@ private fun ArtistSongsPage(
                 onClick = { onSongClick(song) },
                 onToggleSelection = { onToggleSelection(song) },
                 onSwipeSelection = { onSwipeSelection(song) },
+                onRangeSelection = { onRangeSelection(song) },
+                onSecondaryClick = { onShowSongMenu(song) },
                 trailingContent = {
                     Box(modifier = Modifier.padding(end = 8.dp)) {
                         SongListItemActions(

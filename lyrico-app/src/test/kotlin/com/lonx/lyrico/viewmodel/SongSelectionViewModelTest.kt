@@ -272,6 +272,51 @@ class SongSelectionViewModelTest {
         )
     }
 
+    // ----------------------------------------------------- reveal one row's file
+
+    @Test
+    fun `revealing a row's file ignores the selection entirely`() = runBlocking<Unit> {
+        val selected = seedSong("selected.mp3")
+        val rightClicked = seedSong("right-clicked.mp3")
+        val viewModel = viewModel()
+        viewModel.toggleSelection(selected.uri)
+
+        viewModel.revealSong(rightClicked)
+
+        assertEquals(
+            listOf(listOf(rightClicked.path)),
+            reveal.revealed,
+            "the row menu acts on the row it was opened from, selected or not",
+        )
+    }
+
+    @Test
+    fun `revealing a row's file works with nothing selected at all`() = runBlocking<Unit> {
+        val song = seedSong("song.mp3")
+        val viewModel = viewModel()
+
+        viewModel.revealSong(song)
+
+        // This is the bug the row menu used to have: it went through `share`, whose selection filter
+        // dropped the song and whose empty-list guard returned before the shell was ever called, so
+        // "reveal in Explorer" did nothing at all unless the row happened to be selected.
+        assertEquals(listOf(listOf(song.path)), reveal.revealed)
+    }
+
+    @Test
+    fun `a reveal that the shell refused reports unknown_error with the reason`() = runBlocking<Unit> {
+        val song = seedSong("song.mp3")
+        reveal.result = RevealResult.Failed(song.path, IllegalStateException("explorer missing"))
+        val viewModel = viewModel()
+        val messages = startCollecting(viewModel)
+
+        viewModel.revealSong(song)
+
+        val message = messages.nextOrNull() as UiMessage.Localized?
+        assertEquals(Res.string.unknown_error, message?.res)
+        assertEquals(listOf("explorer missing"), message?.args?.toList())
+    }
+
     // ----------------------------------------------------------------- share
 
     @Test
@@ -361,6 +406,42 @@ class SongSelectionViewModelTest {
         assertNull(
             viewModel.swipeAnchorUri.value,
             "a completed range clears the anchor, so the next swipe starts a new range",
+        )
+    }
+
+    @Test
+    fun `shift selecting twice covers the range and keeps the anchor`() = runBlocking<Unit> {
+        val a = seedSong("a.mp3")
+        val b = seedSong("b.mp3")
+        val c = seedSong("c.mp3")
+        val visible = listOf(a, b, c)
+        val viewModel = viewModel()
+
+        viewModel.extendSelection(a, visible)
+        viewModel.extendSelection(c, visible)
+
+        assertEquals(setOf(a.uri, b.uri, c.uri), viewModel.selectedSongUris.value)
+        assertEquals(
+            a.uri,
+            viewModel.swipeAnchorUri.value,
+            "shift+click keeps the anchor, so a further shift+click measures from the same row",
+        )
+    }
+
+    @Test
+    fun `publishing the visible songs does not touch the selection`() = runBlocking<Unit> {
+        val a = seedSong("a.mp3")
+        val b = seedSong("b.mp3")
+        val viewModel = viewModel()
+        viewModel.toggleSelection(a.uri)
+
+        viewModel.publishVisibleSongs(listOf(a, b))
+
+        assertEquals(listOf(a.uri, b.uri), selectionManager.visibleUris.value)
+        assertEquals(
+            setOf(a.uri),
+            viewModel.selectedSongUris.value,
+            "ctrl+A reads the published list; publishing it must not select anything by itself",
         )
     }
 

@@ -171,8 +171,15 @@ fun LocalSearchScreen(
         }
     }
 
+    // Publishes what this tab shows so the window-level ctrl+A selects the matches and not the whole
+    // library; see SharedSelectionManager.publishVisibleUris.
+    LaunchedEffect(visibleSongs) {
+        selectionViewModel.publishVisibleSongs(visibleSongs)
+    }
+
     // 安卓在这里挂了一个 BackHandler（关 FAB 菜单 / 退出选择模式）。桌面端没有系统返回手势，于是菜单靠
-    // `ExpandableFabMenu` 的遮罩关、选择模式靠顶栏的关闭按钮退 —— 与 `FolderManagerScreen` /
+    // `ExpandableFabMenu` 的遮罩关、选择模式靠顶栏的关闭按钮退，也可以按 `Esc`（窗口级快捷键，见
+    // `SelectionModeShortcuts`）—— 与 `FolderManagerScreen` /
     // `AlbumDetailScreen` / `LibraryHomeScreen` 同一处缺口，`PLAN.md` 里记着。
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -319,6 +326,9 @@ fun LocalSearchScreen(
                     onSwipeSelection = { song, pageSongs ->
                         selectionViewModel.swipeSelect(song, pageSongs)
                     },
+                    onRangeSelection = { song, pageSongs ->
+                        selectionViewModel.extendSelection(song, pageSongs)
+                    },
                     onShowSongMenu = { song ->
                         selectedSong = song
                         showMenuSheet = true
@@ -355,7 +365,7 @@ fun LocalSearchScreen(
             onShowDelete = { showDeleteDialog = true },
             onShowRename = { showRenameDialog = true },
             onPlay = { song -> selectionViewModel.play(song) },
-            onShare = { song -> selectionViewModel.share(listOf(song)) },
+            onShare = { song -> selectionViewModel.revealSong(song) },
             onCopy = { text ->
                 scope.launch {
                     clipboardManager.setClipEntry(ClipEntry(StringSelection(text)))
@@ -435,6 +445,7 @@ private fun LocalSearchResultsPage(
     onSongClick: (SongEntity) -> Unit,
     onToggleSelection: (SongEntity) -> Unit,
     onSwipeSelection: (SongEntity, List<SongEntity>) -> Unit,
+    onRangeSelection: (SongEntity, List<SongEntity>) -> Unit,
     onShowSongMenu: (SongEntity) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -473,6 +484,7 @@ private fun LocalSearchResultsPage(
                 onSongClick = onSongClick,
                 onToggleSelection = onToggleSelection,
                 onSwipeSelection = onSwipeSelection,
+                onRangeSelection = onRangeSelection,
                 onShowSongMenu = onShowSongMenu
             )
             ArtistsSection(
@@ -498,6 +510,7 @@ private fun LocalSearchResultsPage(
                         onSongClick = onSongClick,
                         onToggleSelection = onToggleSelection,
                         onSwipeSelection = onSwipeSelection,
+                        onRangeSelection = onRangeSelection,
                         onShowSongMenu = onShowSongMenu
                     )
                 }
@@ -519,6 +532,7 @@ private fun LocalSearchResultsPage(
                     onSongClick = onSongClick,
                     onToggleSelection = onToggleSelection,
                     onSwipeSelection = onSwipeSelection,
+                    onRangeSelection = onRangeSelection,
                     onShowSongMenu = onShowSongMenu
                 )
             }
@@ -536,6 +550,7 @@ private fun LocalSearchResultsPage(
                 onSongClick = onSongClick,
                 onToggleSelection = onToggleSelection,
                 onSwipeSelection = onSwipeSelection,
+                onRangeSelection = onRangeSelection,
                 onShowSongMenu = onShowSongMenu
             )
         }
@@ -597,6 +612,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FieldSongsSection(
     onSongClick: (SongEntity) -> Unit,
     onToggleSelection: (SongEntity) -> Unit,
     onSwipeSelection: (SongEntity, List<SongEntity>) -> Unit,
+    onRangeSelection: (SongEntity, List<SongEntity>) -> Unit,
     onShowSongMenu: (SongEntity) -> Unit
 ) {
     if (songs.isEmpty()) return
@@ -625,6 +641,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FieldSongsSection(
             onSongClick = onSongClick,
             onToggleSelection = onToggleSelection,
             onSwipeSelection = onSwipeSelection,
+            onRangeSelection = onRangeSelection,
             onShowSongMenu = onShowSongMenu
         )
     }
@@ -641,6 +658,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.LyricsSection(
     onSongClick: (SongEntity) -> Unit,
     onToggleSelection: (SongEntity) -> Unit,
     onSwipeSelection: (SongEntity, List<SongEntity>) -> Unit,
+    onRangeSelection: (SongEntity, List<SongEntity>) -> Unit,
     onShowSongMenu: (SongEntity) -> Unit
 ) {
     if (matches.isEmpty()) return
@@ -668,6 +686,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.LyricsSection(
             onSongClick = onSongClick,
             onToggleSelection = onToggleSelection,
             onSwipeSelection = onSwipeSelection,
+            onRangeSelection = onRangeSelection,
             onShowSongMenu = onShowSongMenu
         )
     }
@@ -733,6 +752,7 @@ private fun LocalSearchSongItem(
     onSongClick: (SongEntity) -> Unit,
     onToggleSelection: (SongEntity) -> Unit,
     onSwipeSelection: (SongEntity, List<SongEntity>) -> Unit,
+    onRangeSelection: (SongEntity, List<SongEntity>) -> Unit,
     onShowSongMenu: (SongEntity) -> Unit
 ) {
     SongListItem(
@@ -747,6 +767,8 @@ private fun LocalSearchSongItem(
         onClick = { onSongClick(song) },
         onToggleSelection = { onToggleSelection(song) },
         onSwipeSelection = { onSwipeSelection(song, pageSongs) },
+        onRangeSelection = { onRangeSelection(song, pageSongs) },
+        onSecondaryClick = { onShowSongMenu(song) },
         trailingContent = {
             Box(modifier = Modifier.padding(end = 8.dp)) {
                 SongListItemActions(

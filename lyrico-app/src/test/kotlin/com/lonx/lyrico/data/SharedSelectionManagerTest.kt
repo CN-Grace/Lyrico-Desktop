@@ -204,4 +204,86 @@ class SharedSelectionManagerTest {
         assertFalse(manager.isSelectionMode.value)
         assertNull(manager.swipeAnchorUri.value)
     }
+
+    @Test
+    fun `the first shift click selects the song and anchors there`() {
+        val manager = SharedSelectionManager()
+
+        manager.extendRange("b.mp3", visible)
+
+        assertEquals(setOf("b.mp3"), manager.selectedUris.value)
+        assertEquals("b.mp3", manager.swipeAnchorUri.value)
+        assertTrue(manager.isSelectionMode.value)
+    }
+
+    @Test
+    fun `shift clicking a second row selects the range and keeps the anchor`() {
+        val manager = SharedSelectionManager()
+        manager.extendRange("b.mp3", visible)
+
+        manager.extendRange("d.mp3", visible)
+
+        assertEquals(setOf("b.mp3", "c.mp3", "d.mp3"), manager.selectedUris.value)
+        assertEquals(
+            "b.mp3",
+            manager.swipeAnchorUri.value,
+            "shift+click is not a one-shot drag: the next click must measure from the same anchor",
+        )
+    }
+
+    @Test
+    fun `shift clicking back towards the anchor shrinks the range instead of adding to it`() {
+        val manager = SharedSelectionManager()
+        manager.extendRange("a.mp3", visible)
+        manager.extendRange("d.mp3", visible)
+        assertEquals(setOf("a.mp3", "b.mp3", "c.mp3", "d.mp3"), manager.selectedUris.value)
+
+        manager.extendRange("b.mp3", visible)
+
+        assertEquals(
+            setOf("a.mp3", "b.mp3"),
+            manager.selectedUris.value,
+            "the range replaces the selection, as Explorer does; a union could only ever grow",
+        )
+        assertEquals("a.mp3", manager.swipeAnchorUri.value)
+    }
+
+    @Test
+    fun `shift clicking an anchor that left the list selects the target alone and re-anchors`() {
+        val manager = SharedSelectionManager()
+        manager.extendRange("gone.mp3", listOf("gone.mp3", "x.mp3"))
+
+        manager.extendRange("c.mp3", visible)
+
+        assertEquals(setOf("c.mp3"), manager.selectedUris.value)
+        assertEquals("c.mp3", manager.swipeAnchorUri.value)
+    }
+
+    @Test
+    fun `shift clicking the anchor itself selects only the anchor`() {
+        val manager = SharedSelectionManager()
+        manager.extendRange("a.mp3", visible)
+        manager.extendRange("d.mp3", visible)
+
+        manager.extendRange("a.mp3", visible)
+
+        assertEquals(setOf("a.mp3"), manager.selectedUris.value)
+        assertEquals("a.mp3", manager.swipeAnchorUri.value)
+    }
+
+    @Test
+    fun `a range selection survives a plain toggle elsewhere in the list`() {
+        val manager = SharedSelectionManager()
+        manager.extendRange("b.mp3", visible)
+        manager.extendRange("c.mp3", visible)
+
+        manager.toggle("a.mp3")
+
+        assertEquals(setOf("a.mp3", "b.mp3", "c.mp3"), manager.selectedUris.value)
+        assertEquals(
+            "b.mp3",
+            manager.swipeAnchorUri.value,
+            "a ctrl+click elsewhere must not move the shift anchor",
+        )
+    }
 }

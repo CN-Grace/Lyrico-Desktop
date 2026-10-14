@@ -46,6 +46,20 @@ data class AppDirectories(
     val settingsFile: File get() = File(root, "settings.preferences_pb")
 
     /**
+     * Window size and position of the last run. Lives beside the database rather than in the registry:
+     * the portable build keeps everything it owns inside one folder, and this file is one more thing it
+     * owns.
+     */
+    val windowStateFile: File get() = File(root, "window.json")
+
+    /**
+     * The file the single-instance lock is taken on. It is never read -- its existence is not the lock,
+     * the OS lock held on it is -- but it has to be inside the data folder so that the lock covers
+     * exactly the database it is protecting.
+     */
+    val instanceLockFile: File get() = File(root, "lyrico.lock")
+
+    /**
      * The edit-field configuration store, kept separate from [settingsFile] because Android kept it
      * separate (its own `Context.editFieldConfigDataStore`) and the two are written by different
      * screens; one store would make every field toggle rewrite the whole settings blob.
